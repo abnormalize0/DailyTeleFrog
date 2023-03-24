@@ -33,11 +33,29 @@ def get_pages():
     pages = backend.get_pages(indexes, user_id)
     return json.dumps(pages)
 
-@app.route("/users", methods=["POST"])
+@app.route("/users/new", methods=["POST"])
 def add_user():
     user_info = request.headers.get('user_info')
     user_id = backend.add_user(user_info)
     return json.dumps(user_id)
+
+@app.route("/users/update", methods=["POST"])
+def update_user_info():
+    user_info = request.headers.get('user_info')
+    backend.update_user_inf(user_info)
+
+@app.route("/users/change_password", methods=["POST"])
+def change_user_password():
+    user_id = request.headers.get("user_id")
+    previous_password = request.headers.get("previous_password")
+    new_password = request.headers.get("new_password")
+    backend.change_password(previous_password, new_password, user_id)
+
+@app.route("/users/check_password", methods=["GET"])
+def check_user_password():
+    user_id = request.headers.get("user_id")
+    password = request.headers.get("password")
+    return json.dumps(backend.check_password(password, user_id))
 
 def run_server():
     app.run(host='0.0.0.0', port=5000)

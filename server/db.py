@@ -16,8 +16,8 @@ def get_unblocked_artiles(blocked_tags=None):
     unblocked_artiles = []
     connection = sqlite3.connect(config.ARTICLESDB)
     cursor = connection.cursor()
-    request = unblocked_article_request(blocked_tags)
-    select = cursor.execute(request)
+    select = unblocked_article_request(blocked_tags)
+    select = cursor.execute(select)
     unblocked_artiles = select.fetchall()
     connection.close()
     return [_[0] for _ in unblocked_artiles]
@@ -25,7 +25,8 @@ def get_unblocked_artiles(blocked_tags=None):
 def get_user_blocked_tags(user_id):
     connection = sqlite3.connect(config.USERSDB)
     cursor = connection.cursor()
-    select = cursor.execute("SELECT blocked_tags FROM users WHERE user_id = ?", [user_id])
+    select = "SELECT blocked_tags FROM users WHERE user_id = {0}".format(user_id)
+    select = cursor.execute(select)
     bloked_tags = select.fetchall()
     connection.close()
     bloked_tags = bloked_tags[0][0].split(config.DELIMITER)[1:-1]
@@ -42,7 +43,8 @@ def create_db_entry(preview):
     tags = tags_to_str(tags)
     connection = sqlite3.connect(config.ARTICLESDB)
     cursor = connection.cursor()
-    cursor.execute("INSERT INTO articles (preview, tags) VALUES (?, ?)", [json.dumps(preview), tags])
+    select = "INSERT INTO articles (preview, tags) VALUES ('{0}', '{1}')".format(json.dumps(preview), tags)
+    cursor.execute(select)
     connection.commit()
     article_id = cursor.lastrowid
     connection.close()
@@ -51,7 +53,8 @@ def create_db_entry(preview):
 def get_author_preview(user_id):
     connection = sqlite3.connect(config.USERSDB)
     cursor = connection.cursor()
-    select = cursor.execute("SELECT name, page, avatar FROM users WHERE user_id = ?", [user_id])
+    select = "SELECT name, page, avatar FROM users WHERE user_id = {0}".format(user_id)
+    select = cursor.execute(select)
     db_info = select.fetchall()
     connection.close()
     author_preview = {}
@@ -64,21 +67,71 @@ def get_author_preview(user_id):
 def get_likes_comments_count(article_id):
     connection = sqlite3.connect(config.ARTICLESDB)
     cursor = connection.cursor()
-    select = cursor.execute("SELECT likes_count, comments_count FROM articles WHERE article_id = ?", [article_id])
+    select = "SELECT likes_count, comments_count FROM articles WHERE article_id = {0}".format(article_id)
+    select = cursor.execute(select)
     select = select.fetchall()
     return select[0][0], select[0][1]
+
+def update_field(user_id, field_name, field_value):
+    connection = sqlite3.connect(config.USERSDB)
+    cursor = connection.cursor()
+    update = "UPDATE users SET {0} = '{1}' WHERE user_id = {2}".format(field_name, 
+                                                                      field_value, 
+                                                                      user_id)
+    cursor.execute(update)
+    connection.commit()
+    connection.close()
 
 def add_user(user_info):
     connection = sqlite3.connect(config.USERSDB)
     cursor = connection.cursor()
-    cursor.execute("INSERT INTO users (name, password, page, avatar, blocked_tags) VALUES (?, ?, ?, ?, ?)", [
-        user_info["name"],
-        user_info["password"],
-        user_info["page"],
-        user_info["avatar"],
-        user_info["blocked_tags"],
-    ])
+    
+    """
+    select return info about all column in %TABLE_NAME%:
+    "id" (number of column in result)
+    "name" (its name); 
+    "type" (data type if given, else ''); 
+    "notnull" (whether or not the column can be NULL); 
+    "dflt_value" (the default value for the column);
+    "pk" (either zero for columns that are not part of the primary key, or the 1-based index of the column within the primary key)
+    """
+    columns = cursor.execute("SELECT * FROM pragma_table_info('users')")
+    columns = columns.fetchall()
+    
+    required_columns = [column_info[1] for column_info in columns if column_info[3]]
+    required_column_names = ""
+    for column_name in required_columns:
+        required_column_names += column_name + ", "
+    required_column_names = required_column_names[:-2]
+
+    required_columns_values = ""
+    for column_name in required_columns:
+        required_columns_values += "'" + str(user_info[column_name]) + "', "
+    required_columns_values = required_columns_values[:-2]
+    select = "INSERT INTO users ({0}) VALUES ({1})".format(required_column_names,
+                                                        required_columns_values)
+    cursor.execute(select)
+    
     connection.commit()
     user_id = cursor.lastrowid
+
+    nonrequired_columns = [column_info[1] for column_info in columns if not column_info[3]]
+    for column_name in nonrequired_columns:
+        if column_name in user_info.keys():
+            update_field(user_id, column_name, user_info[column_name])
+
     connection.close()
     return user_id
+
+def check_password(password, user_id):
+    connection = sqlite3.connect(config.USERSDB)
+    cursor = connection.cursor()
+    select = "SELECT password FROM users WHERE user_id = {0}".format(user_id)
+    stored_password = cursor.execute(select)
+    return password == stored_password
+
+def change_password(password, user_id):
+    connection = sqlite3.connect(config.USERSDB)
+    cursor = connection.cursor()
+    update = "UPDATE users SET password = {0} WHERE user_id = {1}".format(password, user_id)
+    cursor.execute(update)
