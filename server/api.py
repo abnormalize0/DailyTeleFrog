@@ -39,5 +39,5 @@ def add_user():
     user_id = backend.add_user(user_info)
     return json.dumps(user_id)
 
-if __name__ == "__main__": 
+def run_server():
     app.run(host='0.0.0.0', port=5000)

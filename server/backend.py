@@ -41,7 +41,7 @@ def get_pages(indexes, user_id):
 
 def get_article(id):
     article = None
-    with open("articles/" + id + ".json") as file:
+    with open("articles/{0}.json".format(id)) as file:
         article = json.load(file)
     return article
 
@@ -61,3 +61,47 @@ def add_user(user_info):
 
 def get_likes_comments_count(article_id):
     return db.get_likes_comments_count(article_id)
+
+
+if __name__ == "__main__":
+
+    article = {
+        "name": "Почему DOOM Ethernal лучшая игра",
+        "preview_content": {
+            "type": "image",
+            "value": "link to image",
+            "text": "Some text to show"
+        },
+        "tags": [
+            "tag1",
+            "tag2",
+            "tag3"
+        ],
+        "date": {
+            "year": 2023,
+            "month": "февраль",
+            "day": 23,
+            "hour": 20,
+            "min": 53,
+            "sec": 40
+        },
+        "likes_count": 0,
+        "comments": 0,
+    }
+
+    post_article(article, 1)
+
+    print(get_article(1))
+
+    print(get_likes_comments_count(1))
+
+    print(get_pages([0], 1))
+
+    user_info = {}
+    user_info["name"] = "test"
+    user_info["password"] = "123"
+    user_info["page"] = "asd"
+    user_info["avatar"] = "ref"
+    user_info["blocked_tags"] = "ref"
+
+    print(add_user(user_info))
