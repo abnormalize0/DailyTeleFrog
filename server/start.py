@@ -8,7 +8,7 @@ from datetime import datetime
 import api
 import config
 
-def backup_users(work_dir=None):
+def copy_users(work_dir=None):
     if not os.path.exists(config.BACKUPDIRECTORY):
         os.mkdir(config.BACKUPDIRECTORY)
     if not work_dir:
@@ -17,7 +17,7 @@ def backup_users(work_dir=None):
     shutil.copytree(config.USERSDIRECTORY, os.path.join(work_dir, "users"), dirs_exist_ok=True)
     return work_dir
 
-def backup_articles(work_dir=None):
+def copy_articles(work_dir=None):
     if not os.path.exists(config.BACKUPDIRECTORY):
         os.mkdir(config.BACKUPDIRECTORY)
     if not work_dir:
@@ -32,7 +32,7 @@ def backup(work_dir):
     return
 
 def init_users():
-    shutil.rmtree(config.USERSDIRECTORY)
+    shutil.rmtree(config.USERSDIRECTORY, ignore_errors=True)
     os.mkdir(config.USERSDIRECTORY)
     connection = sqlite3.connect(config.USERSDB)
     cursor = connection.cursor()
@@ -48,7 +48,7 @@ def init_users():
     return
 
 def init_articles():
-    shutil.rmtree(config.ARTICLEDIRECTORY)
+    shutil.rmtree(config.ARTICLEDIRECTORY, ignore_errors=True)
     os.mkdir(config.ARTICLEDIRECTORY)
     connection = sqlite3.connect(config.ARTICLESDB)
     cursor = connection.cursor()
@@ -73,19 +73,21 @@ parser.add_argument('--init-articles', action='store_true', help="Create all art
 flags = vars(parser.parse_args(sys.argv[1:]))
 
 if flags["backup"]:
-    work_dir = backup_users()
-    backup_articles(work_dir)
+    work_dir = copy_users()
+    copy_articles(work_dir)
     backup(work_dir)
 else:
     if flags["backup_users"]:
-        backup_users()
+        work_dir = copy_users()
+        backup(work_dir)
 
     if flags["backup_articles"]:
-        backup_articles()
+        work_dir = copy_articles()
+        backup(work_dir)
 
 if flags["init"]:
     init_users()
-    init_articles
+    init_articles()
 else:
     if flags["init_users"]:
         init_users()
