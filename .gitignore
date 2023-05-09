@@ -1,4 +1,3 @@
-/server/articles
-/server/users
+/server/db
 /server/backup
-/server/__pycache__
+__pycache__*

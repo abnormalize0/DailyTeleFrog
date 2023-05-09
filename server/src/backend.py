@@ -1,5 +1,8 @@
 import json
-import db
+import os
+
+from . import db
+from . import config
 
 def get_page_articles(index, blocked_tags):
     ARTICLES_PER_PAGE = 5
@@ -13,21 +16,21 @@ def get_page_articles(index, blocked_tags):
 
 def select_preview(article):
     preview = {}
-    preview["name"] = article["name"]
-    preview["preview_content"] = article["preview_content"]
-    preview["tags"] = article["tags"]
-    preview["date"] = article["date"]
-    preview["author"] = article["author"]
+    preview['name'] = article['name']
+    preview['preview_content'] = article['preview_content']
+    preview['tags'] = article['tags']
+    preview['date'] = article['date']
+    preview['author'] = article['author']
     return preview
 
 def get_page(index, blocked_tags = None):
     page_articles = get_page_articles(index, blocked_tags)
     previews = []
     for article_id in page_articles:
-        with open("articles/{0}.json".format(article_id)) as file:
+        with open(os.path.join(config.ARTICLEDIRECTORY, '{0}.json'.format(article_id))) as file:
             article = json.load(file)
             preview = select_preview(article)
-            preview["id"] = article_id
+            preview['id'] = article_id
             previews.append(preview)
     return previews
 
@@ -41,26 +44,27 @@ def get_pages(indexes, user_id):
 
 def get_article(id):
     article = None
-    with open("articles/{0}.json".format(id)) as file:
+    with open(os.path.join(config.ARTICLEDIRECTORY, '{0}.json'.format(id))) as file:
         article = json.load(file)
     return article
 
 def create_article_file(article_id, article):
-    with open('articles/{0}.json'.format(article_id), 'w+', encoding='utf-8') as file:
+    with open(os.path.join(config.ARTICLEDIRECTORY, '{0}.json'.format(article_id)), 'w+', encoding='utf-8') as file:
         json.dump(article, file, ensure_ascii=False, indent=4)
 
 def post_article(article, user_id):
     author_preview = db.get_author_preview(user_id)
-    article["author"] = author_preview
+    article['author'] = author_preview
     article_preview = select_preview(article)
     article_id = db.create_db_entry(article_preview)
     create_article_file(article_id, article)
+    return article_id
 
 def add_user(user_info):
     return db.add_user(user_info)
 
 def update_user_info(user_info):
-    exluded_fields = ["user_id", "name", "password"]
+    exluded_fields = ['user_id', 'name', 'password']
     for field in user_info.keys():
         if field not in exluded_fields:
             db.update_field(field, user_info[field])
