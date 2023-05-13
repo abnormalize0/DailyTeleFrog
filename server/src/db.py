@@ -110,7 +110,7 @@ def add_user(user_info):
 
     required_columns_values = ''
     for column_name in required_columns:
-        required_columns_values += " + str(user_info[column_name]) + '', "
+        required_columns_values += '"' + str(user_info[column_name]) + '", '
     required_columns_values = required_columns_values[:-2]
     select = 'INSERT INTO users ({0}) VALUES ({1})'.format(required_column_names,
                                                         required_columns_values)

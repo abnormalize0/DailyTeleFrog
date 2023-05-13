@@ -42,7 +42,7 @@ class TestAPI(base_test.BaseTest):
     def test_article_get(self):
         user_id, password = self.add_user()
         article_id = self.add_arcticle(user_id=user_id)
-        requests.get(self.localhost + '/article', headers={'article_id': str(article_id)})
+        requests.get(self.localhost + '/article', headers={'article-id': str(article_id)})
 
     def test_article_post(self):
         user_id, password = self.add_user()
@@ -52,13 +52,13 @@ class TestAPI(base_test.BaseTest):
         user_id, password = self.add_user()
         for i in range(20):
             self.add_arcticle(user_id=user_id)
-        requests.get(self.localhost + '/pages', headers={'user_id': str(user_id),
+        requests.get(self.localhost + '/pages', headers={'user-id': str(user_id),
                                                          'indexes': '1,2'})
 
     def test_article_likes_comments(self):
         user_id, password = self.add_user()
         article_id = self.add_arcticle(user_id=user_id)
-        requests.get(self.localhost + '/article/likes_comments', headers={'article_id': str(article_id)})
+        requests.get(self.localhost + '/article/likes_comments', headers={'article-id': str(article_id)})
 
     def test_user_new(self):
         user_id, password = self.add_user()
@@ -66,17 +66,17 @@ class TestAPI(base_test.BaseTest):
     def test_user_update(self):
         user_id, password = self.add_user()
         user_info = {'name': 'new_name'}
-        requests.post(self.localhost + '/users/update', headers={'user_info': json.dumps(user_info)})
+        requests.post(self.localhost + '/users/update', headers={'user-info': json.dumps(user_info)})
 
     def test_user_change_password(self):
         user_id, password = self.add_user()
-        requests.post(self.localhost + '/users/change_password', headers={'user_id': str(user_id),
-                                                                 'previous_password': password,
-                                                                 'new_password': '1234'})
+        requests.post(self.localhost + '/users/change_password', headers={'user-id': str(user_id),
+                                                                 'previous-password': password,
+                                                                 'new-password': '1234'})
     
     def test_user_check_password(self):
         user_id, password = self.add_user()
-        requests.get(self.localhost + '/users/check_password', headers={'user_id': str(user_id),
+        requests.get(self.localhost + '/users/check_password', headers={'user-id': str(user_id),
                                                                  'password': password,})
 
     def test_number_of_tests(self):

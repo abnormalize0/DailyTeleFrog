@@ -21,7 +21,7 @@ class BaseTest(unittest.TestCase):
         user_info = {'name': 'test_name_' + str(self.user_count),
                      'password': 'password'}
         self.user_count += 1
-        requests.post(self.localhost+'/users/new', headers={'user_info': json.dumps(user_info)})
+        requests.post(self.localhost+'/users/new', headers={'user-info': json.dumps(user_info)})
         return self.user_count, password
     
     def add_arcticle(self, **kwargs):
@@ -30,6 +30,6 @@ class BaseTest(unittest.TestCase):
                    'tags': ['test_tag_1', 'test_tag_2'],
                    'date': '01.01.2000'
         }
-        response = requests.post(self.localhost+'/article', headers={'user_id': str(kwargs['user_id']),
+        response = requests.post(self.localhost+'/article', headers={'user-id': str(kwargs['user_id']),
                                                                      'article': json.dumps(article)})
         return response.json()['article_id']

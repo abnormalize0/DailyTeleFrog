@@ -79,12 +79,38 @@ def run_test(test):
     test_suite.run(result)
     if not result.errors and not result.failures:
         print('Test passed')
+        return True
     else:
         print('Test fail!\n')
         if result.failures:
             print(result.failures[0][1])
         else:
             print(result.errors[0][1])
+        return False
+
+def print_loop_result(passed, failed):
+    if passed:
+        print('Following tests passed:')
+        for test in passed:
+            print(test)
+        print()
+    if failed:
+        print('Following tests failed:')
+        for test in failed:
+            print(test)
+        print()
+
+def loop_step(current_loop, loop_count, tests):
+    passed = []
+    failed = []
+    for i, test in enumerate(tests):
+        print('Loop {0}/{1}\nTest {2}/{3}\t{4}'.format(current_loop, loop_count, i + 1, len(tests), test))
+        if run_test(test):
+            passed.append(test)
+        else:
+            failed.append(test)
+        print('='*100)
+    return passed, failed
 
 #RawTextHelpFormatter support multistring comments
 parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
@@ -112,7 +138,5 @@ if flags['show_only']:
         print(test)
 else:
     for loop_index in range(int(flags['repeat'])):
-        for i, test in enumerate(tests):
-            print('Loop {0}/{1}\nTest {2}/{3}\t{4}'.format(loop_index + 1, flags['repeat'], i + 1, len(tests), test))
-            run_test(test)
-            print('='*100)
+        passed, failed = loop_step(loop_index + 1, flags['repeat'], tests)
+        print_loop_result(passed, failed)
