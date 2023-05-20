@@ -1,5 +1,6 @@
 import sqlite3
 import json
+import os
 
 from . import config
 
@@ -46,7 +47,8 @@ def create_db_entry(preview):
     tags = tags_to_str(tags)
     connection = sqlite3.connect(config.ARTICLESDB)
     cursor = connection.cursor()
-    select = "INSERT INTO articles (preview, tags) VALUES ('{0}', '{1}')".format(json.dumps(preview), tags)
+    select = """INSERT INTO articles (preview, tags, likes_count, likes_id) 
+                VALUES ('{0}', '{1}', '{2}', '{3}')""".format(json.dumps(preview), tags, '0', '')
     cursor.execute(select)
     connection.commit()
     article_id = cursor.lastrowid
@@ -67,7 +69,7 @@ def get_author_preview(user_id):
     author_preview['avatar'] = db_info[0][2]
     return author_preview
 
-def get_likes_comments_count(article_id):
+def get_article_likes_comments(article_id):
     connection = sqlite3.connect(config.ARTICLESDB)
     cursor = connection.cursor()
     select = 'SELECT likes_count, comments_count FROM articles WHERE article_id = {0}'.format(article_id)
@@ -75,12 +77,14 @@ def get_likes_comments_count(article_id):
     select = select.fetchall()
     return select[0][0], select[0][1]
 
-def update_field(user_id, field_name, field_value):
-    connection = sqlite3.connect(config.USERSDB)
+def update_field(db, table_name, id_name, id_value, field_name, field_value):
+    connection = sqlite3.connect(db)
     cursor = connection.cursor()
-    update = "UPDATE users SET {0} = '{1}' WHERE user_id = {2}".format(field_name, 
-                                                                      field_value, 
-                                                                      user_id)
+    update = "UPDATE {0} SET {1} = '{2}' WHERE {3} = {4}".format(table_name,
+                                                                 field_name,
+                                                                 field_value,
+                                                                 id_name,
+                                                                 id_value)
     cursor.execute(update)
     connection.commit()
     connection.close()
@@ -122,8 +126,12 @@ def add_user(user_info):
     nonrequired_columns = [column_info[1] for column_info in columns if not column_info[3]]
     for column_name in nonrequired_columns:
         if column_name in user_info.keys():
-            update_field(user_id, column_name, user_info[column_name])
-
+            update_field(config.USERSDB,
+                         config.USERSTABLENAME,
+                         config.USERSIDNAME,
+                         user_id,
+                         column_name, 
+                         user_info[column_name])
     connection.close()
     return user_id
 
@@ -132,6 +140,7 @@ def check_password(password, user_id):
     cursor = connection.cursor()
     select = 'SELECT password FROM users WHERE user_id = {0}'.format(user_id)
     stored_password = cursor.execute(select)
+    connection.close()
     return password == stored_password
 
 def change_password(password, user_id):
@@ -139,3 +148,151 @@ def change_password(password, user_id):
     cursor = connection.cursor()
     update = 'UPDATE users SET password = {0} WHERE user_id = {1}'.format(password, user_id)
     cursor.execute(update)
+    connection.close()
+
+def set_likes_on_article(id, likes_count):
+    article = None
+    with open(os.path.join(config.ARTICLEDIRECTORY, '{0}.json'.format(id)), encoding="utf-8") as file:
+        article = json.load(file)
+    article['likes_count'] = likes_count
+    with open(os.path.join(config.ARTICLEDIRECTORY, '{0}.json'.format(id)), 'w', encoding="utf-8") as file:
+        json.dump(article, file, ensure_ascii=False, indent=4)
+
+def find_comment(root_comment, likes_count, id):
+    if root_comment['id'] == int(id):
+        root_comment['likes_count'] = likes_count
+        return True, root_comment
+    for index, child_comment in enumerate(root_comment['answers']):
+        is_changed, changed_comments = find_comment(child_comment, likes_count, id)
+        if is_changed:
+            root_comment['answers'][index] = changed_comments
+            return True, root_comment
+    return False, None
+
+def set_likes_on_comment(file_name, id, likes_count):
+    article = None
+    with open(file_name, encoding="utf-8") as file:
+        article = json.load(file)
+    for index, root_comment in enumerate(article['comments']):
+        is_changed, changed_comments = find_comment(root_comment, likes_count, id)
+        if is_changed:
+            article['comments'][index] = changed_comments
+            break
+    with open(file_name, 'w', encoding="utf-8") as file:
+        json.dump(article, file, ensure_ascii=False, indent=4)
+    return
+
+def like(db, table_name, id_name, id, user_id):
+    connection = sqlite3.connect(db)
+    cursor = connection.cursor()
+    select = 'SELECT likes_id FROM {0} WHERE {1} = {2}'.format(table_name, id_name, id)
+    select = cursor.execute(select)
+    select = select.fetchall()[0][0]
+    if not select:
+        select = ''
+    change = 1
+
+    if user_id not in select.split(config.DELIMITER):
+        update_field(db,
+                     table_name,
+                     id_name,
+                     id,
+                     'likes_id',
+                     select + '{0}{1}{0}'.format(config.DELIMITER, user_id))
+    else:
+        update_field(db,
+                     table_name,
+                     id_name,
+                     id,
+                     'likes_id',
+                     select.replace('{0}{1}{0}'.format(config.DELIMITER, user_id), ''))
+        change = -1
+
+    select = 'SELECT likes_count FROM {0} WHERE {1} = {2}'.format(table_name, id_name, id)
+    select = cursor.execute(select)
+    select = select.fetchall()[0][0]
+    likes_count = select + change
+    update_field(db,
+                 table_name,
+                 id_name,
+                 id,
+                 'likes_count',
+                 likes_count)
+    connection.close()
+
+    if db == config.ARTICLESDB:
+        set_likes_on_article(id, likes_count)
+    if db == config.COMMENTSDB:
+        connection = sqlite3.connect(db)
+        cursor = connection.cursor()
+        select = 'SELECT article_id FROM {0} WHERE {1} = {2}'.format(table_name, id_name, id)
+        select = cursor.execute(select)
+        select = select.fetchall()[0][0]
+        file_name = os.path.join(config.ARTICLEDIRECTORY, '{0}.json'.format(select))
+        set_likes_on_comment(file_name, id, likes_count)
+
+def get_comment_likes(comment_id):
+    connection = sqlite3.connect(config.COMMENTSDB)
+    cursor = connection.cursor()
+    select = 'SELECT likes_count FROM {0} WHERE {1} = {2}'.format(config.COMMENTSTABLENAME,
+                                                                  config.COMMENTSIDNAME,
+                                                                  comment_id)
+    select = cursor.execute(select)
+    select = select.fetchall()
+    connection.close()
+    return select[0][0]
+
+def create_comment(article_id, user_id):
+    connection = sqlite3.connect(config.COMMENTSDB)
+    cursor = connection.cursor()
+    select = '''INSERT INTO {0} (likes_count, 
+    likes_id, 
+    article_id, 
+    author_id) VALUES ("{1}", "{2}", "{3}", "{4}")'''.format(config.COMMENTSTABLENAME, 
+                                                     '1',
+                                                     config.DELIMITER + str(user_id) + config.DELIMITER,
+                                                     str(article_id),
+                                                     str(user_id))
+    cursor.execute(select)
+    connection.commit()
+    comment_id = cursor.lastrowid
+    connection.close()
+    return comment_id
+
+def add_answer(root, comment, root_id):
+    if root['id'] == int(root_id):
+        root['answers'].append(comment)
+        return True, root
+    for index, child_root in enumerate(root['answers']):
+        is_changed, changed_comments = add_answer(child_root, comment, root_id)
+        if is_changed:
+            root['answers'][index] = changed_comments
+            return True, root
+    return False, None
+
+def add_comment(article_id, root_id, comment_text, user_id):
+
+    comment_id = create_comment(article_id, user_id)
+    comment = {'comment_text': comment_text,
+               'author_id': user_id,
+               'likes_count': 1,
+               'id': comment_id,
+               'answers': []}
+
+    file_name = os.path.join(config.ARTICLEDIRECTORY, '{0}.json'.format(article_id))
+    article = None
+    with open(file_name) as file:
+        article = json.load(file)
+    if int(root_id) == -1:
+        article['comments'].append(comment)
+    else:
+        for index, root in enumerate(article['comments']):
+            is_added, changed_answers = add_answer(root, comment, root_id)
+            if is_added:
+                article['comments'][index] = changed_answers
+                break
+
+    with open(file_name, 'w') as file:
+        json.dump(article, file, ensure_ascii=False, indent=4)
+
+    return comment_id

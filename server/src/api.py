@@ -15,17 +15,46 @@ def api_get_article():
     return json.dumps(article)
 
 @app.route('/article/likes_comments', methods=['GET'])
-def api_get_likes_comments_count():
+def api_get_article_likes_comments():
     article_id = request.headers.get('article-id')
-    likes_comments = backend.get_likes_comments_count(article_id)
+    likes_comments = backend.get_article_likes_comments(article_id)
     return json.dumps(likes_comments)
 
 @app.route('/article', methods=['POST'])
 def api_post_article():
     article = json.loads(request.headers.get('article'))
-    user_id = request.headers.get('user_id')
-    id = backend.post_article(article, user_id)
-    return json.dumps({'article_id': id})
+    user_id = request.headers.get('user-id')
+    article_id = backend.post_article(article, user_id)
+    return json.dumps({'article-id': article_id})
+
+@app.route('/article/like', methods=['POST'])
+def api_like_article():
+    user_id = request.headers.get('user-id')
+    article_id = request.headers.get('article-id')
+    backend.like_article(article_id, user_id)
+    return json.dumps({})
+
+@app.route('/article/comments/add', methods=['POST'])
+def api_add_comment():
+    user_id = request.headers.get('user-id')
+    article_id = request.headers.get('article-id')
+    root = request.headers.get('root')
+    cooment_text = request.headers.get('text')
+    id = backend.article_add_comment(article_id, root, cooment_text, user_id)
+    return json.dumps({'comment-id': id})
+
+@app.route('/article/comments/like', methods=['POST'])
+def api_like_comment():
+    user_id = request.headers.get('user-id')
+    comment_id = request.headers.get('comment-id')
+    backend.like_comment(comment_id, user_id)
+    return json.dumps({})
+
+@app.route('/article/comments/like', methods=['GET'])
+def api_getcomments_likes():
+    comment_id = request.headers.get('comment-id')
+    likes_count = backend.get_comment_likes(comment_id)
+    return json.dumps({'likes-count': likes_count})
 
 @app.route('/pages', methods=['GET'])
 def api_get_pages():

@@ -7,6 +7,7 @@ class BaseTest(unittest.TestCase):
     workdir = 'test_tmp'
     user_db_filepath = os.path.join(workdir, 'users')
     article_db_filepath = os.path.join(workdir, 'articles')
+    comments_db_filepath = os.path.join(workdir, 'comments')
     localhost = 'http://127.0.0.1:5000'
     user_count = 0
 
@@ -32,4 +33,4 @@ class BaseTest(unittest.TestCase):
         }
         response = requests.post(self.localhost+'/article', headers={'user-id': str(kwargs['user_id']),
                                                                      'article': json.dumps(article)})
-        return response.json()['article_id']
+        return response.json()['article-id']

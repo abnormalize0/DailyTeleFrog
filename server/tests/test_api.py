@@ -25,6 +25,7 @@ class TestAPI(base_test.BaseTest):
         self.server = subprocess.Popen(['python3', '../start.py', '-i',
                         '--user-db-filepath', self.user_db_filepath, 
                         '--articles-db-filepath', self.article_db_filepath,
+                        '--comments-db-filepath', self.comments_db_filepath,
                         ], stdout=subprocess.PIPE)
 
         while True:
@@ -78,6 +79,47 @@ class TestAPI(base_test.BaseTest):
         user_id, password = self.add_user()
         requests.get(self.localhost + '/users/check_password', headers={'user-id': str(user_id),
                                                                  'password': password,})
+
+    def test_get_comments_like(self):
+        user_id, password = self.add_user()
+        article_id = self.add_arcticle(user_id=user_id)
+        comment_text = "comment 1"
+        comment_id = requests.post(self.localhost + '/article/comments/add', headers={'user-id': str(user_id),
+                                                                        'article-id': str(article_id),
+                                                                        'root': str(-1),
+                                                                        'text': comment_text})
+        comment_id = comment_id.json()['comment-id']
+        likes_count = requests.get(self.localhost + '/article/comments/like', 
+                                    headers={'comment-id': str(comment_id)})
+        self.assertEqual(likes_count.json()['likes-count'], 1, 'Like doesnt work')
+
+    def test_like_article(self):
+        user_id, password = self.add_user()
+        article_id = self.add_arcticle(user_id=user_id)
+        requests.post(self.localhost + '/article/like', headers={'user-id': str(user_id),
+                                                                 'article-id': str(article_id)})
+
+    def test_like_comment(self):
+        user_id, password = self.add_user()
+        article_id = self.add_arcticle(user_id=user_id)
+        comment_text = "comment 1"
+        comment_id = requests.post(self.localhost + '/article/comments/add', headers={'user-id': str(user_id),
+                                                                        'article-id': str(article_id),
+                                                                        'root': str(-1),
+                                                                        'text': comment_text})
+        comment_id = comment_id.json()['comment-id']
+        requests.post(self.localhost + '/article/comments/like', 
+                      headers={'comment-id': str(comment_id),
+                               'user-id': str(user_id)})
+
+    def test_post_comment(self):
+        user_id, password = self.add_user()
+        article_id = self.add_arcticle(user_id=user_id)
+        comment_text = "comment 1"
+        requests.post(self.localhost + '/article/comments/add', headers={'user-id': str(user_id),
+                                                                        'article-id': str(article_id),
+                                                                        'root': str(-1),
+                                                                        'text': comment_text})
 
     def test_number_of_tests(self):
         api = open('../src/api.py', 'r')

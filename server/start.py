@@ -42,14 +42,14 @@ def init_users(path):
     os.makedirs(config.USERSDIRECTORY)
     connection = sqlite3.connect(config.USERSDB)
     cursor = connection.cursor()
-    cursor.execute('''CREATE TABLE users (
-                            user_id INTEGER PRIMARY KEY,
+    cursor.execute('''CREATE TABLE {0} (
+                            {1} INTEGER PRIMARY KEY,
                             name TEXT UNIQUE NOT NULL,
                             password TEXT NOT NULL,
                             page TEXT,
                             avatar TEXT,
                             blocked_tags TEXT)
-    ''')
+    '''.format(config.USERSTABLENAME, config.USERSIDNAME))
     connection.close()
     return
 
@@ -63,13 +63,34 @@ def init_articles(path):
     os.makedirs(config.ARTICLEDIRECTORY)
     connection = sqlite3.connect(config.ARTICLESDB)
     cursor = connection.cursor()
-    cursor.execute('''CREATE TABLE articles (
-                            article_id INTEGER PRIMARY KEY,
+    cursor.execute('''CREATE TABLE {0} (
+                            {1} INTEGER PRIMARY KEY,
                             likes_count INTEGER,
+                            likes_id TEXT,
                             comments_count INTEGER,
                             preview JSON NOT NULL,
                             tags TEXT)
-    ''')
+    '''.format(config.ARTICLESTABLENAME, config.ARTICLESIDNAME))
+    connection.close()
+    return
+
+def init_comments(path):
+    shutil.rmtree(config.COMMENTSDIRECTORY, ignore_errors=True)
+    if not path:
+        config.COMMENTSDIRECTORY = config.DEFAULTCOMMENTSDIRECTORY
+    else:
+        config.COMMENTSDIRECTORY = path
+        config.COMMENTSDB = os.path.join(config.COMMENTSDIRECTORY, 'comments.db')
+    os.makedirs(config.COMMENTSDIRECTORY)
+    connection = sqlite3.connect(config.COMMENTSDB)
+    cursor = connection.cursor()
+    cursor.execute('''CREATE TABLE {0} (
+                            {1} INTEGER PRIMARY KEY,
+                            likes_count INTEGER,
+                            likes_id TEXT,
+                            article_id INTEGER,
+                            author_id INTEGER)
+    '''.format(config.COMMENTSTABLENAME, config.COMMENTSIDNAME))
     connection.close()
     return
 
@@ -90,11 +111,15 @@ parser.add_argument('--init-users', action='store_true',
                     help='Create all users databases. Existing database will be deleted')
 parser.add_argument('--init-articles', action='store_true',
                     help='Create all articles databases. Existing database will be deleted')
+parser.add_argument('--init-comments', action='store_true',
+                    help='Create all comments databases. Existing database will be deleted')
 parser.add_argument('--dont-start-server', action='store_true', default=False,
                     help="Don't start the server")
 parser.add_argument('--user-db-filepath',
                     help='Set filepath for user databases')
 parser.add_argument('--articles-db-filepath',
+                    help='Set filepath for articles databases')
+parser.add_argument('--comments-db-filepath',
                     help='Set filepath for articles databases')
 
 flags = vars(parser.parse_args(sys.argv[1:]))
@@ -115,12 +140,16 @@ else:
 if flags['init']:
     init_users(flags['user_db_filepath'])
     init_articles(flags['articles_db_filepath'])
+    init_comments(flags['comments_db_filepath'])
 else:
     if flags['init_users']:
         init_users(flags['user_db_filepath'])
 
     if flags['init_articles']:
         init_articles(flags['articles_db_filepath'])
+
+    if flags['init_comments']:
+        init_comments(flags['comments_db_filepath'])
 
 if not flags['dont_start_server']:
     api.run_server()
