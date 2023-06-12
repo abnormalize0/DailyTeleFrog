@@ -51,7 +51,7 @@ def api_like_comment():
     return json.dumps({})
 
 @app.route('/article/comments/like', methods=['GET'])
-def api_getcomments_likes():
+def api_get_comments_likes():
     comment_id = request.headers.get('comment-id')
     likes_count = backend.get_comment_likes(comment_id)
     return json.dumps({'likes-count': likes_count})
@@ -69,7 +69,7 @@ def api_get_pages():
 def api_add_user():
     user_info = json.loads(request.headers.get('user-info'))
     user_id = backend.add_user(user_info)
-    return json.dumps(user_id)
+    return json.dumps({'user-id', user_id})
 
 @app.route('/users/update', methods=['POST'])
 def api_update_user_info():
@@ -89,7 +89,8 @@ def api_change_user_password():
 def api_check_user_password():
     user_id = request.headers.get('user-id')
     password = request.headers.get('password')
-    return json.dumps(backend.check_password(password, user_id))
+    is_password_correct = backend.check_password(password, user_id)
+    return json.dumps({'status': is_password_correct})
 
 def run_server():
     print('Running...')
