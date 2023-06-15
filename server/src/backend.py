@@ -71,7 +71,8 @@ def update_user_info(user_info):
             db.update_field(field, user_info[field])
 
 def get_article_likes_comments(article_id):
-    return db.get_article_likes_comments(article_id)
+    likes_count, comments_count = db.get_article_likes_comments(article_id)
+    return {'likes_count': likes_count, 'comments_count': comments_count}
 
 def check_password(password, user_id):
     return db.check_password(password, user_id)

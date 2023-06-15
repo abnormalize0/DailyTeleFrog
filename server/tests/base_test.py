@@ -27,7 +27,7 @@ class BaseTest(unittest.TestCase):
     
     def add_arcticle(self, **kwargs):
         article = {'name': 'test_name',
-                   'preview_content': {'type': 'png', 'data': 'test_data'},
+                   'preview_content': {'type': 'image', 'data': 'ref'},
                    'tags': ['test_tag_1', 'test_tag_2'],
                    'date': '01.01.2000'
         }
