@@ -69,7 +69,7 @@ def api_get_pages():
 def api_add_user():
     user_info = json.loads(request.headers.get('user-info'))
     user_id = backend.add_user(user_info)
-    return json.dumps({'user-id', user_id})
+    return json.dumps({'user-id': user_id})
 
 @app.route('/users/update', methods=['POST'])
 def api_update_user_info():
