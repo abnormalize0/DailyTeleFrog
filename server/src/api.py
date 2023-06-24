@@ -73,8 +73,9 @@ def api_add_user():
 
 @app.route('/users/update', methods=['POST'])
 def api_update_user_info():
+    user_id = int(request.headers.get('user-id'))
     user_info = json.loads(request.headers.get('user-info'))
-    backend.update_user_info(user_info)
+    backend.update_user_info(user_info, user_id)
     return json.dumps({})
 
 @app.route('/users/change_password', methods=['POST'])

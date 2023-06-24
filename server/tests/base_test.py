@@ -20,7 +20,7 @@ class BaseTest(unittest.TestCase):
     def add_user(self, **kwargs):
         password = 'qwerty'
         user_info = {'name': 'test_name_' + str(self.user_count),
-                     'password': 'password'}
+                     'password': password}
         self.user_count += 1
         requests.post(self.localhost+'/users/new', headers={'user-info': json.dumps(user_info)})
         return self.user_count, password
