@@ -88,8 +88,8 @@ def init_comments(path):
                             {1} INTEGER PRIMARY KEY,
                             likes_count INTEGER,
                             likes_id TEXT,
-                            article_id INTEGER,
-                            author_id INTEGER)
+                            article_id INTEGER NOT NULL,
+                            author_id INTEGER NOT NULL)
     '''.format(config.COMMENTSTABLENAME, config.COMMENTSIDNAME))
     connection.close()
     return

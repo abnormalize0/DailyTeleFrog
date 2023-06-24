@@ -4,10 +4,7 @@ import subprocess
 import shutil
 import signal
 import json
-import importlib
-import sys
 import re
-import inspect
 
 import base_test
 
@@ -26,7 +23,7 @@ class TestAPI(base_test.BaseTest):
                         '--user-db-filepath', self.user_db_filepath, 
                         '--articles-db-filepath', self.article_db_filepath,
                         '--comments-db-filepath', self.comments_db_filepath,
-                        ], stdout=subprocess.PIPE)
+                        ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
         while True:
             nextline = self.server.stdout.readline()
@@ -37,8 +34,8 @@ class TestAPI(base_test.BaseTest):
         pid_file.write(str(self.server.pid))
 
     def tearDown(self):
-        shutil.rmtree(self.workdir, ignore_errors=True)
         self.server.terminate()
+        shutil.rmtree(self.workdir, ignore_errors=True)
 
     def test_article_get(self):
         user_id, password = self.add_user()
