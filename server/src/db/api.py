@@ -199,7 +199,7 @@ def post_article_to_db(preview):
                                   config.ARTICLESTABLENAME,
                                   config.ARTICLESIDNAME,
                                   preview)
-    return article_id
+    return article_id['id']
 
 def add_user(info):
     user_id = worker.add_entry(config.USERSDB,
