@@ -17,6 +17,7 @@
       <router-link to="/about">О сайте</router-link> |
       <span v-if="!login"><router-link to="/login">Войти</router-link> | </span>
       <span v-if="!login"><router-link to="/register">Регистрация</router-link> </span>
+      <span v-if="login"><router-link to="/new_post">Добавить статью</router-link> | </span>
       <span v-if="login"><router-link to="/profile">Профиль</router-link> | </span>
       <span v-if="login"><router-link to="/exit">Выйти</router-link> </span>
     </nav>

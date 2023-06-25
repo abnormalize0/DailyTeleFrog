@@ -1,37 +1,41 @@
 <script setup>
 import { ref, onMounted, onUpdated } from 'vue'
 
+var PAGE_PER_ARTICLES = 5;
 
 var page = 0;
 var post_id = 1;
-var load_line_id = 0;
-var load_line_element = 0;
+var load_line_id = PAGE_PER_ARTICLES;
 var allow = 0;
 
 onMounted(() => {
   get_posts(page);
   posts.value.splice(0);
+  load_line_id = PAGE_PER_ARTICLES;
+  page = 0
 })
 
 onUpdated(() => {
   console.log("rendered");
-  load_line_id = load_line_id + 5;
   allow = 1;
   post_id = 1;
 })
 
 document.addEventListener("scroll", (event) => {
   if (allow === 0) {
+    console.log("forbid");
     return;
   }
   var element = document.getElementById('post' + load_line_id);
   if (element == null) {
-    document.getElementById("feed").innerHTML += "<div class='post-item'>Отличная работа, все прочитано!</div>";
+    console.log("empty");
     allow = 0;
     return;
   }
-  load_line_element = element.getBoundingClientRect();
+  var load_line_element = element.getBoundingClientRect();
   if (load_line_element.bottom <= (window.innerHeight || document.documentElement.clientHeight)) {
+    console.log("resolved");
+    load_line_id += PAGE_PER_ARTICLES;
     allow = 0;
     page++;
     get_posts(page);
@@ -72,7 +76,7 @@ async function get_posts(page) {
       id: i,
       title: decodeURIComponent(json[page][i]["name"]),
       date: json[page][i]["date"],
-      preview: decodeURIComponent(json[page][i]["preview_content"]),
+      preview: decodeURIComponent(json[page][i]["preview"]),
       tags: decodeURIComponent(json[page][i]["tags"])
     })
   }
