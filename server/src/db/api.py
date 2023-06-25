@@ -38,7 +38,7 @@ def get_user_blocked_tags(user_id):
                                  id_value=user_id)
 
     bloked_tags = None
-    if data:
+    if 'blocked_tags'  in data.keys() and data['blocked_tags']:
         bloked_tags = data['blocked_tags'].split(config.DELIMITER)[1:-1]
     return bloked_tags
 
@@ -46,11 +46,11 @@ def get_unblocked_artiles(blocked_tags=None):
     exclude_data = None
     if blocked_tags:
         exclude_data = {'tags': blocked_tags}
-    articles_id = worker.get_entry_data(config.USERSDB,
-                          config.USERSTABLENAME,
-                          [config.ARTICLESIDNAME],
-                          exclude=exclude_data)
-    return articles_id
+    articles_id = worker.get_entry_data(config.ARTICLESDB,
+                                        config.ARTICLESTABLENAME,
+                                        [config.ARTICLESIDNAME],
+                                        exclude=exclude_data)
+    return articles_id[config.ARTICLESIDNAME]
 
 def get_likes_comments_from_article(article_id):
     likes_and_comments_count = worker.get_entry_data(config.USERSDB,
