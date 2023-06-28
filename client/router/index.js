@@ -5,6 +5,7 @@ import ExitView from '../views/ExitView.vue'
 import RegisterView from '../views/RegisterView.vue'
 import LoginView from '../views/LoginView.vue'
 import NewPostView from '../views/NewPostView.vue'
+import PostView from '../views/PostView.vue'
 
 const routes = [
   {
@@ -41,6 +42,11 @@ const routes = [
     path: '/new_post',
     name: 'new_post',
     component: NewPostView
+  },
+  {
+    path: '/post/:id',
+    name: 'post',
+    component: PostView
   }
 ]
 

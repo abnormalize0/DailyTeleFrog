@@ -48,12 +48,17 @@ document.addEventListener("scroll", (event) => {
   <section class="posts-list">
     <div class="list">
       <div id="feed">
-        <div v-for="post in posts" :key="post.id" :class="`post-item`" :id="'post' + post_id++">
-            <h1>{{ post.title }}</h1>
-            <h2>{{ post.preview }}</h2>
-            <i>{{ post.tags }}</i><br>
-            <i>{{ post.date }}</i>
-          <br><br>
+        <div v-for="post in posts" :key="post.id" >
+          <router-link :to="{ name: 'post', params: { id: post.article_id } }" custom v-slot="{ navigate }">
+            <div @click="navigate" :class="`post-item`" :id="'post' + post_id++">
+              <h1>{{ post.article_id }}</h1>
+              <h1>{{ post.title }}</h1>
+              <h2>{{ post.preview }}</h2>
+              <i>{{ post.tags }}</i><br>
+              <i>{{ post.date }}</i>
+              <br><br>
+            </div>
+          </router-link>
         </div>
       </div>
     </div>
@@ -72,12 +77,14 @@ async function get_posts(page) {
   } )
   let json = await response.json();
   for (var i = 0; i < json[page].length; i++) {
+    console.log(json[page][i]);
     posts.value.push({
       id: i,
       title: decodeURIComponent(json[page][i]["name"]),
       date: json[page][i]["date"],
       preview: decodeURIComponent(json[page][i]["preview"]),
-      tags: decodeURIComponent(json[page][i]["tags"])
+      tags: decodeURIComponent(json[page][i]["tags"]),
+      article_id: json[page][i]["id"]
     })
   }
 }
