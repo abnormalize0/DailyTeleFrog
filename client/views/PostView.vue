@@ -9,7 +9,9 @@ async function get_post(id) {
     }
   } )
   let json = await response.json();
-  console.log(json)
+  let element = document.getElementById("post-item");
+  console.log(json);
+  element.innerHTML += json['preview_content'];
 }
 
 onMounted(() => {
@@ -18,7 +20,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="about">
+  <div class="post-item" id="post-item">
     <h1>Пост</h1>
     {{$route.params.id }}
   </div>

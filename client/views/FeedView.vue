@@ -51,7 +51,6 @@ document.addEventListener("scroll", (event) => {
         <div v-for="post in posts" :key="post.id" >
           <router-link :to="{ name: 'post', params: { id: post.article_id } }" custom v-slot="{ navigate }">
             <div @click="navigate" :class="`post-item`" :id="'post' + post_id++">
-              <h1>{{ post.article_id }}</h1>
               <h1>{{ post.title }}</h1>
               <h2>{{ post.preview }}</h2>
               <i>{{ post.tags }}</i><br>
