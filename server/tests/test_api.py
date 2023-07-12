@@ -38,50 +38,50 @@ class TestAPI(base_test.BaseTest):
         shutil.rmtree(self.workdir, ignore_errors=True)
 
     def test_article_get(self):
-        user_id, password = self.add_user()
-        article_id = self.add_arcticle(user_id=user_id)
+        login, password = self.add_user()
+        article_id = self.add_arcticle(login=login)
         requests.get(self.localhost + '/article', headers={'article-id': str(article_id)})
 
     def test_article_post(self):
-        user_id, password = self.add_user()
-        article_id = self.add_arcticle(user_id=user_id)
+        login, password = self.add_user()
+        article_id = self.add_arcticle(login=login)
 
     def test_pages(self):
-        user_id, password = self.add_user()
+        login, password = self.add_user()
         for i in range(20):
-            self.add_arcticle(user_id=user_id)
-        requests.get(self.localhost + '/pages', headers={'user-id': str(user_id),
+            self.add_arcticle(login=login)
+        requests.get(self.localhost + '/pages', headers={'login': str(login),
                                                          'indexes': '1,2'})
 
     def test_article_likes_comments(self):
-        user_id, password = self.add_user()
-        article_id = self.add_arcticle(user_id=user_id)
+        login, password = self.add_user()
+        article_id = self.add_arcticle(login=login)
         requests.get(self.localhost + '/article/likes_comments', headers={'article-id': str(article_id)})
 
     def test_user_new(self):
-        user_id, password = self.add_user()
+        login, password = self.add_user()
 
     def test_user_update(self):
-        user_id, password = self.add_user()
-        user_info = {'name': 'new_name'}
+        login, password = self.add_user()
+        user_info = {'nickname': 'new_name'}
         requests.post(self.localhost + '/users/update', headers={'user-info': json.dumps(user_info)})
 
     def test_user_change_password(self):
-        user_id, password = self.add_user()
-        requests.post(self.localhost + '/users/change_password', headers={'user-id': str(user_id),
+        login, password = self.add_user()
+        requests.post(self.localhost + '/users/change_password', headers={'login': str(login),
                                                                  'previous-password': password,
                                                                  'new-password': '1234'})
     
     def test_user_check_password(self):
-        user_id, password = self.add_user()
-        requests.get(self.localhost + '/users/check_password', headers={'user-id': str(user_id),
+        login, password = self.add_user()
+        requests.get(self.localhost + '/users/check_password', headers={'login': str(login),
                                                                  'password': password,})
 
     def test_get_comments_like(self):
-        user_id, password = self.add_user()
-        article_id = self.add_arcticle(user_id=user_id)
+        login, password = self.add_user()
+        article_id = self.add_arcticle(login=login)
         comment_text = "comment 1"
-        comment_id = requests.post(self.localhost + '/article/comments/add', headers={'user-id': str(user_id),
+        comment_id = requests.post(self.localhost + '/article/comments/add', headers={'login': str(login),
                                                                         'article-id': str(article_id),
                                                                         'root': str(-1),
                                                                         'text': comment_text})
@@ -91,29 +91,29 @@ class TestAPI(base_test.BaseTest):
         self.assertEqual(likes_count.json()['likes-count'], 1, 'Like doesnt work')
 
     def test_like_article(self):
-        user_id, password = self.add_user()
-        article_id = self.add_arcticle(user_id=user_id)
-        requests.post(self.localhost + '/article/like', headers={'user-id': str(user_id),
+        login, password = self.add_user()
+        article_id = self.add_arcticle(login=login)
+        requests.post(self.localhost + '/article/like', headers={'login': str(login),
                                                                  'article-id': str(article_id)})
 
     def test_like_comment(self):
-        user_id, password = self.add_user()
-        article_id = self.add_arcticle(user_id=user_id)
+        login, password = self.add_user()
+        article_id = self.add_arcticle(login=login)
         comment_text = "comment 1"
-        comment_id = requests.post(self.localhost + '/article/comments/add', headers={'user-id': str(user_id),
+        comment_id = requests.post(self.localhost + '/article/comments/add', headers={'login': str(login),
                                                                         'article-id': str(article_id),
                                                                         'root': str(-1),
                                                                         'text': comment_text})
         comment_id = comment_id.json()['comment-id']
         requests.post(self.localhost + '/article/comments/like', 
                       headers={'comment-id': str(comment_id),
-                               'user-id': str(user_id)})
+                               'login': str(login)})
 
     def test_post_comment(self):
-        user_id, password = self.add_user()
-        article_id = self.add_arcticle(user_id=user_id)
+        login, password = self.add_user()
+        article_id = self.add_arcticle(login=login)
         comment_text = "comment 1"
-        requests.post(self.localhost + '/article/comments/add', headers={'user-id': str(user_id),
+        requests.post(self.localhost + '/article/comments/add', headers={'login': str(login),
                                                                         'article-id': str(article_id),
                                                                         'root': str(-1),
                                                                         'text': comment_text})

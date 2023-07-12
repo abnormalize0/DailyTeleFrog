@@ -43,8 +43,8 @@ def init_users(path):
     connection = sqlite3.connect(config.USERSDB)
     cursor = connection.cursor()
     cursor.execute('''CREATE TABLE {0} (
-                            {1} INTEGER PRIMARY KEY,
-                            name TEXT UNIQUE NOT NULL,
+                            {1} TEXT PRIMARY KEY,
+                            nickname TEXT UNIQUE NOT NULL,
                             password TEXT NOT NULL,
                             page TEXT,
                             avatar TEXT,

@@ -23,31 +23,31 @@ def api_get_article_likes_comments():
 @app.route('/article', methods=['POST'])
 def api_post_article():
     article = json.loads(request.headers.get('article'))
-    user_id = request.headers.get('user-id')
-    article_id = backend.post_article(article, user_id)
+    login = request.headers.get('login')
+    article_id = backend.post_article(article, login)
     return json.dumps({'article-id': article_id})
 
 @app.route('/article/like', methods=['POST'])
 def api_like_article():
-    user_id = request.headers.get('user-id')
+    login = request.headers.get('login')
     article_id = request.headers.get('article-id')
-    backend.like_article(article_id, user_id)
+    backend.like_article(article_id, login)
     return json.dumps({})
 
 @app.route('/article/comments/add', methods=['POST'])
 def api_add_comment():
-    user_id = request.headers.get('user-id')
+    login = request.headers.get('login')
     article_id = request.headers.get('article-id')
     root = request.headers.get('root')
     cooment_text = request.headers.get('text')
-    id = backend.article_add_comment(article_id, root, cooment_text, user_id)
+    id = backend.article_add_comment(article_id, root, cooment_text, login)
     return json.dumps({'comment-id': id})
 
 @app.route('/article/comments/like', methods=['POST'])
 def api_like_comment():
-    user_id = request.headers.get('user-id')
+    login = request.headers.get('login')
     comment_id = request.headers.get('comment-id')
-    backend.like_comment(comment_id, user_id)
+    backend.like_comment(comment_id, login)
     return json.dumps({})
 
 @app.route('/article/comments/like', methods=['GET'])
@@ -58,39 +58,39 @@ def api_get_comments_likes():
 
 @app.route('/pages', methods=['GET'])
 def api_get_pages():
-    user_id = request.headers.get('user-id')
+    login = request.headers.get('login')
     indexes = request.headers.get('indexes')
     indexes = indexes.split(',')
     indexes = [int(index) for index in indexes]
-    pages = backend.get_pages(indexes, user_id)
+    pages = backend.get_pages(indexes, login)
     return json.dumps(pages)
 
 @app.route('/users/new', methods=['POST'])
 def api_add_user():
     user_info = json.loads(request.headers.get('user-info'))
-    user_id = backend.add_user(user_info)
-    return json.dumps({'user-id': user_id})
+    login = backend.add_user(user_info)
+    return json.dumps({'login': login})
 
 @app.route('/users/update', methods=['POST'])
 def api_update_user_info():
-    user_id = int(request.headers.get('user-id'))
+    login = int(request.headers.get('login'))
     user_info = json.loads(request.headers.get('user-info'))
-    backend.update_user_info(user_info, user_id)
+    backend.update_user_info(user_info, login)
     return json.dumps({})
 
 @app.route('/users/change_password', methods=['POST'])
 def api_change_user_password():
-    user_id = request.headers.get('user-id')
+    login = request.headers.get('login')
     previous_password = request.headers.get('previous-password')
     new_password = request.headers.get('new-password')
-    backend.change_password(previous_password, new_password, user_id)
+    backend.change_password(previous_password, new_password, login)
     return json.dumps({})
 
 @app.route('/users/check_password', methods=['GET'])
 def api_check_user_password():
-    user_id = request.headers.get('user-id')
+    login = request.headers.get('login')
     password = request.headers.get('password')
-    is_password_correct = backend.check_password(password, user_id)
+    is_password_correct = backend.check_password(password, login)
     return json.dumps({'status': is_password_correct})
 
 def run_server():
