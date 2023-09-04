@@ -90,14 +90,18 @@ def run_test(test):
 
 def print_loop_result(passed, failed):
     if passed:
+        i = 1
         print('Following tests passed:')
         for test in passed:
-            print(test)
+            print('{0})\t{1}'.format(i, test))
+            i += 1
         print()
     if failed:
+        i = 1
         print('Following tests failed:')
         for test in failed:
-            print(test)
+            print('{0})\t{1}'.format(i, test))
+            i += 1
         print()
 
 def loop_step(current_loop, loop_count, tests):
@@ -134,8 +138,10 @@ is_exclude = flags['exclude']
 tests = select_tests(tests, regexp, is_exclude)
 
 if flags['show_only']:
+    i = 1
     for test in tests:
-        print(test)
+        print('{0})\t{1}'.format(i, test))
+        i += 1
 else:
     for loop_index in range(int(flags['repeat'])):
         passed, failed = loop_step(loop_index + 1, flags['repeat'], tests)
