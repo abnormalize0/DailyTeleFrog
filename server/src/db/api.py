@@ -42,6 +42,7 @@ def get_user_blocked_tags(user_id):
         return status, None
 
     bloked_tags = None
+
     if data['blocked_tags']:
         bloked_tags = data['blocked_tags'].split(config.DELIMITER)[1:-1]
     return status, bloked_tags
