@@ -3,7 +3,6 @@ import argparse
 import sqlite3
 import shutil
 import os
-import time
 from datetime import datetime
 
 from src import api
@@ -65,10 +64,13 @@ def init_articles(path):
     cursor = connection.cursor()
     cursor.execute('''CREATE TABLE {0} (
                             {1} INTEGER PRIMARY KEY,
+                            name TEXT NOT NULL,
+                            created TEXT NOT NULL,
                             likes_count INTEGER,
                             likes_id TEXT,
                             comments_count INTEGER,
-                            preview JSON NOT NULL,
+                            preview_content JSON NOT NULL,
+                            author_preview JSON NOT NULL,
                             tags TEXT)
     '''.format(config.ARTICLESTABLENAME, config.ARTICLESIDNAME))
     connection.close()
@@ -91,7 +93,6 @@ def init_comments(path):
                             article_id INTEGER NOT NULL,
                             author_id INTEGER NOT NULL)
     '''.format(config.COMMENTSTABLENAME, config.COMMENTSIDNAME))
-    connection.close()
     return
 
 #RawTextHelpFormatter support multistring comments

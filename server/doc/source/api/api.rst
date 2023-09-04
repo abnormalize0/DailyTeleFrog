@@ -1,8 +1,25 @@
 Основные API методы
 ===================
 
-Все основные методы API представлены в файле ``/server/src/api.py``. Рассмотрим все основные методы:
+Все методы API представлены в файле ``/server/src/api.py``.
+Все API сетоды возвращают словарь, в котором содержится как минимум статус операции. Статус имеет следующую структуру:
 
+.. code-block:: python
+
+    {
+        'type': 'OK' or 'Error'
+        'error_type': 'OptionError' or 'ValueError'
+        'message': string
+    }
+
+Наличие поле ``type`` гарантируется. По значению этого поля можно определить завершился ли запрос на сервер успешно.
+Если значение поля ``OK``, то запрос завершился корректно. В противном случае значение поля будет ``Error``.
+Если запрос совершился с ошибкой, то все остальные поля кроме статуса будут содержать значение ``NONE``.
+Остальные два поля являются опциональными. Оба поля присутствуют в словаре статуса только в том случае, если
+запрос завершился с ошибкой. Поле ``error_type`` содержит в себе тип ошибки. Значение ``OptionError`` сигнализирует
+о том, что в переданных параметрах была допущена ошибка, например было передано неверное название опции. Значение
+``ValueError`` сигнализирует о том, у одно из параметров неверное значение, например для *id* пользователя имеет
+значение ``-1``. Поле ``message`` содержит сообщение с подробным описанием возникшей проблемы.
 
 api_get_article()
 ^^^^^^^^^^^^^^^^^
@@ -16,7 +33,7 @@ api_get_article()
     """
     :headers: 'article-id' - str(int)
 
-    :returns: article in json format
+    :returns: str(json) in format {'status': %JSON%, 'article': %JSON%}
     """
 
 .. note::
@@ -38,7 +55,7 @@ api_get_article_likes_comments()
     """
     :headers: 'article-id' - str(int)
 
-    :returns: str(json) in format {'likes_count': %INT%, 'comments_count': %INT%}
+    :returns: str(json) in format {'status': %JSON%, 'likes_count': %INT%, 'comments_count': %INT%}
     """
 
 Этот метод обрабатывает только один заголовок - *id* статьи,
@@ -59,7 +76,7 @@ api_post_article()
     :headers: 'article' - str(json)
               'user-id' - str(int)
 
-    :returns: str(json) in format {'article-id': %INT%}
+    :returns: str(json) in format {'status': %JSON%, 'article-id': %INT%}
     """
 
 Заголовок ``article`` является *json* объектом в строковом формате,
@@ -81,7 +98,7 @@ api_like_article()
     :headers: 'user-id' - str(int)
               'article-id' - str(int)
     
-    :returns: empty json
+    :returns: str(json) in format {'status': %JSON%}
     """
 
 Заголовок ``user-id`` содержит *id* пользователя, который нажал кнопку лайка.
@@ -104,7 +121,7 @@ api_add_comment()
               'root' - str(int)
               'text' - str
 
-    :returns: str(json) in format {'comment-id': %INT%}
+    :returns: str(json) in format {'status': %JSON%, 'comment-id': %INT%}
     '''
 
 Заголовок ``user-id`` содержит *id* пользователя, которой написл комментарий. Заголовок ``article-id`` содержит *id*
@@ -126,7 +143,7 @@ api_like_comment()
     :headers: 'user-id' - str(int)
               'comment-id' - str(int)
     
-    :returns: empty json
+    :returns: str(json) in format {'status': %JSON%}
     """
 
 Заголовок ``user-id`` содержит *id* пользователя, который нажал кнопку лайка.
@@ -146,7 +163,7 @@ api_get_comments_likes()
     """
     :headers: 'comment-id' - str(int)
 
-    :returns: str(json) in format {'likes-count': %INT%}
+    :returns: str(json) in format {'status': %JSON%, 'likes-count': %INT%}
     """
 
 Этот метод обрабатывает только один заголовок - *id* комментария,
@@ -157,7 +174,7 @@ api_get_comments_likes()
 api_get_pages()
 ^^^^^^^^^^^^^^^
 
-Метод позволяет получить страницу с несколькими статьями.
+Метод позволяет получить страницы с несколькими статьями на каждой.
 
 .. code-block:: python
 
@@ -167,13 +184,16 @@ api_get_pages()
     :headers: 'user-id' - str(int)
               'indexes' - str(list)
 
-    :returns: str(json) in format {'likes-count': %INT%}
+    :returns: str(json) in format {'status': %JSON%, 'pages': %JSON%}
     """
 
 Заголовок ``user-id`` содержит *id* пользователя, для которого запрашиваются страницы со статьями.
 Если страницы запрашиваются для незалогиненного пользователя, то этот заголовок должен содержать значение ``-1``.
 Заголовок ``indexes`` содержит список *id* запрашиваемых страниц перечисленных через запятую.
 Например, заголовок может содержать значение ``[1,2,3]``.
+Возвращаемый ``JSON`` с названием *pages* содержит ключи, повторяющие запрашиваемые индексы из входного заголовка
+*indexes*. Значение по каждому ключу содержит список с превью статьями. Во возвращаемых страницах содержаться только
+незаблокированные у пользователя статьи.
 
 .. note::
     Индексы страниц начинаются с ``1``.
@@ -194,7 +214,7 @@ api_add_user()
                                                  'avatar': %STR%,
                                                  'blocked_tags': %STR%}
 
-    :returns: str(json) in format {'user-id': %INT%}
+    :returns: str(json) in format {'status': %JSON%, 'user-id': %INT%}
     """
 
 Метод принимает только один заголовок с данными пользователя. Поля ``name`` и ``password`` заголовка являются
@@ -217,7 +237,7 @@ api_update_user_info()
                                                  'avatar': %STR%,
                                                  'blocked_tags': %STR%}
 
-    :returns: empty json
+    :returns: str(json) in format {'status': %JSON%}
     """
 
 Метод принимает только один заголовок с данными пользователя. Все поля заголовка являются опциональными.
@@ -239,7 +259,7 @@ api_change_user_password()
               'previous-password' - str
               'new-password' - str
 
-    :returns: empty json
+    :returns: str(json) in format {'status': %JSON%}
     """
 
 Заголовок ``user-id`` содержи *id* пользователя, который хочет сменить пароль. Заголовок ``previous-password``
@@ -259,7 +279,7 @@ api_check_user_password()
     :headers: 'user-id' - str(int)
               'password' - str
 
-    :returns: str(json) in format {'status': %BOOL%}
+    :returns: str(json) in format {'status': %JSON%, 'status': %BOOL%}
     """
 
 Заголовок ``user-id`` содержит *id* пользователя, для которого происходит проверка пароля.
