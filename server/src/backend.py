@@ -25,7 +25,6 @@ def select_preview(article):
     preview['author_preview'] = article['author_preview']
     preview['likes_count'] = article['likes_count']
     preview['comments_count'] = article['comments_count']
-    preview['likes_id'] = '{0}{1}{0}'.format(config.DELIMITER, article['author_preview'][config.USERSIDNAME])
     return preview
 
 def get_page(index, blocked_tags = None):
@@ -68,10 +67,9 @@ def post_article(article, user_id):
     if status.is_error:
         return status, None
     article['author_preview'] = author_preview
-    article['comments'] = []
     article['answers'] = []
     article['likes_count'] = 1
-    article['likes_id'] = config.DELIMITER + str(article['author_preview'][config.USERSIDNAME]) + config.DELIMITER
+    article['likes_id'] = config.DELIMITER + str(user_id) + config.DELIMITER
     article['comments_count'] = 0
     article_preview = select_preview(article)
     status, article_id = api.post_article_to_db(article_preview)
