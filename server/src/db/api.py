@@ -27,7 +27,7 @@ def change_password(password, user_id):
 def get_author_preview(user_id):
     status, author_preview = worker.get_entry_data(config.USERSDB,
                                                    config.USERSTABLENAME,
-                                                   ['name', 'page', 'avatar', config.USERSIDNAME],
+                                                   ['name', 'page', 'avatar'],
                                                    id_name=config.USERSIDNAME,
                                                    id_value=user_id)
     return status, author_preview
@@ -102,7 +102,6 @@ def add_comment(article_id, root_id, comment_text, user_id):
     comment = {'comment_text': comment_text,
                'author_id': user_id,
                'likes_count': 1,
-               'likes_id': config.DELIMITER + str(user_id) + config.DELIMITER,
                'id': comment_id,
                'answers': []}
 
