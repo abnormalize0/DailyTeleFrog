@@ -69,7 +69,7 @@ def post_article(article, user_id):
     article['author_preview'] = author_preview
     article['answers'] = []
     article['likes_count'] = 1
-    article['likes_id'] = config.DELIMITER + str(article['author_preview'][config.USERSIDNAME]) + config.DELIMITER
+    article['likes_id'] = config.DELIMITER + str(user_id) + config.DELIMITER
     article['comments_count'] = 0
     article_preview = select_preview(article)
     status, article_id = api.post_article_to_db(article_preview)
