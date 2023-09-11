@@ -101,7 +101,10 @@ def check_password(password, user_id):
     return api.check_password(password, user_id)
 
 def change_password(previous_password, new_password, user_id):
-    if not check_password(previous_password, user_id):
+    status, is_same = check_password(previous_password, user_id)
+    if status.is_error:
+        return status
+    if not is_same:
         return request_status.Status(request_status.StatusType.ERROR,
                                      error_type=request_status.ErrorType.ValueError,
                                      msg='Incorrect password. Password check failed!')
