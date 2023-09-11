@@ -30,7 +30,8 @@ class BaseTest(unittest.TestCase):
         article = {'name': 'test_name',
                    'preview_content': {'type': 'image', 'data': 'ref'},
                    'tags': ['test_tag_1', 'test_tag_2'],
-                   'created': '01.01.2000'
+                   'created': '01.01.2000',
+                   'article': {'block1': 'text'}
         }
         response = requests.post(self.localhost+'/article', headers={'user-id': str(kwargs['user_id']),
                                                                      'article': json.dumps(article)})
