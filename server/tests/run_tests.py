@@ -93,14 +93,14 @@ def print_loop_result(passed, failed):
         i = 1
         print('Following tests passed:')
         for test in passed:
-            print('{0})\t{1}'.format(i, test))
+            print(f'{i})\t{test}')
             i += 1
         print()
     if failed:
         i = 1
         print('Following tests failed:')
         for test in failed:
-            print('{0})\t{1}'.format(i, test))
+            print(f'{i})\t{test}')
             i += 1
         print()
 
@@ -108,7 +108,7 @@ def loop_step(current_loop, loop_count, tests):
     passed = []
     failed = []
     for i, test in enumerate(tests):
-        print('Loop {0}/{1}\nTest {2}/{3}\t{4}'.format(current_loop, loop_count, i + 1, len(tests), test))
+        print(f'Loop {current_loop}/{loop_count}\nTest {i + 1}/{len(tests)}\t{test}')
         if run_test(test):
             passed.append(test)
         else:
@@ -140,7 +140,7 @@ tests = select_tests(tests, regexp, is_exclude)
 if flags['show_only']:
     i = 1
     for test in tests:
-        print('{0})\t{1}'.format(i, test))
+        print(f'{i})\t{test}')
         i += 1
 else:
     for loop_index in range(int(flags['repeat'])):

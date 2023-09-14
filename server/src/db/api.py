@@ -5,10 +5,10 @@ from . import worker
 from .. import config
 
 def check_password(password, user_id):
-    status, data = worker.get_entry_data(config.USERSDB,
-                                         config.USERSTABLENAME,
+    status, data = worker.get_entry_data(config.db_user.path,
+                                         config.user_table_name,
                                          ['password'],
-                                         id_name=config.USERSIDNAME,
+                                         id_name=config.user_id_name,
                                          id_value=user_id)
     if status.is_error:
         return status, None
@@ -16,27 +16,27 @@ def check_password(password, user_id):
     return status, password == stored_password
 
 def change_password(password, user_id):
-    status = worker.update_entry(config.USERSDB,
-                                 config.USERSTABLENAME,
-                                 config.USERSIDNAME,
+    status = worker.update_entry(config.db_user.path,
+                                 config.user_table_name,
+                                 config.user_id_name,
                                  user_id,
                                  'password',
                                  password)
     return status
 
 def get_author_preview(user_id):
-    status, author_preview = worker.get_entry_data(config.USERSDB,
-                                                   config.USERSTABLENAME,
+    status, author_preview = worker.get_entry_data(config.db_user.path,
+                                                   config.user_table_name,
                                                    ['name', 'page', 'avatar'],
-                                                   id_name=config.USERSIDNAME,
+                                                   id_name=config.user_id_name,
                                                    id_value=user_id)
     return status, author_preview
 
 def get_user_blocked_tags(user_id):
-    status, data = worker.get_entry_data(config.USERSDB,
-                                         config.USERSTABLENAME,
+    status, data = worker.get_entry_data(config.db_user.path,
+                                         config.user_table_name,
                                          ['blocked_tags'],
-                                         id_name=config.USERSIDNAME,
+                                         id_name=config.user_id_name,
                                          id_value=user_id)
     if status.is_error:
         return status, None
@@ -44,42 +44,42 @@ def get_user_blocked_tags(user_id):
     bloked_tags = None
 
     if data['blocked_tags']:
-        bloked_tags = data['blocked_tags'].split(config.DELIMITER)[1:-1]
+        bloked_tags = data['blocked_tags'].split(config.delimiter)[1:-1]
     return status, bloked_tags
 
 def get_unblocked_articles(blocked_tags=None):
     exclude_data = None
     if blocked_tags:
         exclude_data = {'tags': blocked_tags}
-    status, articles_id = worker.get_entry_data(config.ARTICLESDB,
-                                                config.ARTICLESTABLENAME,
-                                                [config.ARTICLESIDNAME],
+    status, articles_id = worker.get_entry_data(config.db_article.path,
+                                                config.article_table_name,
+                                                [config.article_id_name],
                                                 exclude=exclude_data)
-    return status, articles_id[config.ARTICLESIDNAME]
+    return status, articles_id[config.article_id_name]
 
 def get_likes_comments_from_article(article_id):
-    status, data = worker.get_entry_data(config.ARTICLESDB,
-                                         config.ARTICLESTABLENAME,
+    status, data = worker.get_entry_data(config.db_article.path,
+                                         config.article_table_name,
                                          ['likes_count', 'comments_count'],
-                                         id_name=config.ARTICLESIDNAME,
+                                         id_name=config.article_id_name,
                                          id_value=article_id)
     return status, data['likes_count'], data['comments_count']
 
 def get_likes_from_comment(comment_id):
-    status, likes_count = worker.get_entry_data(config.COMMENTSDB,
-                                                config.COMMENTSTABLENAME,
+    status, likes_count = worker.get_entry_data(config.db_comment.path,
+                                                config.comment_table_name,
                                                 ['likes_count'],
-                                                id_name=config.COMMENTSIDNAME,
+                                                id_name=config.comment_id_name,
                                                 id_value=comment_id)
     return status, likes_count['likes_count']
 
 def create_comment(article_id, user_id):
     comment = {'author_id': user_id,
                'likes_count': 1,
-               'likes_id': config.DELIMITER + str(user_id) + config.DELIMITER,
+               'likes_id': config.delimiter + str(user_id) + config.delimiter,
                'article_id': article_id}
-    status, comment_id = worker.add_entry(config.COMMENTSDB,
-                                    config.COMMENTSTABLENAME,
+    status, comment_id = worker.add_entry(config.db_comment.path,
+                                    config.comment_table_name,
                                     comment)
     if status.is_error:
         return status, None
@@ -105,7 +105,7 @@ def add_comment(article_id, root_id, comment_text, user_id):
                'id': comment_id,
                'answers': []}
 
-    file_name = os.path.join(config.ARTICLEDIRECTORY, '{0}.json'.format(article_id))
+    file_name = os.path.join(config.db_article_directory.path, f'{article_id}.json')
     article = None
     with open(file_name) as file:
         article = json.load(file)
@@ -146,10 +146,10 @@ def set_likes_on_comment(file_name, id, likes_count):
 
 def set_likes_on_article(id, likes_count):
     article = None
-    with open(os.path.join(config.ARTICLEDIRECTORY, '{0}.json'.format(id)), encoding="utf-8") as file:
+    with open(os.path.join(config.db_article_directory.path, f'{id}.json'), encoding="utf-8") as file:
         article = json.load(file)
     article['likes_count'] = likes_count
-    with open(os.path.join(config.ARTICLEDIRECTORY, '{0}.json'.format(id)), 'w', encoding="utf-8") as file:
+    with open(os.path.join(config.db_article_directory.path, f'{id}.json'), 'w', encoding="utf-8") as file:
         json.dump(article, file, ensure_ascii=False, indent=4)
 
 def like(db, table_name, id_name, id, user_id):
@@ -167,13 +167,13 @@ def like(db, table_name, id_name, id, user_id):
         select = ''
     change = 1
 
-    if str(user_id) not in select.split(config.DELIMITER):
+    if str(user_id) not in select.split(config.delimiter):
         status = worker.update_entry(db,
                                      table_name,
                                      id_name,
                                      id,
                                      'likes_id',
-                                     select + '{0}{1}{0}'.format(config.DELIMITER, user_id))
+                                     select + f'{config.delimiter}{user_id}{config.delimiter}')
         if status.is_error:
             return status
     else:
@@ -182,7 +182,7 @@ def like(db, table_name, id_name, id, user_id):
                                      id_name,
                                      id,
                                      'likes_id',
-                                     select.replace('{0}{1}{0}'.format(config.DELIMITER, user_id), ''))
+                                     select.replace(f'{config.delimiter}{user_id}{config.delimiter}', ''))
         if status.is_error:
             return status
         change = -1
@@ -197,9 +197,9 @@ def like(db, table_name, id_name, id, user_id):
     if status.is_error:
         return status
 
-    if db == config.ARTICLESDB:
+    if db == config.db_article.path:
         set_likes_on_article(id, likes_count)
-    if db == config.COMMENTSDB:
+    if db == config.db_comment.path:
         status, article_id = worker.get_entry_data(db,
                                            table_name,
                                            ['article_id'],
@@ -207,27 +207,27 @@ def like(db, table_name, id_name, id, user_id):
                                            id_value=id)
         if status.is_error:
             return status
-        file_name = os.path.join(config.ARTICLEDIRECTORY, '{0}.json'.format(article_id['article_id']))
+        file_name = os.path.join(config.db_article_directory.path, f'{article_id["article_id"]}.json')
         set_likes_on_comment(file_name, id, likes_count)
 
     return status
 
 def post_article_to_db(article):
-    status, article_id = worker.add_entry(config.ARTICLESDB,
-                                          config.ARTICLESTABLENAME,
+    status, article_id = worker.add_entry(config.db_article.path,
+                                          config.article_table_name,
                                           article)
     return status, article_id
 
 def add_user(info):
-    status, user_id = worker.add_entry(config.USERSDB,
-                                       config.USERSTABLENAME,
+    status, user_id = worker.add_entry(config.db_user.path,
+                                       config.user_table_name,
                                        info)
     return status, user_id
 
 def update_user_info(field_name, field_value, user_id):
-    status = worker.update_entry(config.USERSDB,
-                                 config.USERSTABLENAME,
-                                 config.USERSIDNAME,
+    status = worker.update_entry(config.db_user.path,
+                                 config.user_table_name,
+                                 config.user_id_name,
                                  user_id,
                                  field_name,
                                  field_value)
