@@ -20,10 +20,8 @@ class TestAPI(base_test.BaseTest):
             shutil.rmtree(self.workdir, ignore_errors=True)
 
         self.server = subprocess.Popen(['python3', '../start.py', '-i',
-                        '--user-db-filepath', self.user_db_filepath,
-                        '--articles-db-filepath', self.article_db_filepath,
-                        '--comments-db-filepath', self.comments_db_filepath,
-                        ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                                        '--working-directory', self.workdir
+                                        ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
         while True:
             nextline = self.server.stdout.readline()
@@ -39,17 +37,19 @@ class TestAPI(base_test.BaseTest):
             print(line.decode('utf8'))
         shutil.rmtree(self.workdir, ignore_errors=True)
 
-    def check_structure(self, adress, required_headers, structure, structure_name):
+    def check_structure(self, endpoint:str, required_headers:dict, structure:dict, structure_name:str):
         # wrong structure
         for key in list(structure.keys()):
             value = structure.pop(key)
             required_headers[structure_name] = json.dumps(structure)
-            answer = requests.post(adress, headers=required_headers)
-            self.assertEqual(answer.json()['status']['type'], 'ERROR',
-                             msg='Error not raised when {0} key is missed'.format(key))
-            self.assertEqual(answer.json()['status']['error_type'], 'OptionError',
-                             msg ='Error type: {0}\nMessage: {1}'.format(answer.json()['status']['error_type'],
-                                                                         answer.json()['status']['message']))
+            answer = requests.post(self.localhost + endpoint, headers=required_headers)
+            status_type = answer.json()['status']['type']
+            error_type = answer.json()['status']['error_type']
+            message = answer.json()['status']['message']
+            self.assertEqual(status_type, 'ERROR',
+                             msg = f'Error not raised when {key} key is missed')
+            self.assertEqual(error_type, 'OptionError',
+                             msg = f'Error type: {error_type}\nMessage: {message}')
             structure[key] = value
 
         # wrong value in correct structure
@@ -57,24 +57,27 @@ class TestAPI(base_test.BaseTest):
             value = structure[key]
             structure[key] = None
             required_headers[structure_name] = json.dumps(structure)
-            answer = requests.post(adress, headers=required_headers)
-            self.assertEqual(answer.json()['status']['type'], 'ERROR',
-                             msg='Error not raised when "{0}" key value is None'.format(key))
+            answer = requests.post(self.localhost + endpoint, headers=required_headers)
+            status_type = answer.json()['status']['type']
+            error_type = answer.json()['status']['error_type']
+            message = answer.json()['status']['message']
+            self.assertEqual(status_type, 'ERROR',
+                             msg = f'Error not raised when "{key}" key value is None')
             self.assertEqual(answer.json()['status']['error_type'], 'ValueError',
-                             msg ='Error type: {0}\nMessage: {1}'.format(answer.json()['status']['error_type'],
-                                                                         answer.json()['status']['message']))
+                             msg = f'Error type: {error_type}\nMessage: {message}')
             structure[key] = value
 
-    def check_no_headers(self, endpoint, request_type):
+    def check_no_headers(self, endpoint:str, request_type):
         # no headers
         if request_type == 'get':
             answer = requests.get(self.localhost + endpoint, headers={})
         else:
             answer = requests.post(self.localhost + endpoint, headers={})
+        error_type = answer.json()['status']['error_type']
+        message = answer.json()['status']['message']
         self.assertEqual(answer.json()['status']['type'], 'ERROR', msg=str(answer.json()['status']))
-        self.assertEqual(answer.json()['status']['error_type'], 'OptionError',
-                         msg ='Error type: {0}\nMessage: {1}'.format(answer.json()['status']['error_type'],
-                                                                     answer.json()['status']['message']))
+        self.assertEqual(error_type, 'OptionError',
+                         msg = f'Error type: {error_type}\nMessage: {message}')
 
     def test_article_get(self):
         endpoint = '/article'
@@ -99,10 +102,12 @@ class TestAPI(base_test.BaseTest):
 
         # article-id have string value
         answer = requests.get(self.localhost + endpoint, headers={'article-id': 'hehe'})
-        self.assertEqual(answer.json()['status']['type'], 'ERROR', msg=str(answer.json()['status']))
+        status_type = answer.json()['status']['type']
+        error_type = answer.json()['status']['error_type']
+        message = answer.json()['status']['message']
+        self.assertEqual(status_type, 'ERROR', msg = str(answer.json()['status']))
         self.assertEqual(answer.json()['status']['error_type'], 'ValueError',
-                         msg ='Error type: {0}\nMessage: {1}'.format(answer.json()['status']['error_type'],
-                                                                     answer.json()['status']['message']))
+                         msg = f'Error type: {error_type}\nMessage: {message}')
 
     def test_article_post(self):
         endpoint = '/article'
@@ -124,12 +129,14 @@ class TestAPI(base_test.BaseTest):
 
         # headers with wrong value
         answer = requests.post(self.localhost + endpoint, headers={'user-id': 'hehe', 'article': 'hehe'})
-        self.assertEqual(answer.json()['status']['type'], 'ERROR', msg=str(answer.json()['status']))
+        status_type = answer.json()['status']['type']
+        error_type = answer.json()['status']['error_type']
+        message = answer.json()['status']['message']
+        self.assertEqual(status_type, 'ERROR', msg = str(answer.json()['status']))
         self.assertEqual(answer.json()['status']['error_type'], 'ValueError',
-                         msg ='Error type: {0}\nMessage: {1}'.format(answer.json()['status']['error_type'],
-                                                                     answer.json()['status']['message']))
+                         msg = f'Error type: {error_type}\nMessage: {message}')
 
-        self.check_structure(self.localhost + endpoint, {'user-id': str(user_id)}, article, 'article')
+        self.check_structure(endpoint, {'user-id': str(user_id)}, article, 'article')
 
     def test_pages(self):
         endpoint = '/pages'
@@ -146,16 +153,20 @@ class TestAPI(base_test.BaseTest):
 
         # headers with wrong value
         answer = requests.get(self.localhost + endpoint, headers={'user-id': 'hehe', 'indexes': '~0~1~2~'})
-        self.assertEqual(answer.json()['status']['type'], 'ERROR', msg=str(answer.json()['status']))
+        status_type = answer.json()['status']['type']
+        error_type = answer.json()['status']['error_type']
+        message = answer.json()['status']['message']
+        self.assertEqual(status_type, 'ERROR', msg = str(answer.json()['status']))
         self.assertEqual(answer.json()['status']['error_type'], 'ValueError',
-                         msg ='Error type: {0}\nMessage: {1}'.format(answer.json()['status']['error_type'],
-                                                                     answer.json()['status']['message']))
-        
+                         msg = f'Error type: {error_type}\nMessage: {message}')
+
         answer = requests.get(self.localhost + endpoint, headers={'user-id': str(user_id), 'indexes': '~hehe~1~2~'})
-        self.assertEqual(answer.json()['status']['type'], 'ERROR', msg=str(answer.json()['status']))
+        status_type = answer.json()['status']['type']
+        error_type = answer.json()['status']['error_type']
+        message = answer.json()['status']['message']
+        self.assertEqual(status_type, 'ERROR', msg = str(answer.json()['status']))
         self.assertEqual(answer.json()['status']['error_type'], 'ValueError',
-                         msg ='Error type: {0}\nMessage: {1}'.format(answer.json()['status']['error_type'],
-                                                                     answer.json()['status']['message']))
+                         msg = f'Error type: {error_type}\nMessage: {message}')
 
     def test_article_likes_comments(self):
         endpoint = '/article/likes_comments'
@@ -171,10 +182,12 @@ class TestAPI(base_test.BaseTest):
 
         # headers with wrong value
         answer = requests.get(self.localhost + endpoint, headers={'article-id': 'hehe'})
-        self.assertEqual(answer.json()['status']['type'], 'ERROR', msg=str(answer.json()['status']))
+        status_type = answer.json()['status']['type']
+        error_type = answer.json()['status']['error_type']
+        message = answer.json()['status']['message']
+        self.assertEqual(status_type, 'ERROR', msg = str(answer.json()['status']))
         self.assertEqual(answer.json()['status']['error_type'], 'ValueError',
-                         msg ='Error type: {0}\nMessage: {1}'.format(answer.json()['status']['error_type'],
-                                                                     answer.json()['status']['message']))
+                         msg = f'Error type: {error_type}\nMessage: {message}')
 
     def test_user_new(self):
         endpoint = '/users/new'
@@ -193,7 +206,7 @@ class TestAPI(base_test.BaseTest):
 
         user_info = {'name': 'test_name_2',
                      'password': 'qwerty'}
-        self.check_structure(self.localhost + endpoint, {}, user_info, 'user-info')
+        self.check_structure(endpoint, {}, user_info, 'user-info')
 
     def test_user_update(self):
         endpoint = '/users/update'
@@ -213,14 +226,16 @@ class TestAPI(base_test.BaseTest):
         # empty user-info
         answer = requests.post(self.localhost + endpoint, headers={'user-info': json.dumps({}),
                                                                    'user-id': str(user_id)})
-        self.assertEqual(answer.json()['status']['type'], 'ERROR', msg=str(answer.json()['status']))
+        status_type = answer.json()['status']['type']
+        error_type = answer.json()['status']['error_type']
+        message = answer.json()['status']['message']
+        self.assertEqual(status_type, 'ERROR', msg = str(answer.json()['status']))
         self.assertEqual(answer.json()['status']['error_type'], 'OptionError',
-                         msg ='Error type: {0}\nMessage: {1}'.format(answer.json()['status']['error_type'],
-                                                                     answer.json()['status']['message']))
+                         msg = f'Error type: {error_type}\nMessage: {message}')
 
     def test_user_change_password(self):
         endpoint = '/users/change_password'
-        user_id, password = self.add_user()        
+        user_id, password = self.add_user()
 
         # happy path
         answer = requests.post(self.localhost + endpoint, headers={'user-id': str(user_id),
@@ -235,10 +250,12 @@ class TestAPI(base_test.BaseTest):
         answer = requests.post(self.localhost + endpoint, headers={'user-id': str(user_id),
                                                                    'previous-password': password,
                                                                    'new-password': '12345'})
-        self.assertEqual(answer.json()['status']['type'], 'ERROR', msg=str(answer.json()['status']))
+        status_type = answer.json()['status']['type']
+        error_type = answer.json()['status']['error_type']
+        message = answer.json()['status']['message']
+        self.assertEqual(status_type, 'ERROR', msg = str(answer.json()['status']))
         self.assertEqual(answer.json()['status']['error_type'], 'ValueError',
-                         msg ='Error type: {0}\nMessage: {1}'.format(answer.json()['status']['error_type'],
-                                                                     answer.json()['status']['message']))
+                         msg = f'Error type: {error_type}\nMessage: {message}')
 
     def test_user_check_password(self):
         endpoint = '/users/check_password'
@@ -281,10 +298,12 @@ class TestAPI(base_test.BaseTest):
 
         # wrong header value
         answer = requests.get(self.localhost + endpoint, headers={'comment-id': 'hehe'})
-        self.assertEqual(answer.json()['status']['type'], 'ERROR', msg=str(answer.json()['status']))
+        status_type = answer.json()['status']['type']
+        error_type = answer.json()['status']['error_type']
+        message = answer.json()['status']['message']
+        self.assertEqual(status_type, 'ERROR', msg = str(answer.json()['status']))
         self.assertEqual(answer.json()['status']['error_type'], 'ValueError',
-                         msg ='Error type: {0}\nMessage: {1}'.format(answer.json()['status']['error_type'],
-                                                                     answer.json()['status']['message']))
+                         msg = f'Error type: {error_type}\nMessage: {message}')
 
     def test_like_article(self):
         endpoint = '/article/like'
@@ -307,10 +326,12 @@ class TestAPI(base_test.BaseTest):
         # wrong header value
         answer = requests.post(self.localhost + endpoint, headers={'user-id': 'hehe',
                                                                   'article-id': str(article_id)})
-        self.assertEqual(answer.json()['status']['type'], 'ERROR', msg=str(answer.json()['status']))
+        status_type = answer.json()['status']['type']
+        error_type = answer.json()['status']['error_type']
+        message = answer.json()['status']['message']
+        self.assertEqual(status_type, 'ERROR', msg = str(answer.json()['status']))
         self.assertEqual(answer.json()['status']['error_type'], 'ValueError',
-                         msg ='Error type: {0}\nMessage: {1}'.format(answer.json()['status']['error_type'],
-                                                                     answer.json()['status']['message']))
+                         msg = f'Error type: {error_type}\nMessage: {message}')
 
     def test_like_comment(self):
         endpoint = '/article/comments/like'
@@ -339,17 +360,19 @@ class TestAPI(base_test.BaseTest):
         # wrong header value
         answer = requests.post(self.localhost + endpoint,
                                headers={'comment-id': 'hehe', 'user-id': str(user_id)})
-        self.assertEqual(answer.json()['status']['type'], 'ERROR', msg=str(answer.json()['status']))
+        status_type = answer.json()['status']['type']
+        error_type = answer.json()['status']['error_type']
+        message = answer.json()['status']['message']
+        self.assertEqual(status_type, 'ERROR', msg = str(answer.json()['status']))
         self.assertEqual(answer.json()['status']['error_type'], 'ValueError',
-                         msg ='Error type: {0}\nMessage: {1}'.format(answer.json()['status']['error_type'],
-                                                                     answer.json()['status']['message']))
+                         msg = f'Error type: {error_type}\nMessage: {message}')
 
     def test_post_comment(self):
         endpoint = '/article/comments/add'
         user_id, password = self.add_user()
         article_id = self.add_arcticle(user_id=user_id)
         comment_text = "comment 1"
-        
+
         # happy path
         answer = requests.post(self.localhost + endpoint, headers={'user-id': str(user_id),
                                                                    'article-id': str(article_id),
@@ -365,10 +388,12 @@ class TestAPI(base_test.BaseTest):
                                                                    'article-id': str(article_id),
                                                                    'root': str(-1),
                                                                    'text': comment_text})
-        self.assertEqual(answer.json()['status']['type'], 'ERROR', msg=str(answer.json()['status']))
+        status_type = answer.json()['status']['type']
+        error_type = answer.json()['status']['error_type']
+        message = answer.json()['status']['message']
+        self.assertEqual(status_type, 'ERROR', msg = str(answer.json()['status']))
         self.assertEqual(answer.json()['status']['error_type'], 'ValueError',
-                         msg ='Error type: {0}\nMessage: {1}'.format(answer.json()['status']['error_type'],
-                                                                     answer.json()['status']['message']))
+                         msg = f'Error type: {error_type}\nMessage: {message}')
 
     def test_number_of_tests(self):
         api = open('../src/api.py', 'r')

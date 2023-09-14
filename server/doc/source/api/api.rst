@@ -188,7 +188,7 @@ api_like_article()
     """
     :headers: 'user-id' - str(int)
               'article-id' - str(int)
-    
+
     :returns: str(json) in format {'status': %JSON%}
     """
 
@@ -231,7 +231,7 @@ api_like_comment()
     """
     :headers: 'user-id' - str(int)
               'comment-id' - str(int)
-    
+
     :returns: str(json) in format {'status': %JSON%}
     """
 

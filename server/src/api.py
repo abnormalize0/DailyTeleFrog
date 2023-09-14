@@ -1,9 +1,11 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request
 from flask_cors import CORS
 import json
 
 from . import backend
 from . import request_status
+from . import config
+from . import log
 
 app = Flask(__name__)
 cors = CORS(app)
@@ -21,12 +23,9 @@ def safe_parser(func):
         except ValueError as err:
             return request_status.Status(request_status.StatusType.ERROR,
                                          error_type=request_status.ErrorType.ValueError,
-                                         msg='''Cannot convert {0}
-                                         with value {1}
-                                         to {2} or value is forbidden'''.format(kwargs['parameter_name'],
-                                                                                err.args[0].split(':')[-1],
-                                                                                kwargs['convert_type'])
-                                        ), None
+                                         msg=f'''Cannot convert {kwargs['parameter_name']}
+                                         with value {err.args[0].split(':')[-1]}
+                                         to {kwargs['convert_type']} or value is forbidden'''), None
         return request_status.Status(request_status.StatusType.OK), headers
     return wrapper
 
@@ -46,12 +45,12 @@ def parse_json(**kwargs):
     try:
         result = json.loads(kwargs['headers'].get(kwargs['parameter_name']))
         if result is None:
-            raise ValueError('Value is None: {0}'.format(result))
+            raise ValueError(f'Value is None: {result}')
         return result
     except:
         result = kwargs['headers'].get(kwargs['parameter_name'])
         if result is None:
-            raise ValueError('Value is None: {0}'.format(result))
+            raise ValueError(f'Value is None: {result}')
         result = json.dumps(result)
         return json.loads(result)
 
@@ -61,7 +60,7 @@ def parse_str(**kwargs):
     forbidden_values = ['none', 'nan', 'null']
     result = str(kwargs['headers'].get(kwargs['parameter_name']))
     if result.lower() in forbidden_values:
-        raise ValueError('Cannot convert to string value: {0}'.format(result))
+        raise ValueError(f'Cannot convert to string value: {result}')
     return result
 
 def parse_structure(headers, structure:list):
@@ -72,7 +71,7 @@ def parse_structure(headers, structure:list):
         if parameter.name not in headers and parameter.is_requiered:
             return request_status.Status(request_status.StatusType.ERROR,
                                          request_status.ErrorType.OptionError,
-                                         msg = 'Missed required key {0}'.format(parameter.name)), None
+                                         msg = f'Missed required key {parameter.name}'), None
         if parameter.name not in headers:
             requested_headers += parameter.name + ', '
             continue
@@ -104,11 +103,13 @@ def parse_structure(headers, structure:list):
         requested_headers = requested_headers[:-2]
         return request_status.Status(request_status.StatusType.ERROR,
                                      request_status.ErrorType.OptionError,
-                                     msg = 'Request doesnt have any of ({0}) headers'.format(requested_headers)), None
+                                     msg = f'Request doesnt have any of ({requested_headers}) headers'), None
 
     return request_status.Status(request_status.StatusType.OK), result
 
 @app.route('/article', methods=['GET'])
+@log.log_headers
+@log.timer(config.log_server_api)
 def api_get_article():
     status, headers = parse_structure(request.headers, [Parameter('article-id', 'int', True)])
     if status.is_error:
@@ -118,6 +119,8 @@ def api_get_article():
     return json.dumps({'status': dict(request_status.Status(request_status.StatusType.OK)), 'article': article})
 
 @app.route('/article/likes_comments', methods=['GET'])
+@log.log_headers
+@log.timer(config.log_server_api)
 def api_get_article_likes_comments():
     status, headers = parse_structure(request.headers, [Parameter('article-id', 'int', True)])
     if status.is_error:
@@ -129,12 +132,14 @@ def api_get_article_likes_comments():
                        'comments-count': likes_comments['comments_count']})
 
 @app.route('/article', methods=['POST'])
+@log.log_headers
+@log.timer(config.log_server_api)
 def api_post_article():
     status, headers = parse_structure(request.headers, [Parameter('user-id', 'int', True),
                                                         Parameter('article', 'json', True)])
     if status.is_error:
         return json.dumps({'status': dict(status)})
-    
+
     status, article = parse_structure(headers['article'], [Parameter('article', 'json', True),
                                                            Parameter('preview_content', 'json', True),
                                                            Parameter('name', 'str', True),
@@ -148,6 +153,8 @@ def api_post_article():
     return json.dumps({'status': dict(status), 'article-id': article_id})
 
 @app.route('/article/like', methods=['POST'])
+@log.log_headers
+@log.timer(config.log_server_api)
 def api_like_article():
     status, headers = parse_structure(request.headers, [Parameter('article-id', 'int', True),
                                                         Parameter('user-id', 'int', True)])
@@ -159,6 +166,8 @@ def api_like_article():
     return json.dumps({'status': dict(status)})
 
 @app.route('/article/comments/add', methods=['POST'])
+@log.log_headers
+@log.timer(config.log_server_api)
 def api_add_comment():
     status, headers = parse_structure(request.headers, [Parameter('article-id', 'int', True),
                                                         Parameter('user-id', 'int', True),
@@ -174,6 +183,8 @@ def api_add_comment():
     return json.dumps({'status': dict(status), 'comment-id': id})
 
 @app.route('/article/comments/like', methods=['POST'])
+@log.log_headers
+@log.timer(config.log_server_api)
 def api_like_comment():
     status, headers = parse_structure(request.headers, [Parameter('comment-id', 'int', True),
                                                         Parameter('user-id', 'int', True)])
@@ -185,6 +196,8 @@ def api_like_comment():
     return json.dumps({'status': dict(status)})
 
 @app.route('/article/comments/like', methods=['GET'])
+@log.log_headers
+@log.timer(config.log_server_api)
 def api_get_comments_likes():
     status, headers = parse_structure(request.headers, [Parameter('comment-id', 'int', True)])
     if status.is_error:
@@ -194,6 +207,8 @@ def api_get_comments_likes():
     return json.dumps({'status': dict(status), 'likes-count': likes_count})
 
 @app.route('/pages', methods=['GET'])
+@log.log_headers
+@log.timer(config.log_server_api)
 def api_get_pages():
     status, headers = parse_structure(request.headers, [Parameter('user-id', 'int', True),
                                                         Parameter('indexes', 'list_of_int', True)])
@@ -205,6 +220,8 @@ def api_get_pages():
     return json.dumps({'status': dict(status), 'pages': pages})
 
 @app.route('/users/new', methods=['POST'])
+@log.log_headers
+@log.timer(config.log_server_api)
 def api_add_user():
     status, headers = parse_structure(request.headers, [Parameter('user-info', 'json', True)])
     if status.is_error:
@@ -222,6 +239,8 @@ def api_add_user():
     return json.dumps({'status': dict(status), 'user-id': user_id})
 
 @app.route('/users/update', methods=['POST'])
+@log.log_headers
+@log.timer(config.log_server_api)
 def api_update_user_info():
     status, headers = parse_structure(request.headers, [Parameter('user-id', 'int', True),
                                                         Parameter('user-info', 'json', True)])
@@ -239,6 +258,8 @@ def api_update_user_info():
     return json.dumps({'status': dict(status)})
 
 @app.route('/users/change_password', methods=['POST'])
+@log.log_headers
+@log.timer(config.log_server_api)
 def api_change_user_password():
     status, headers = parse_structure(request.headers, [Parameter('user-id', 'int', True),
                                                         Parameter('previous-password', 'str', True),
@@ -251,6 +272,8 @@ def api_change_user_password():
     return json.dumps({'status': dict(status)})
 
 @app.route('/users/check_password', methods=['GET'])
+@log.log_headers
+@log.timer(config.log_server_api)
 def api_check_user_password():
     status, headers = parse_structure(request.headers, [Parameter('user-id', 'int', True),
                                                         Parameter('password', 'str', True)])

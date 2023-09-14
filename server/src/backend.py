@@ -10,10 +10,10 @@ def get_page_articles(index, blocked_tags):
     if status.is_error:
         return status, None
     page_articles = []
-    if len(articles) < (index + 1) * config.ARTICLES_PER_PAGE:
-        page_articles = articles[index * config.ARTICLES_PER_PAGE:]
+    if len(articles) < (index + 1) * config.articles_per_page:
+        page_articles = articles[index * config.articles_per_page:]
     else:
-        page_articles = articles[index * config.ARTICLES_PER_PAGE : (index + 1) * config.ARTICLES_PER_PAGE]
+        page_articles = articles[index * config.articles_per_page : (index + 1) * config.articles_per_page]
     return status, page_articles
 
 def select_preview(article):
@@ -33,7 +33,9 @@ def get_page(index, blocked_tags = None):
         return status, None
     previews = []
     for article_id in page_articles:
-        with open(os.path.join(config.ARTICLEDIRECTORY, '{0}.json'.format(article_id)), encoding="utf-8") as file:
+        with open(os.path.join(config.db_article_directory.path,
+                               f'{article_id}.json'),
+                               encoding="utf-8") as file:
             article = json.load(file)
             preview = select_preview(article)
             preview['id'] = article_id
@@ -54,12 +56,14 @@ def get_pages(indexes, user_id):
 
 def get_article(id):
     article = None
-    with open(os.path.join(config.ARTICLEDIRECTORY, '{0}.json'.format(id)), encoding="utf-8") as file:
+    with open(os.path.join(config.db_article_directory.path,
+                           f'{id}.json'), encoding="utf-8") as file:
         article = json.load(file)
     return article
 
 def create_article_file(article_id, article):
-    with open(os.path.join(config.ARTICLEDIRECTORY, '{0}.json'.format(article_id)), 'w+', encoding='utf-8') as file:
+    with open(os.path.join(config.db_article_directory.path,
+                           f'{article_id}.json'), 'w+', encoding='utf-8') as file:
         json.dump(article, file, ensure_ascii=False, indent=4)
 
 def post_article(article, user_id):
@@ -69,7 +73,7 @@ def post_article(article, user_id):
     article['author_preview'] = author_preview
     article['answers'] = []
     article['likes_count'] = 1
-    article['likes_id'] = config.DELIMITER + str(user_id) + config.DELIMITER
+    article['likes_id'] = config.delimiter + str(user_id) + config.delimiter
     article['comments_count'] = 0
     article_preview = select_preview(article)
     status, article_id = api.post_article_to_db(article_preview)
@@ -89,8 +93,8 @@ def update_user_info(user_info, user_id):
         else:
             return request_status.Status(request_status.StatusType.ERROR,
                                          error_type=request_status.ErrorType.OptionError,
-                                         msg='Wrong user parameter {0}.\
-                                         You can not update this parameter by this method'.format(field))
+                                         msg=f'Wrong user parameter {field}.\
+                                         You can not update this parameter by this method')
     return status
 
 def get_article_likes_comments(article_id):
@@ -112,9 +116,9 @@ def change_password(previous_password, new_password, user_id):
     return status
 
 def like_article(article_id, user_id):
-    status = api.like(config.ARTICLESDB,
-             config.ARTICLESTABLENAME,
-             config.ARTICLESIDNAME,
+    status = api.like(config.db_article.path,
+             config.article_table_name,
+             config.article_id_name,
              article_id,
              user_id)
     return status
@@ -124,9 +128,9 @@ def get_comment_likes(comment_id):
     return status, likes_count
 
 def like_comment(comment_id, user_id):
-    status = api.like(config.COMMENTSDB,
-                      config.COMMENTSTABLENAME,
-                      config.COMMENTSIDNAME,
+    status = api.like(config.db_comment.path,
+                      config.comment_table_name,
+                      config.comment_id_name,
                       comment_id,
                       user_id)
     return status
