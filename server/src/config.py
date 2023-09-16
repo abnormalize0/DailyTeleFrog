@@ -1,37 +1,35 @@
 import os
 
-CURRENTDIRECTORY = os.getcwd()
+class DynamicPath():
+    def __init__(self, *args):
+        self.endpont = args
 
-# defaults
-DEFAULTDELIMITER = '~'
-DEFAULTBACKUPDIRECTORY = os.path.join(CURRENTDIRECTORY, 'backup')
+    @property
+    def path(self):
+        return os.path.join(os.getcwd(), *self.endpont)
 
-DEFAULTUSERSDIRECTORY = os.path.join(CURRENTDIRECTORY, 'db', 'users')
-DEFAULTUSERSDB = os.path.join(DEFAULTUSERSDIRECTORY, 'users.db')
+current_directory = os.getcwd()
+backup_directory = DynamicPath('backup')
 
-DEFAULTARTICLEDIRECTORY = os.path.join(CURRENTDIRECTORY, 'db', 'articles')
-DEFAULTARTICLESDB = os.path.join(DEFAULTARTICLEDIRECTORY, 'articles.db')
+db_user_directory = DynamicPath('db', 'users')
+db_user = DynamicPath('db', 'users', 'users.db')
+db_article_directory = DynamicPath('db', 'articles')
+db_article = DynamicPath('db', 'articles', 'articles.db')
+db_comment_directory = DynamicPath('db', 'comments')
+db_comment = DynamicPath('db', 'comments', 'comments.db')
 
-DEFAULTCOMMENTSDIRECTORY = os.path.join(CURRENTDIRECTORY, 'db', 'comments')
-DEFAULTCOMMENTSDB = os.path.join(DEFAULTCOMMENTSDIRECTORY, 'comments.db')
+log_directory = DynamicPath('log')
+log_server_api = DynamicPath('log', 'server_api.log')
+log_db_api = DynamicPath('log', 'db_api.log')
 
+delimiter = '~'
+articles_per_page = 5
 
-# current config
-DELIMITER = DEFAULTDELIMITER
-ARTICLES_PER_PAGE = 5
-BACKUPDIRECTORY = DEFAULTBACKUPDIRECTORY
+user_id_name = 'user_id'
+user_table_name = 'users'
 
-USERSDIRECTORY = DEFAULTUSERSDIRECTORY
-USERSDB = DEFAULTUSERSDB
-USERSIDNAME = 'user_id'
-USERSTABLENAME = 'users'
+article_id_name = 'article_id'
+article_table_name = 'articles'
 
-ARTICLEDIRECTORY = DEFAULTARTICLEDIRECTORY
-ARTICLESDB = DEFAULTARTICLESDB
-ARTICLESIDNAME = 'article_id'
-ARTICLESTABLENAME = 'articles'
-
-COMMENTSDB = DEFAULTCOMMENTSDB
-COMMENTSDIRECTORY = DEFAULTCOMMENTSDIRECTORY
-COMMENTSIDNAME = 'comment_id'
-COMMENTSTABLENAME = 'comments'
+comment_id_name = 'comment_id'
+comment_table_name = 'comments'

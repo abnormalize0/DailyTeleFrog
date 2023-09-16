@@ -3,108 +3,90 @@ import argparse
 import sqlite3
 import shutil
 import os
-import time
+import logging
 from datetime import datetime
 
 from src import api
 from src import config
 
-def copy_users(work_dir=None):
-    if not os.path.exists(config.BACKUPDIRECTORY):
-        os.mkdir(config.BACKUPDIRECTORY)
-    if not work_dir:
-        work_dir = os.path.join(config.BACKUPDIRECTORY, datetime.now().strftime('%Y-%m-%d %H.%M.%S'))
-        os.mkdir(work_dir)
-    shutil.copytree(config.USERSDIRECTORY, os.path.join(work_dir, 'users'), dirs_exist_ok=True)
-    return work_dir
+def backup():
+    if not os.path.exists(config.backup_directory.path):
+        os.mkdir(config.backup_directory.path)
 
-def copy_articles(work_dir=None):
-    if not os.path.exists(config.BACKUPDIRECTORY):
-        os.mkdir(config.BACKUPDIRECTORY)
-    if not work_dir:
-        work_dir = os.path.join(config.BACKUPDIRECTORY, datetime.now().strftime('%Y-%m-%d %H.%M.%S'))
-        os.mkdir(work_dir)
-    shutil.copytree(config.ARTICLEDIRECTORY, os.path.join(work_dir, 'articles'), dirs_exist_ok=True)
-    return work_dir
+    tmp_dir = os.path.join(config.backup_directory.path, datetime.now().strftime('%Y-%m-%d %H.%M.%S'))
+    if os.path.exists(config.db_user_directory.path):
+        shutil.copytree(config.db_user_directory.path, tmp_dir, dirs_exist_ok=True)
+    if os.path.exists(config.db_article_directory.path):
+        shutil.copytree(config.db_article_directory.path, tmp_dir, dirs_exist_ok=True)
+    if os.path.exists(config.db_comment_directory.path):
+        shutil.copytree(config.db_comment_directory.path, tmp_dir, dirs_exist_ok=True)
+    if os.path.exists(config.log_directory.path):
+        shutil.copytree(config.log_directory.path, tmp_dir, dirs_exist_ok=True)
 
-def backup(work_dir):
-    shutil.make_archive(work_dir, 'zip', root_dir=work_dir,)
-    shutil.rmtree(work_dir)
-    return
+    if os.path.exists(tmp_dir):
+        shutil.make_archive(tmp_dir, 'zip', root_dir=tmp_dir,)
+        shutil.rmtree(tmp_dir)
 
-def init_users(path):
-    shutil.rmtree(config.USERSDIRECTORY, ignore_errors=True)
-    if not path:
-        config.USERSDIRECTORY = config.DEFAULTUSERSDIRECTORY
-    else:
-        config.USERSDIRECTORY = path
-        config.USERSDB= os.path.join(config.USERSDIRECTORY, 'user.db')
-    os.makedirs(config.USERSDIRECTORY)
-    connection = sqlite3.connect(config.USERSDB)
+def standart_configuration(log_name):
+    logger = logging.getLogger(log_name)
+    logger.setLevel(logging.DEBUG)
+    handler = logging.FileHandler(log_name)
+    formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+
+def set_up_loggers():
+    if not os.path.exists(config.log_directory.path):
+        os.mkdir(config.log_directory.path)
+    standart_configuration(config.log_server_api.path)
+    standart_configuration(config.log_db_api.path)
+
+def init_users():
+    shutil.rmtree(config.db_user_directory.path, ignore_errors=True)
+    os.makedirs(config.db_user_directory.path)
+    connection = sqlite3.connect(config.db_user.path)
     cursor = connection.cursor()
-    cursor.execute('''CREATE TABLE {0} (
-                            {1} INTEGER PRIMARY KEY,
-                            name TEXT UNIQUE NOT NULL,
-                            password TEXT NOT NULL,
-                            page TEXT,
-                            avatar TEXT,
-                            blocked_tags TEXT)
-    '''.format(config.USERSTABLENAME, config.USERSIDNAME))
+    cursor.execute(f'''CREATE TABLE {config.user_table_name} (
+                    {config.user_id_name} INTEGER PRIMARY KEY,
+                    name TEXT UNIQUE NOT NULL,
+                    password TEXT NOT NULL,
+                    page TEXT,
+                    avatar TEXT,
+                    blocked_tags TEXT)''')
     connection.close()
-    return
 
-def init_articles(path):
-    shutil.rmtree(config.ARTICLEDIRECTORY, ignore_errors=True)
-    if not path:
-        config.ARTICLEDIRECTORY = config.DEFAULTARTICLEDIRECTORY
-    else:
-        config.ARTICLEDIRECTORY = path
-        config.ARTICLESDB = os.path.join(config.ARTICLEDIRECTORY, 'articles.db')
-    os.makedirs(config.ARTICLEDIRECTORY)
-    connection = sqlite3.connect(config.ARTICLESDB)
+def init_articles():
+    shutil.rmtree(config.db_article_directory.path, ignore_errors=True)
+    os.makedirs(config.db_article_directory.path)
+    connection = sqlite3.connect(config.db_article.path)
     cursor = connection.cursor()
-    cursor.execute('''CREATE TABLE {0} (
-                            {1} INTEGER PRIMARY KEY,
-                            likes_count INTEGER,
-                            likes_id TEXT,
-                            comments_count INTEGER,
-                            preview JSON NOT NULL,
-                            tags TEXT)
-    '''.format(config.ARTICLESTABLENAME, config.ARTICLESIDNAME))
+    cursor.execute(f'''CREATE TABLE {config.article_table_name} (
+                    {config.article_id_name} INTEGER PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    created TEXT NOT NULL,
+                    likes_count INTEGER,
+                    likes_id TEXT,
+                    comments_count INTEGER,
+                    preview_content JSON NOT NULL,
+                    author_preview JSON NOT NULL,
+                    tags TEXT)''')
     connection.close()
-    return
 
-def init_comments(path):
-    shutil.rmtree(config.COMMENTSDIRECTORY, ignore_errors=True)
-    if not path:
-        config.COMMENTSDIRECTORY = config.DEFAULTCOMMENTSDIRECTORY
-    else:
-        config.COMMENTSDIRECTORY = path
-        config.COMMENTSDB = os.path.join(config.COMMENTSDIRECTORY, 'comments.db')
-    os.makedirs(config.COMMENTSDIRECTORY)
-    connection = sqlite3.connect(config.COMMENTSDB)
+def init_comments():
+    shutil.rmtree(config.db_comment_directory.path, ignore_errors=True)
+    os.makedirs(config.db_comment_directory.path)
+    connection = sqlite3.connect(config.db_comment.path)
     cursor = connection.cursor()
-    cursor.execute('''CREATE TABLE {0} (
-                            {1} INTEGER PRIMARY KEY,
-                            likes_count INTEGER,
-                            likes_id TEXT,
-                            article_id INTEGER NOT NULL,
-                            author_id INTEGER NOT NULL)
-    '''.format(config.COMMENTSTABLENAME, config.COMMENTSIDNAME))
+    cursor.execute(f'''CREATE TABLE {config.comment_table_name} (
+                    {config.comment_id_name} INTEGER PRIMARY KEY,
+                    likes_count INTEGER,
+                    likes_id TEXT,
+                    article_id INTEGER NOT NULL,
+                    author_id INTEGER NOT NULL)''')
     connection.close()
-    return
 
 #RawTextHelpFormatter support multistring comments
 parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
-parser.add_argument('-b', '--backup', action='store_true',
-                    help='Create a backup copy of the all server databases at {0} location'\
-                    .format(config.BACKUPDIRECTORY))
-parser.add_argument('--backup-users', action='store_true',
-                    help='Create a backup copy of the users databases at {0} location'\
-                    .format(config.BACKUPDIRECTORY))
-parser.add_argument('--backup-articles', action='store_true',
-                    help='Create a backup copy of the articles databases at {0} location'\
-                    .format(config.BACKUPDIRECTORY))
 parser.add_argument('-i', '--init', action='store_true',
                     help='Create all server databases. Existing databases will be deleted')
 parser.add_argument('--init-users', action='store_true',
@@ -115,41 +97,35 @@ parser.add_argument('--init-comments', action='store_true',
                     help='Create all comments databases. Existing database will be deleted')
 parser.add_argument('--dont-start-server', action='store_true', default=False,
                     help="Don't start the server")
-parser.add_argument('--user-db-filepath',
-                    help='Set filepath for user databases')
-parser.add_argument('--articles-db-filepath',
-                    help='Set filepath for articles databases')
-parser.add_argument('--comments-db-filepath',
-                    help='Set filepath for articles databases')
+parser.add_argument('--working-directory',
+                    help='Set work directory for server')
 
 flags = vars(parser.parse_args(sys.argv[1:]))
 
-if flags['backup']:
-    work_dir = copy_users()
-    copy_articles(work_dir)
-    backup(work_dir)
-else:
-    if flags['backup_users']:
-        work_dir = copy_users()
-        backup(work_dir)
-
-    if flags['backup_articles']:
-        work_dir = copy_articles()
-        backup(work_dir)
+path = flags['working_directory']
+if path:
+    if not os.path.exists(os.path.join(os.getcwd(), path)):
+        os.mkdir(path)
+    os.chdir(path)
 
 if flags['init']:
-    init_users(flags['user_db_filepath'])
-    init_articles(flags['articles_db_filepath'])
-    init_comments(flags['comments_db_filepath'])
+    backup()
+    init_users()
+    init_articles()
+    init_comments()
 else:
     if flags['init_users']:
-        init_users(flags['user_db_filepath'])
+        backup()
+        init_users()
 
     if flags['init_articles']:
-        init_articles(flags['articles_db_filepath'])
+        backup()
+        init_articles()
 
     if flags['init_comments']:
-        init_comments(flags['comments_db_filepath'])
+        backup()
+        init_comments()
 
 if not flags['dont_start_server']:
+    set_up_loggers()
     api.run_server()
