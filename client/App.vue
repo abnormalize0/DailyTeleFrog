@@ -11,7 +11,7 @@
 <template>
   <body>
   <top>
-    <h1>Статьямбус</h1>
+    <h1>MVP</h1>
     <nav>
       <router-link to="/">Главная</router-link> |
       <router-link to="/about">О сайте</router-link> |
