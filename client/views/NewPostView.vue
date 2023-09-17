@@ -1,26 +1,26 @@
 <script setup>
-import { nextTick, ref } from 'vue';
-import { useMousePressed } from '@vueuse/core'
-const renderComponent = ref(true);
-const page_render = ref(true);
-const { pressed } = useMousePressed()
+    import { nextTick, ref } from 'vue';
+    import { useMousePressed } from '@vueuse/core'
+    const dummy_ref = ref(true);
+    const { pressed } = useMousePressed()
 
-let counter = 0;
+    let counter = 0;
 
     
     let blocks = [];
     let content = [];
+    // let block_type = [];
+
+    // let types_list = ["Подзаголовок", "Текст", "Изображение"];
 
     const sleep = (ms) => {
         return new Promise(resolve => setTimeout(resolve, ms))
     }
 
     async function display_reset() {
-        renderComponent.value = false;
-        page_render.value = false;
+        dummy_ref.value = false;
         await nextTick();
-        renderComponent.value = true;
-        page_render.value = true;
+        dummy_ref.value = true;
         await nextTick();
     }
 
@@ -31,17 +31,24 @@ let counter = 0;
         await display_reset();
     }
 
-    async function block_shift(movable_block, index, new_index) {
+    async function block_shift(index, new_index) {
         let temp = blocks[index];
         blocks[index] = blocks[new_index];
         blocks[new_index] = temp;
-        let elem = document.getElementById("elem" + index );
-        elem.id = "elem" + (new_index);
-        movable_block.id = "elem" + index;
-        await display_reset();
-        elem = document.getElementById("elem" + blocks[new_index]);
+        
+        let elem = document.getElementById("elem" + blocks[index]);
+        for(let i = 0; i < counter; i++) {
+            console.log("elem" + i);
+            let tmp_elem = document.getElementById("elem" + i);
+            if(tmp_elem.classList.contains("element_hidden")) {
+                tmp_elem.classList.remove("element_hidden");
+                tmp_elem.classList.add("element");
+            }
+        }
         elem.classList.remove("element");
         elem.classList.add("element_hidden");
+
+        await display_reset();
     }
 
     let posx = -1;
@@ -80,7 +87,7 @@ let counter = 0;
         if(index > 0) {
             let upstairs_neighbor = document.getElementById("elem" + blocks[index - 1]);
             if(float_element.getBoundingClientRect().top < upstairs_neighbor.getBoundingClientRect().top + 25) { //захардкодил размеры блоков пока что
-                await block_shift(upstairs_neighbor, index, index - 1);
+                await block_shift(index, index - 1);
                 document.onmousemove = (e) => position(e, index - 1);
                 event_setter = 1;
 
@@ -90,7 +97,7 @@ let counter = 0;
         if(index < blocks.length - 1) {
             let downstairs_neighbor = document.getElementById("elem" + blocks[index + 1]);
             if(float_element.getBoundingClientRect().top > downstairs_neighbor.getBoundingClientRect().top - 25) {
-                await block_shift(downstairs_neighbor, index, index + 1);
+                await block_shift(index, index + 1);
                 document.onmousemove = (e) => position(e, index + 1);
                 event_setter = 1;
             }
@@ -150,12 +157,12 @@ let counter = 0;
 </script>
 
 <template>
-<div class="worksheet" id="worksheet" v-if="page_render">
+<div class="worksheet" id="worksheet">
     <div v-for="(block, index) in blocks" v-bind:key="index">
         <div @click="edit_content(block)" class="content" :id="`content` + block">{{ content[block]}}</div><br>
     </div>
 </div>
-<div class="right_menu" id="right_menu" v-if="renderComponent">
+<div class="right_menu" id="right_menu">
     <div @click="add_element(0)" class="add"></div>
     <div v-for="(block, index) in blocks" v-bind:key="index">
         <div @mousedown="hold_begin($event, index)" :class="`element`" :id="`elem` + blocks[index]">{{block}}</div>
@@ -163,6 +170,7 @@ let counter = 0;
     </div>
 </div>
 
+<div v-if="dummy_ref"></div>
 </template>
 
 <style>
@@ -172,16 +180,16 @@ let counter = 0;
 .worksheet {
     right: 300px;
     left: 300px;
-    height: 100%;
+    height: 80%;
     position: fixed;
-    /* background-color: blue; */
+    overflow-y: scroll;
 }
 .right_menu {
     height: 100%;
     width: 150px;
     position: fixed;
     right: 0;
-    background-color: orangered;
+    overflow-y: scroll;
 }
 .add {
     width: 100%;
@@ -218,5 +226,11 @@ let counter = 0;
   -webkit-user-select: none; /* Safari */
   -ms-user-select: none; /* IE 10 and IE 11 */
   user-select: none; /* Standard syntax */
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+*::-webkit-scrollbar {
+  display: none;
 }
 </style>
