@@ -1,5 +1,5 @@
 /server/db
 /server/backup
-/demo_project
+/client/demo_project
 __pycache__*
 build*
