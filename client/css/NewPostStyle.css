@@ -1,0 +1,106 @@
+.post_button {
+    height: 50px;
+    width: 200px;
+    position: fixed;
+    bottom: 0px;
+    left: 0px;
+    border-radius: 25px;
+    background-color: red;
+    text-align: center;
+    vertical-align: middle;
+    line-height: 50px;       /* The same as your div height */
+}
+.post_button:hover{
+    background-color: lightcoral;
+}
+.image_loader {
+    opacity: 0;
+    position: fixed;
+}
+.content_header {
+    background-color: lightgray;
+    font-size: 36px;
+    font-weight: bold;
+}
+.content_text {
+    background-color: lightgray;
+    font-size: 18px;
+}
+.worksheet {
+    right: 300px;
+    left: 300px;
+    height: 80%;
+    position: fixed;
+    overflow-y: scroll;
+}
+.insert_menu {
+    z-index: 110;
+    height: 80px;
+    width: 200px;
+    position: fixed;
+    top: 0px;
+    left: 0px;
+    background-color: lightpink;
+}
+.insert_menu_element{
+    height: 25px;
+    margin-bottom: 3px;
+    background-color: red;
+    text-align: center;
+    vertical-align: middle;
+    line-height: 25px;       /* The same as your div height */
+    border-radius: 25px;
+}
+.insert_menu_element:hover{
+    background-color: lightcoral;
+}
+.right_menu {
+    height: 100%;
+    width: 150px;
+    position: fixed;
+    right: 0;
+    overflow-y: scroll;
+}
+.add {
+    width: 100%;
+    height: 20px;
+    background-color: turquoise;
+    position: relative;
+}
+.element {
+    width: 100%;
+    height: 50px;
+    background-color: darkcyan;
+    position: relative;
+
+    text-align: center;
+    font-family: "Times New Roman", Times, serif;
+}
+.element_hidden {
+    width: 100%;
+    height: 50px;
+    background-color: transparent;
+    color: transparent;
+    position: relative;
+}
+.element_float {
+    z-index: 110;
+    width: 150px;
+    height: 50px;
+    background-color: darkcyan;
+    position: absolute;
+
+    text-align: center;
+    font-family: "Times New Roman", Times, serif;
+}
+* {
+  -webkit-user-select: none; /* Safari */
+  -ms-user-select: none; /* IE 10 and IE 11 */
+  user-select: none; /* Standard syntax */
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+*::-webkit-scrollbar {
+  display: none;
+}

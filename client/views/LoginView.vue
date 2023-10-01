@@ -1,36 +1,31 @@
 <script setup>
+  import router from '../router';
   async function login_request() {
-            const response = await fetch("http://127.0.0.1:5000/users/check_password", {
-                method: 'GET',
-                mode: 'cors',
-                headers: {
-                    'user-id': document.login.login.value,
-                    'password': document.login.password.value
-                },
-            } )
-            let json = await response.json();
-            console.log(json); 
-            if (response?.ok) {
-                alert("Пароль верный!")
-                console.log('Ok!');
-            } else {
-                alert("Пароль неверный!");
-                console.error(`HTTP Response Code: ${response?.status}`)
-            }
-            localStorage.id = document.login.login.value;
-            window.location.href = "/";
-        }
+    const request = await fetch("http://127.0.0.1:5000/users/check_password", {
+      method: 'GET',
+      headers: {
+        'user-id': document.login.login.value,
+        'password': document.login.password.value,
+      },
+    });
+    let status = await request.json();
+    console.log(status);
+    if (status["is-correct"]) {
+      localStorage.id = document.login.login.value;
+      router.push({ name: 'feed'});
+    } else {
+      alert("Пароль неверный!");
+    }
+  }
 </script>
 
 <template>
-<H1>Вход</H1>
-<FORM NAME="login">
-    <TABLE>
-        <TR><TD><B>ID:</B></TD>
-            <TD><INPUT NAME="login" SIZE=20></input></TD></TR>
-        <TR><TD><B>Пароль:</B></TD>
-            <TD><INPUT NAME="password" SIZE=20></input></TD></TR>
-    </TABLE>
-    <INPUT TYPE="button" VALUE="Готово" v-on:Click="$event=>login_request()"></input>
-</FORM>
+  <h1>Вход</h1>
+  <form name="login">
+    <table>
+      <tr><td><b>ID:</b></td><td><input name="login" size=20></td></tr>
+      <tr><td><b>Пароль:</b></td><td><input name="password" size=20></td></tr>
+    </table>
+    <input type="button" value="Готово" @click="login_request()">
+  </form>
 </template>
