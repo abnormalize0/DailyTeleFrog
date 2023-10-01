@@ -6,6 +6,8 @@ import RegisterView from '../views/RegisterView.vue'
 import LoginView from '../views/LoginView.vue'
 import NewPostView from '../views/NewPostView.vue'
 import PostView from '../views/PostView.vue'
+import TagView from '../views/TagView.vue'
+import ProfileView from '../views/ProfileView.vue'
 
 const routes = [
   {
@@ -31,7 +33,7 @@ const routes = [
   {
     path: '/profile',
     name: 'profile',
-    component: AboutView
+    component: ProfileView
   },
   {
     path: '/exit',
@@ -47,6 +49,11 @@ const routes = [
     path: '/post/:id',
     name: 'post',
     component: PostView
+  },
+  {
+    path: '/tag/:id',
+    name: 'tag',
+    component: TagView
   }
 ]
 

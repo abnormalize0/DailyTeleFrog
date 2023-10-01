@@ -1,47 +1,60 @@
 <script setup>
-import { ref, onMounted, onUpdated } from 'vue'
+  import { ref, onMounted, onUpdated } from 'vue';
 
-var PAGE_PER_ARTICLES = 5;
+  let PAGE_PER_ARTICLES = 5;
 
-var page = 0;
-var post_id = 1;
-var load_line_id = PAGE_PER_ARTICLES;
-var allow = 0;
+  let page = 0;
+  let post_id = 1;
+  let load_line_id = PAGE_PER_ARTICLES;
+  let allow = 0;
 
-onMounted(() => {
-  get_posts(page);
-  posts.value.splice(0);
-  load_line_id = PAGE_PER_ARTICLES;
-  page = 0
-})
-
-onUpdated(() => {
-  console.log("rendered");
-  allow = 1;
-  post_id = 1;
-})
-
-document.addEventListener("scroll", (event) => {
-  if (allow === 0) {
-    console.log("forbid");
-    return;
-  }
-  var element = document.getElementById('post' + load_line_id);
-  if (element == null) {
-    console.log("empty");
-    allow = 0;
-    return;
-  }
-  var load_line_element = element.getBoundingClientRect();
-  if (load_line_element.bottom <= (window.innerHeight || document.documentElement.clientHeight)) {
-    console.log("resolved");
-    load_line_id += PAGE_PER_ARTICLES;
-    allow = 0;
-    page++;
+  onMounted(() => {
     get_posts(page);
-  } 
+    posts.value.splice(0);
+    load_line_id = PAGE_PER_ARTICLES;
+    page = 0;
+  })
 
-})
+  onUpdated(() => {
+    allow = 1;
+    post_id = 1;
+  })
+
+  document.addEventListener("scroll", () => {
+    if(allow === 0) {
+      return;
+    }
+    let element = document.getElementById('post' + load_line_id);
+    if(element == null) {
+      allow = 0;
+      return;
+    }
+    let load_line_element = element.getBoundingClientRect();
+    if(load_line_element.bottom <= (window.innerHeight || document.documentElement.clientHeight)) {
+      load_line_id += PAGE_PER_ARTICLES;
+      allow = 0;
+      page++;
+      get_posts(page);
+    }
+  })
+
+  async function like_change(post_id) { //заглушка пока не будет рабочего апи от сервера
+    const request = await fetch("http://127.0.0.1:5000/article/like", {
+      method: 'POST',
+      headers: {
+        'user-id': localStorage.id,
+        'article-id': post_id,
+      },
+    })
+    let status = await request.json();
+    console.log(status);
+    let like = document.getElementById("like" + post_id);
+    if(((like.innerHTML).split(" ")[1]) == 1) {
+      like.innerHTML = "♥ 2";
+    } else {
+      like.innerHTML = "♡ 1";
+    }
+  }
 </script>
 
 <template id="post_template">
@@ -50,12 +63,31 @@ document.addEventListener("scroll", (event) => {
       <div id="feed">
         <div v-for="post in posts" :key="post.id" >
           <router-link :to="{ name: 'post', params: { id: post.article_id } }" custom v-slot="{ navigate }">
-            <div @click="navigate" :class="`post-item`" :id="'post' + post_id++">
-              <h1>{{ post.title }}</h1>
-              <h2>{{ post.preview }}</h2>
-              <i>{{ post.tags }}</i><br>
-              <i>{{ post.date }}</i>
-              <br><br>
+            <div :class="`post-item`" :id="'post' + post_id++">
+              <div @click="navigate">
+                <br>
+                <h1>{{ post.name }}</h1>
+                <div v-for="(block, index) in post.preview_content" v-bind:key="index"> 
+                  <div v-if="block.type == 0"><h1>{{ block.content}}</h1></div>
+                  <div v-if="block.type == 1">{{ block.content}}</div>
+                  <!-- <div v-if="block.type == 2" ><img :id="`img` + block" width='600' :src="content[block]"></div> -->
+                  
+                </div>
+                <br><br>
+                <i style="top: 0px; left:0px; position: absolute;">Запостил пользователь {{ post.author_preview.name }} {{ post.created }} </i>
+              </div>
+
+              <div style="position: absolute; bottom: 0px; left:10px;">
+                <div style="display: inline-block; margin: 10px 5px;" v-for="(tag, index) in post.tags" :key="index">
+                  <router-link :to="{ name: 'tag', params: { id: decodeURIComponent(post.tags[index]) } }" custom v-slot="{ navigate }">
+                    <div @click="navigate" >{{ tag }}</div>
+                  </router-link>
+                </div>
+              </div>
+              <div style="right: 10px; bottom: 0px; position: absolute;">
+                <div style="display: inline-block; margin: 10px 5px;">🗪 {{ post.comments_count }}</div>
+                <div @click="like_change(post.article_id)" :id="'like'+post.article_id" style="display: inline-block; margin: 10px 5px;">♡ {{ post.likes_count }}</div>
+              </div>
             </div>
           </router-link>
         </div>
@@ -65,26 +97,29 @@ document.addEventListener("scroll", (event) => {
 </template>
 
 <script>
-var posts = ref([]);
-async function get_posts(page) {
-  const response = await fetch("http://127.0.0.1:5000/pages", {
-    method: 'GET',
-    headers: {
-      'indexes': page,
-      'user-id': 1
-    }
-  } )
-  let json = await response.json();
-  for (var i = 0; i < json[page].length; i++) {
-    console.log(json[page][i]);
-    posts.value.push({
-      id: i,
-      title: decodeURIComponent(json[page][i]["name"]),
-      date: json[page][i]["date"],
-      preview: decodeURIComponent(json[page][i]["preview"]),
-      tags: decodeURIComponent(json[page][i]["tags"]),
-      article_id: json[page][i]["id"]
+  let posts = ref([]);
+  async function get_posts(page) {
+    const request = await fetch("http://127.0.0.1:5000/pages", {
+      method: 'GET',
+      headers: {
+        'indexes': "~"+page+"~",
+        'user-id': localStorage.id,
+      }
     })
+    let json = await request.json();
+    console.log(json);
+    for(let i = 0; i < json.pages[page].length; i++) {
+      posts.value.push({
+        id: i,
+        name: decodeURIComponent(json.pages[page][i].name),
+        created: json.pages[page][i].created,
+        preview_content: json.pages[page][i].preview_content,
+        tags: json.pages[page][i].tags.split("~").filter(elm => elm),
+        article_id: json.pages[page][i].id,
+        author_preview: json.pages[page][i].author_preview,
+        likes_count: json.pages[page][i].likes_count,
+        comments_count: json.pages[page][i].comments_count,
+      })
+    }
   }
-}
 </script>

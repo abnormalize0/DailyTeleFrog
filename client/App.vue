@@ -1,18 +1,41 @@
+<style>
+  @import 'css/MainStyle.css';
+</style>
+
 <script setup>
-  var login = 0;
-  if (localStorage.getItem("id") === null) {
-    // alert ("empty");
-    // localStorage.id = -1;
+  import { watch, ref } from "vue";
+  import { useRoute } from "vue-router";
+
+  const menu_refresh = ref(true);
+  const route = useRoute();
+  let login = 0;
+  watch(
+    () => route.fullPath,
+    async () => {
+      console.log("changed");
+      console.log(localStorage.id);
+      menu_refresh.value = false;
+      if ((localStorage.getItem("id") === null) || (localStorage.id == 0)) {
+        localStorage.id = 0;
+        login = 0;
+      } else {
+        login = 1;
+      }
+      menu_refresh.value = true;
+    }
+  );
+
+  if ((localStorage.getItem("id") === null) || (localStorage.id == 0)) {
+    localStorage.id = 0;
   } else {
-    login = 1
+    login = 1;
   }
 </script>
 
 <template>
-  <body>
-  <top>
-    <h1>MVP</h1>
-    <nav>
+  <div class="top">
+    <h1 style="padding: 10px;">MVP</h1>
+    <nav v-if="menu_refresh">
       <router-link to="/">Главная</router-link> |
       <router-link to="/about">О сайте</router-link> |
       <span v-if="!login"><router-link to="/login">Войти</router-link> | </span>
@@ -21,50 +44,6 @@
       <span v-if="login"><router-link to="/profile">Профиль</router-link> | </span>
       <span v-if="login"><router-link to="/exit">Выйти</router-link> </span>
     </nav>
-  </top>
+  </div>
   <router-view/>
-  
-  </body>
 </template>
-
-<style>
-#app {
-  font-family: Avenir, Helvetica, Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-align: center;
-  color: #2c3e50;
-}
-
-body::-webkit-scrollbar{
-  display: none;
-}
-
-top {
-  position: sticky;
-  top: 21.44px;
-  background-color: white;
-  display: block;
-}
-
-nav {
-  padding: 30px;
-}
-
-nav a {
-  font-weight: bold;
-  color: #2c3e50;
-}
-
-nav a.router-link-exact-active {
-  color: #42b983;
-}
-
-.post-item {
-  border: solid;
-}
-</style>
-
-<script>
-  
-</script>

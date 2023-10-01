@@ -1,8 +1,7 @@
 <script setup>
-  // import router from '../router'
+  import router from '../router';
   localStorage.removeItem('id');
-  // router.push('/');
-  window.location.href = "/";
+  router.push({ name: 'feed'});
 </script>
 
 <template>

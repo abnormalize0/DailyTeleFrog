@@ -4,7 +4,3 @@
     <a href="https://github.com/abnormalize0/DailyTeleFrog" class="href">Ссылка на github</a>
   </div>
 </template>
-
-<script>
-
-</script>
