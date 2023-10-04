@@ -1,14 +1,12 @@
 <script setup>
-import { onMounted, ref } from 'vue';
-const tag_readed = ref(false);
+  import { onMounted, ref } from 'vue';
 
-let tag;
-onMounted(() => {
-  tag = window.location.pathname.split('/')[2];
-  tag_readed.value = true;
-})
+  let tag = ref([]);
+  onMounted(() => {
+    tag.value = window.location.pathname.split('/')[2];
+  })
 </script>
 
 <template>
-  <div v-if="tag_readed">Тут должно быть отображение постов по тегу {{ tag }}, но его пока нет :(</div>
+  <div>Тут должно быть отображение постов по тегу {{ tag }}, но его пока нет :(</div>
 </template>
