@@ -6,14 +6,14 @@
   import { nextTick, ref } from 'vue';
   import { useMousePressed } from '@vueuse/core';
   import router from '../router';
+  import axios from 'axios';
 
-  const dummy_ref = ref(true);
   const insert_menu_ref = ref(false);
   const { pressed } = useMousePressed();
 
   let counter = 0;
 
-  let blocks = [];
+  let blocks = ref([]);
   let content = [];
   let block_type = [];
 
@@ -21,13 +21,6 @@
 
   const sleep = (ms) => {
     return new Promise(resolve => setTimeout(resolve, ms));
-  }
-
-  async function display_reset() {
-    dummy_ref.value = false;
-    await nextTick();
-    dummy_ref.value = true;
-    await nextTick();
   }
 
   let current_index = 0;
@@ -43,21 +36,20 @@
     insert_menu.onmouseleave = function() { insert_menu_ref.value = false; };
   }
 
-  async function add_element(index) {
-    blocks.splice(current_index, 0, counter);
+  function add_element(index) {
+    blocks.value.splice(current_index, 0, counter);
     content.push(types_list[index] + counter);
     block_type.push(index);
     counter++;
     insert_menu_ref.value = false;
-    await display_reset();
   }
 
-  async function block_shift(index, new_index) {
-    let temp = blocks[index];
-    blocks[index] = blocks[new_index];
-    blocks[new_index] = temp;
+  function block_shift(index, new_index) {
+    let temp = blocks.value[index];
+    blocks.value[index] = blocks.value[new_index];
+    blocks.value[new_index] = temp;
     
-    let elem = document.getElementById("elem" + blocks[index]);
+    let elem = document.getElementById("elem" + blocks.value[index]);
     for(let i = 0; i < counter; i++) {
       let tmp_elem = document.getElementById("elem" + i);
       if(tmp_elem.classList.contains("element_hidden")) {
@@ -67,15 +59,13 @@
     }
     elem.classList.remove("element");
     elem.classList.add("element_hidden");
-
-    await display_reset();
   }
 
   let posx = -1;
   let posy = -1;
 
   function hold_begin(e, index) {
-    let elem = document.getElementById("elem" + blocks[index]);
+    let elem = document.getElementById("elem" + blocks.value[index]);
     elem.classList.remove("element");
     elem.classList.add("element_hidden");
     document.onmousemove = (e) => position(e, index);
@@ -104,7 +94,7 @@
     let event_setter = 0;
     
     if(index > 0) {
-      let upstairs_neighbor = document.getElementById("elem" + blocks[index - 1]);
+      let upstairs_neighbor = document.getElementById("elem" + blocks.value[index - 1]);
       if(float_element.getBoundingClientRect().top < upstairs_neighbor.getBoundingClientRect().top + 25) { //захардкодил размеры блоков пока что
         await block_shift(index, index - 1);
         document.onmousemove = (e) => position(e, index - 1);
@@ -112,8 +102,8 @@
       }
     }
 
-    if(index < blocks.length - 1) {
-      let downstairs_neighbor = document.getElementById("elem" + blocks[index + 1]);
+    if(index < blocks.value.length - 1) {
+      let downstairs_neighbor = document.getElementById("elem" + blocks.value[index + 1]);
       if(float_element.getBoundingClientRect().top > downstairs_neighbor.getBoundingClientRect().top - 25) {
         await block_shift(index, index + 1);
         document.onmousemove = (e) => position(e, index + 1);
@@ -127,7 +117,7 @@
       
     if(!pressed.value) {
       document.onmousemove = null;
-      let elem = document.getElementById("elem" + blocks[index]);
+      let elem = document.getElementById("elem" + blocks.value[index]);
       smooth_transition(elem, float_element);
       posx = -1;
       posy = -1;
@@ -145,7 +135,6 @@
     document.getElementById("float_element").remove();
     elem.classList.add("element");
     elem.classList.remove("element_hidden");
-    await display_reset();
   }
 
   let allow_edit = 1;
@@ -183,6 +172,10 @@
         document.querySelector("#img" + index).src = e.target.result;
         content[index] = e.target.result;
         allow_edit = 1;
+        
+        axios.post('https://pastebin.com/api/api_post.php?api_dev_key="JLW-TLYaNt5FU6TnrIzRZlH4LY3Cu1TW"&api_paste_code="test"&api_option=paste')
+        .then(response => (this.info = response.data.bpi))
+        .catch(error => console.log(error));
       }
       FR.readAsDataURL(input.files[0]);
     })
@@ -191,10 +184,19 @@
   async function post_request() {
     let article = [];
     for(let i = 0; i < counter; i++) {
-      article.push({"type": block_type[blocks[i]], "content": content[blocks[i]]});
+      article.push({
+        type: block_type[blocks.value[i]], 
+        content: encodeURIComponent(content[blocks.value[i]]),
+      });
     }
     let date = new Date().toLocaleDateString("de-DE");
-    let post = {"article": article, "preview_content": article, "name": "test", "tags": "~abc~bca~cab~", "created": date};
+    let post = {
+      article: article, 
+      preview_content: article, 
+      name: encodeURIComponent("test"), 
+      tags: encodeURIComponent("~abc~bca~cab~"), 
+      created: date,
+    };
     console.log(JSON.stringify(post));
     const request = await fetch("http://127.0.0.1:5000/article", {
       method: 'POST',
@@ -240,5 +242,4 @@
     Запостить
   </div>
 
-  <div v-if="dummy_ref"></div>
 </template>
