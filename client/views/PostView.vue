@@ -25,13 +25,12 @@
 </script>
 
 <template v-if="article.article.name">
-  {{ article.article.name }}
   <div class="post-item" id="post-item">
-    <h1>{{ article.article.name }}</h1>
+    <h1>{{ decodeURIComponent(article.article.name) }}</h1>
     <div v-for="(block, index) in article.article.article" v-bind:key="index"> 
-      <div v-if="block.type == 0"><h1>{{ block.content}}</h1></div>
-      <div v-if="block.type == 1">{{ block.content}}</div>
-      <!-- <div v-if="block.type == 2" ><img :id="`img` + block" width='600' :src="content[block]"></div> -->
+      <div v-if="block.type == 0"><h1>{{ decodeURIComponent(block.content) }}</h1></div>
+      <div v-if="block.type == 1">{{ decodeURIComponent(block.content) }}</div>
+      <div v-if="block.type == 2" ><img width='600' :src=decodeURIComponent(block.content)></div>
       <br>
     </div>
   </div>

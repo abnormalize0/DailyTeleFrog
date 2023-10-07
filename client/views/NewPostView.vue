@@ -8,6 +8,8 @@
   import router from '../router';
   import axios from 'axios';
 
+  const config = require('../config.json');
+
   const insert_menu_ref = ref(false);
   const { pressed } = useMousePressed();
 
@@ -165,19 +167,49 @@
     target.innerHTML = "<img id='img" + index + "' width='600' src='" + content[index] + "'><input class='image_loader' id='active_input' type='file'>";
     let input = document.getElementById("active_input");
     input.click();
-    input.addEventListener("change", () => {
-      const FR = new FileReader();
-      FR.onload = (e) => {
-        target.innerHTML = "<img id='img" + index + "' width='600'>";
-        document.querySelector("#img" + index).src = e.target.result;
-        content[index] = e.target.result;
-        allow_edit = 1;
+    input.addEventListener("change", async () => {
+      console.log(input.files[0])
+      target.innerHTML = "<img id='img" + index + "' width='100'>";
+      document.querySelector("#img" + index).src = "https://i.giphy.com/media/sSgvbe1m3n93G/giphy.webp";
+      allow_edit = 1;
         
-        axios.post('https://pastebin.com/api/api_post.php?api_dev_key="JLW-TLYaNt5FU6TnrIzRZlH4LY3Cu1TW"&api_paste_code="test"&api_option=paste')
-        .then(response => (this.info = response.data.bpi))
-        .catch(error => console.log(error));
-      }
-      FR.readAsDataURL(input.files[0]);
+      // let myHeaders = new Headers();
+      // let formdata = new FormData();
+      // myHeaders.append("Authorization", "Bearer " + config.keys.imgur);
+      // formdata.append("image", input.files[0]);
+      // let requestOptions = {
+      //   method: 'POST',
+      //   headers: myHeaders,
+      //   body: formdata,
+      //   redirect: 'follow'
+      // };
+
+      // const request = await fetch("https://api.imgur.com/3/upload", requestOptions);
+      // let response = await request.json();
+      // target.innerHTML = "<img id='img" + index + "' width='600'>";
+      // document.querySelector("#img" + index).src = response.data.link;
+      // content[index] = response.data.link;
+        
+
+      var reader = new FileReader();
+      reader.readAsDataURL(input.files[0]);
+      reader.onload = async function () {
+        const myForm = new FormData();
+        myForm.append("image", reader.result.substring(reader.result.indexOf(",") + 1));
+
+        await axios.post("https://api.imgbb.com/1/upload?key=" + config.keys.imgbb, myForm, {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }).then((response) => {
+          console.log(response);
+          target.innerHTML = "<img id='img" + index + "' width='600'>";
+          document.querySelector("#img" + index).src = response.data.data.url;
+          content[index] = response.data.data.url;
+        }).catch((err) => {
+          console.log(err);
+        });
+      };
     })
   }
 
