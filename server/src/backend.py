@@ -24,6 +24,7 @@ def select_preview(article):
     preview['created'] = article['created']
     preview['author_preview'] = article['author_preview']
     preview['likes_count'] = article['likes_count']
+    preview['dislikes_count'] = article['dislikes_count']
     preview['comments_count'] = article['comments_count']
     return preview
 
@@ -71,12 +72,18 @@ def post_article(article, user_id):
     if status.is_error:
         return status, None
     article['author_preview'] = author_preview
+    article['author_id'] = user_id
     article['answers'] = []
-    article['likes_count'] = 1
-    article['likes_id'] = config.delimiter + str(user_id) + config.delimiter
+    article['likes_count'] = 0
+    article['likes_id'] = ''
+    article['dislikes_count'] = 0
+    article['dislikes_id'] = ''
     article['comments_count'] = 0
-    article_preview = select_preview(article)
-    status, article_id = api.post_article_to_db(article_preview)
+    data = select_preview(article)
+    data['author_id'] = article['author_id']
+    data['likes_id'] = article['likes_id']
+    data['dislikes_id'] = article['dislikes_id']
+    status, article_id = api.post_article_to_db(data)
     if status.is_error:
         return status, None
     create_article_file(article_id, article)
@@ -97,9 +104,17 @@ def update_user_info(user_info, user_id):
                                          You can not update this parameter by this method')
     return status
 
-def get_article_likes_comments(article_id):
-    status, likes_count, comments_count = api.get_likes_comments_from_article(article_id)
-    return status, {'likes_count': likes_count, 'comments_count': comments_count}
+def get_article_likes(article_id):
+    status, likes_count = api.get_likes_from_article(article_id)
+    return status, likes_count
+
+def get_article_dislikes(article_id):
+    status, dislikes_count = api.get_dislikes_from_article(article_id)
+    return status, dislikes_count
+
+def get_article_comments(article_id):
+    status, comments_count = api.get_comments_from_article(article_id)
+    return status, comments_count
 
 def check_password(password, user_id):
     return api.check_password(password, user_id)
@@ -115,24 +130,48 @@ def change_password(previous_password, new_password, user_id):
     status = api.change_password(new_password, user_id)
     return status
 
+def dislike_article(article_id, user_id):
+    status = api.vote(config.db_article.path,
+                      config.article_table_name,
+                      config.article_id_name,
+                      article_id,
+                      user_id,
+                      'dislikes')
+    return status
+
 def like_article(article_id, user_id):
-    status = api.like(config.db_article.path,
-             config.article_table_name,
-             config.article_id_name,
-             article_id,
-             user_id)
+    status = api.vote(config.db_article.path,
+                      config.article_table_name,
+                      config.article_id_name,
+                      article_id,
+                      user_id,
+                      'likes')
     return status
 
 def get_comment_likes(comment_id):
     status, likes_count = api.get_likes_from_comment(comment_id)
     return status, likes_count
 
-def like_comment(comment_id, user_id):
-    status = api.like(config.db_comment.path,
+def get_comment_dislikes(comment_id):
+    status, dislikes_count = api.get_dislikes_from_comment(comment_id)
+    return status, dislikes_count
+
+def dislike_comment(comment_id, user_id):
+    status = api.vote(config.db_comment.path,
                       config.comment_table_name,
                       config.comment_id_name,
                       comment_id,
-                      user_id)
+                      user_id,
+                      'dislikes')
+    return status
+
+def like_comment(comment_id, user_id):
+    status = api.vote(config.db_comment.path,
+                      config.comment_table_name,
+                      config.comment_id_name,
+                      comment_id,
+                      user_id,
+                      'likes')
     return status
 
 def article_add_comment(article_id, root, cooment_text, user_id):

@@ -66,9 +66,12 @@ def init_articles():
                     created TEXT NOT NULL,
                     likes_count INTEGER,
                     likes_id TEXT,
+                    dislikes_count INTEGER,
+                    dislikes_id TEXT,
                     comments_count INTEGER,
                     preview_content JSON NOT NULL,
                     author_preview JSON NOT NULL,
+                    author_id INTEGER NOT NULL,
                     tags TEXT)''')
     connection.close()
 
@@ -81,6 +84,8 @@ def init_comments():
                     {config.comment_id_name} INTEGER PRIMARY KEY,
                     likes_count INTEGER,
                     likes_id TEXT,
+                    dislikes_count INTEGER,
+                    dislikes_id TEXT,
                     article_id INTEGER NOT NULL,
                     author_id INTEGER NOT NULL)''')
     connection.close()

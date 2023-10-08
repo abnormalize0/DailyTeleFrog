@@ -19,7 +19,7 @@ class BaseTest(unittest.TestCase):
                      'password': password}
         self.user_count += 1
         headers={'user-info': json.dumps(user_info)}
-        requests.post(self.localhost+'/users/new', headers=headers)
+        requests.post(self.localhost+'/users', headers=headers)
         return self.user_count, password
 
     def add_arcticle(self, **kwargs):
