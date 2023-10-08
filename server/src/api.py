@@ -107,34 +107,10 @@ def parse_structure(headers, structure:list):
 
     return request_status.Status(request_status.StatusType.OK), result
 
-@app.route('/article', methods=['GET'])
-@log.log_headers
-@log.timer(config.log_server_api)
-def api_get_article():
-    status, headers = parse_structure(request.headers, [Parameter('article-id', 'int', True)])
-    if status.is_error:
-        return json.dumps({'status': dict(status)})
-
-    article = backend.get_article(headers['article-id'])
-    return json.dumps({'status': dict(request_status.Status(request_status.StatusType.OK)), 'article': article})
-
-@app.route('/article/likes_comments', methods=['GET'])
-@log.log_headers
-@log.timer(config.log_server_api)
-def api_get_article_likes_comments():
-    status, headers = parse_structure(request.headers, [Parameter('article-id', 'int', True)])
-    if status.is_error:
-        return json.dumps({'status': dict(status)})
-
-    status, likes_comments = backend.get_article_likes_comments(headers['article-id'])
-    return json.dumps({'status': dict(status),
-                       'likes-count': likes_comments['likes_count'],
-                       'comments-count': likes_comments['comments_count']})
-
 @app.route('/article', methods=['POST'])
 @log.log_headers
 @log.timer(config.log_server_api)
-def api_post_article():
+def api_article_post():
     status, headers = parse_structure(request.headers, [Parameter('user-id', 'int', True),
                                                         Parameter('article', 'json', True)])
     if status.is_error:
@@ -152,10 +128,21 @@ def api_post_article():
                                               headers['user-id'])
     return json.dumps({'status': dict(status), 'article-id': article_id})
 
-@app.route('/article/like', methods=['POST'])
+@app.route('/article', methods=['GET'])
 @log.log_headers
 @log.timer(config.log_server_api)
-def api_like_article():
+def api_article_get():
+    status, headers = parse_structure(request.headers, [Parameter('article-id', 'int', True)])
+    if status.is_error:
+        return json.dumps({'status': dict(status)})
+
+    article = backend.get_article(headers['article-id'])
+    return json.dumps({'status': dict(request_status.Status(request_status.StatusType.OK)), 'article': article})
+
+@app.route('/article/likes', methods=['POST'])
+@log.log_headers
+@log.timer(config.log_server_api)
+def api_article_likes_post():
     status, headers = parse_structure(request.headers, [Parameter('article-id', 'int', True),
                                                         Parameter('user-id', 'int', True)])
     if status.is_error:
@@ -165,10 +152,47 @@ def api_like_article():
                                   headers['user-id'])
     return json.dumps({'status': dict(status)})
 
-@app.route('/article/comments/add', methods=['POST'])
+@app.route('/article/likes', methods=['GET'])
 @log.log_headers
 @log.timer(config.log_server_api)
-def api_add_comment():
+def api_article_likes_get():
+    status, headers = parse_structure(request.headers, [Parameter('article-id', 'int', True)])
+    if status.is_error:
+        return json.dumps({'status': dict(status)})
+
+    status, likes = backend.get_article_likes(headers['article-id'])
+    return json.dumps({'status': dict(status),
+                       'likes-count': likes})
+
+@app.route('/article/dislikes', methods=['POST'])
+@log.log_headers
+@log.timer(config.log_server_api)
+def api_article_dislike_post():
+    status, headers = parse_structure(request.headers, [Parameter('article-id', 'int', True),
+                                                        Parameter('user-id', 'int', True)])
+    if status.is_error:
+        return json.dumps({'status': dict(status)})
+
+    status = backend.dislike_article(headers['article-id'],
+                                     headers['user-id'])
+    return json.dumps({'status': dict(status)})
+
+@app.route('/article/dislikes', methods=['GET'])
+@log.log_headers
+@log.timer(config.log_server_api)
+def api_article_dislike_get():
+    status, headers = parse_structure(request.headers, [Parameter('article-id', 'int', True)])
+    if status.is_error:
+        return json.dumps({'status': dict(status)})
+
+    status, dislikes = backend.get_article_dislikes(headers['article-id'])
+    return json.dumps({'status': dict(status),
+                       'dislikes-count': dislikes})
+
+@app.route('/article/comments', methods=['POST'])
+@log.log_headers
+@log.timer(config.log_server_api)
+def api_article_comments_post():
     status, headers = parse_structure(request.headers, [Parameter('article-id', 'int', True),
                                                         Parameter('user-id', 'int', True),
                                                         Parameter('root', 'int', True),
@@ -182,10 +206,22 @@ def api_add_comment():
                                              headers['user-id'])
     return json.dumps({'status': dict(status), 'comment-id': id})
 
-@app.route('/article/comments/like', methods=['POST'])
+@app.route('/article/comments', methods=['GET'])
 @log.log_headers
 @log.timer(config.log_server_api)
-def api_like_comment():
+def api_article_comments_get():
+    status, headers = parse_structure(request.headers, [Parameter('article-id', 'int', True)])
+    if status.is_error:
+        return json.dumps({'status': dict(status)})
+
+    status, comments = backend.get_article_comments(headers['article-id'])
+    return json.dumps({'status': dict(status),
+                       'comments-count': comments})
+
+@app.route('/article/comments/likes', methods=['POST'])
+@log.log_headers
+@log.timer(config.log_server_api)
+def api_article_comments_like_post():
     status, headers = parse_structure(request.headers, [Parameter('comment-id', 'int', True),
                                                         Parameter('user-id', 'int', True)])
     if status.is_error:
@@ -195,10 +231,10 @@ def api_like_comment():
                                   headers['user-id'])
     return json.dumps({'status': dict(status)})
 
-@app.route('/article/comments/like', methods=['GET'])
+@app.route('/article/comments/likes', methods=['GET'])
 @log.log_headers
 @log.timer(config.log_server_api)
-def api_get_comments_likes():
+def api_article_comments_like_get():
     status, headers = parse_structure(request.headers, [Parameter('comment-id', 'int', True)])
     if status.is_error:
         return json.dumps({'status': dict(status)})
@@ -206,10 +242,34 @@ def api_get_comments_likes():
     status, likes_count = backend.get_comment_likes(headers['comment-id'])
     return json.dumps({'status': dict(status), 'likes-count': likes_count})
 
+@app.route('/article/comments/dislikes', methods=['POST'])
+@log.log_headers
+@log.timer(config.log_server_api)
+def api_article_comments_dislikes_post():
+    status, headers = parse_structure(request.headers, [Parameter('comment-id', 'int', True),
+                                                        Parameter('user-id', 'int', True)])
+    if status.is_error:
+        return json.dumps({'status': dict(status)})
+
+    status = backend.dislike_comment(headers['comment-id'],
+                                  headers['user-id'])
+    return json.dumps({'status': dict(status)})
+
+@app.route('/article/comments/dislikes', methods=['GET'])
+@log.log_headers
+@log.timer(config.log_server_api)
+def api_article_comments_dislikes_get():
+    status, headers = parse_structure(request.headers, [Parameter('comment-id', 'int', True)])
+    if status.is_error:
+        return json.dumps({'status': dict(status)})
+
+    status, dislike = backend.get_comment_dislikes(headers['comment-id'])
+    return json.dumps({'status': dict(status), 'dislikes-count': dislike})
+
 @app.route('/pages', methods=['GET'])
 @log.log_headers
 @log.timer(config.log_server_api)
-def api_get_pages():
+def api_pages_get():
     status, headers = parse_structure(request.headers, [Parameter('user-id', 'int', True),
                                                         Parameter('indexes', 'list_of_int', True)])
     if status.is_error:
@@ -219,10 +279,10 @@ def api_get_pages():
                                       headers['user-id'])
     return json.dumps({'status': dict(status), 'pages': pages})
 
-@app.route('/users/new', methods=['POST'])
+@app.route('/users', methods=['POST'])
 @log.log_headers
 @log.timer(config.log_server_api)
-def api_add_user():
+def api_users_post():
     status, headers = parse_structure(request.headers, [Parameter('user-info', 'json', True)])
     if status.is_error:
         return json.dumps({'status': dict(status)})
@@ -241,7 +301,7 @@ def api_add_user():
 @app.route('/users/update', methods=['POST'])
 @log.log_headers
 @log.timer(config.log_server_api)
-def api_update_user_info():
+def api_users_update_post():
     status, headers = parse_structure(request.headers, [Parameter('user-id', 'int', True),
                                                         Parameter('user-info', 'json', True)])
     if status.is_error:
@@ -257,10 +317,10 @@ def api_update_user_info():
                                       headers['user-id'])
     return json.dumps({'status': dict(status)})
 
-@app.route('/users/change_password', methods=['POST'])
+@app.route('/users/password', methods=['POST'])
 @log.log_headers
 @log.timer(config.log_server_api)
-def api_change_user_password():
+def api_users_password_post():
     status, headers = parse_structure(request.headers, [Parameter('user-id', 'int', True),
                                                         Parameter('previous-password', 'str', True),
                                                         Parameter('new-password', 'str', True)])
@@ -271,10 +331,10 @@ def api_change_user_password():
                                      headers['user-id'])
     return json.dumps({'status': dict(status)})
 
-@app.route('/users/check_password', methods=['GET'])
+@app.route('/users/password/check', methods=['GET'])
 @log.log_headers
 @log.timer(config.log_server_api)
-def api_check_user_password():
+def api_users_password_check_get():
     status, headers = parse_structure(request.headers, [Parameter('user-id', 'int', True),
                                                         Parameter('password', 'str', True)])
     if status.is_error:
