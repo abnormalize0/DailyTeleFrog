@@ -298,6 +298,17 @@ def api_users_post():
     status, user_id = backend.add_user(user_info)
     return json.dumps({'status': dict(status), 'user-id': user_id})
 
+@app.route('/users/profile', methods=['GET'])
+@log.log_headers
+@log.timer(config.log_server_api)
+def api_users_profile_get():
+    status, headers = parse_structure(request.headers, [Parameter('user-id', 'int', True)])
+    if status.is_error:
+        return json.dumps({'status': dict(status)})
+
+    status, user_profile = backend.get_user_profile(headers['user-id'])
+    return json.dumps({'status': dict(status), 'user-profile': user_profile})
+
 @app.route('/users/update', methods=['POST'])
 @log.log_headers
 @log.timer(config.log_server_api)

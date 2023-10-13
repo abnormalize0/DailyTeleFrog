@@ -480,6 +480,34 @@ api_users_post()
 Поле ``blocked_tags`` является списком заблокированных тегов, разделенных символом ``~``.
 Например, это поле может иметь значение ``~Рикролл~MMO~nsfw~``.
 
+api_users_profile_get()
+^^^^^^^^^^^^^^^^^^^^^^^
+
+Метод, позволяющий получить всю информацию о пользователе, необходимую для отображения страницы профиля.
+
+.. code-block:: python
+
+    @app.route('/users/profile', methods=['GET'])
+    def api_users_profile_get()
+    """
+    :headers: 'user-id' - str(int)
+    :returns: str(json) in format {'status': %JSON%, 'profile': %JSON%}
+    """
+
+Заголовок ``user-id`` содержит *id* пользователя, для которого запрашивается информация о профиле.
+Объект ``json``, доступный по ключу *profile* имеет следующую структуру:
+
+.. code-block:: python
+
+    'profile': {
+        'user_id': '%INT%',
+        'name': '%STR%',
+        'password': '%STR%',
+        'page': '%STR%',
+        'avatar': '%STR%',
+        'blocked_tags': '%STR%'
+    }
+
 api_users_update_post()
 ^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -519,7 +547,7 @@ api_users_password_post()
     :returns: str(json) in format {'status': %JSON%}
     """
 
-Заголовок ``user-id`` содержи *id* пользователя, который хочет сменить пароль. Заголовок ``previous-password``
+Заголовок ``user-id`` содержит *id* пользователя, который хочет сменить пароль. Заголовок ``previous-password``
 содержит старый пароль пользователя. Если старый пароль будет указан неверно, то пароль не будет обновлен.
 Заголовок ``new-password`` содержит новый пароль, который пользователь хочет установить.
 

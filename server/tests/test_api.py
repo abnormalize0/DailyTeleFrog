@@ -502,6 +502,17 @@ class TestAPI(base_test.BaseTest):
                      'password': 'qwerty'}
         self.check_structure(endpoint, {}, user_info, 'user-info')
 
+    def test_users_profile_get(self):
+        endpoint = '/users/profile'
+        user_id, password = self.add_user()
+
+        # happy path
+        answer = requests.get(self.localhost + endpoint, headers={'user-id': json.dumps(user_id)})
+        self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
+
+        # no headers
+        self.check_no_headers(endpoint, 'get')
+
     def test_users_update_post(self):
         endpoint = '/users/update'
         user_id, password = self.add_user()
