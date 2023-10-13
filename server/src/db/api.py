@@ -299,3 +299,11 @@ def update_user_info(field_name, field_value, user_id):
                                  field_name,
                                  field_value)
     return status
+
+def user_info_get(user_id):
+    status, data = worker.get_entry_data(config.db_user.path,
+                                   config.user_table_name,
+                                   '*',
+                                   config.user_id_name,
+                                   user_id)
+    return status, data

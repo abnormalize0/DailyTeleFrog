@@ -92,6 +92,9 @@ def post_article(article, user_id):
 def add_user(user_info):
     return api.add_user(user_info)
 
+def get_user_profile(user_id):
+    return api.user_info_get(user_id)
+
 def update_user_info(user_info, user_id):
     exluded_fields = ['user-id', 'name', 'password']
     for field in user_info.keys():
