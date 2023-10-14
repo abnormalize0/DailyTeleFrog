@@ -3,6 +3,7 @@ import os
 
 from . import worker
 from .. import config
+from .. import request_status
 
 def check_password(password, user_id):
     status, data = worker.get_entry_data(config.db_user.path,
@@ -57,13 +58,29 @@ def get_unblocked_articles(blocked_tags=None):
                                                 exclude=exclude_data)
     return status, articles_id[config.article_id_name]
 
-def get_likes_comments_from_article(article_id):
+def get_likes_from_article(article_id):
     status, data = worker.get_entry_data(config.db_article.path,
                                          config.article_table_name,
-                                         ['likes_count', 'comments_count'],
+                                         ['likes_count'],
                                          id_name=config.article_id_name,
                                          id_value=article_id)
-    return status, data['likes_count'], data['comments_count']
+    return status, data['likes_count']
+
+def get_dislikes_from_article(article_id):
+    status, data = worker.get_entry_data(config.db_article.path,
+                                         config.article_table_name,
+                                         ['dislikes_count'],
+                                         id_name=config.article_id_name,
+                                         id_value=article_id)
+    return status, data['dislikes_count']
+
+def get_comments_from_article(article_id):
+    status, data = worker.get_entry_data(config.db_article.path,
+                                         config.article_table_name,
+                                         ['comments_count'],
+                                         id_name=config.article_id_name,
+                                         id_value=article_id)
+    return status, data['comments_count']
 
 def get_likes_from_comment(comment_id):
     status, likes_count = worker.get_entry_data(config.db_comment.path,
@@ -73,14 +90,24 @@ def get_likes_from_comment(comment_id):
                                                 id_value=comment_id)
     return status, likes_count['likes_count']
 
+def get_dislikes_from_comment(comment_id):
+    status, dislikes_count = worker.get_entry_data(config.db_comment.path,
+                                                   config.comment_table_name,
+                                                   ['dislikes_count'],
+                                                   id_name=config.comment_id_name,
+                                                   id_value=comment_id)
+    return status, dislikes_count['dislikes_count']
+
 def create_comment(article_id, user_id):
     comment = {'author_id': user_id,
-               'likes_count': 1,
-               'likes_id': config.delimiter + str(user_id) + config.delimiter,
+               'likes_count': 0,
+               'likes_id': '',
+               'dislikes_count': 0,
+               'dislikes_id': '',
                'article_id': article_id}
     status, comment_id = worker.add_entry(config.db_comment.path,
-                                    config.comment_table_name,
-                                    comment)
+                                          config.comment_table_name,
+                                          comment)
     if status.is_error:
         return status, None
     return status, comment_id
@@ -101,7 +128,8 @@ def add_comment(article_id, root_id, comment_text, user_id):
         return status, None
     comment = {'comment_text': comment_text,
                'author_id': user_id,
-               'likes_count': 1,
+               'likes_count': 0,
+               'dislikes_count': 0,
                'id': comment_id,
                'answers': []}
 
@@ -120,60 +148,95 @@ def add_comment(article_id, root_id, comment_text, user_id):
 
     return status, comment_id
 
-def find_comment(root_comment, likes_count, id):
+def find_comment(root_comment, vote_count, vote_type, id):
     if root_comment['id'] == int(id):
-        root_comment['likes_count'] = likes_count
+        root_comment[vote_type] = vote_count
         return True, root_comment
     for index, child_comment in enumerate(root_comment['answers']):
-        is_changed, changed_comments = find_comment(child_comment, likes_count, id)
+        is_changed, changed_comments = find_comment(child_comment, vote_count, id)
         if is_changed:
             root_comment['answers'][index] = changed_comments
             return True, root_comment
     return False, None
 
-def set_likes_on_comment(file_name, id, likes_count):
+def set_vote_on_comment(file_name, id, vote_count, vote_type):
     article = None
     with open(file_name, encoding="utf-8") as file:
         article = json.load(file)
     for index, root_comment in enumerate(article['answers']):
-        is_changed, changed_comments = find_comment(root_comment, likes_count, id)
+        is_changed, changed_comments = find_comment(root_comment, vote_count, vote_type, id)
         if is_changed:
             article['answers'][index] = changed_comments
             break
     with open(file_name, 'w', encoding="utf-8") as file:
         json.dump(article, file, ensure_ascii=False, indent=4)
-    return
 
-def set_likes_on_article(id, likes_count):
+def set_vote_on_article(id, vote_count, vote_type):
     article = None
     with open(os.path.join(config.db_article_directory.path, f'{id}.json'), encoding="utf-8") as file:
         article = json.load(file)
-    article['likes_count'] = likes_count
+    article[vote_type] = vote_count
     with open(os.path.join(config.db_article_directory.path, f'{id}.json'), 'w', encoding="utf-8") as file:
         json.dump(article, file, ensure_ascii=False, indent=4)
 
-def like(db, table_name, id_name, id, user_id):
+def vote(db, table_name, id_name, id, user_id, vote_type):
     status, data = worker.get_entry_data(db,
                                          table_name,
-                                         ['likes_id', 'likes_count'],
+                                         ['likes_id', 'likes_count', 'author_id', 'dislikes_count', 'dislikes_id'],
                                          id_name=id_name,
                                          id_value=id)
     if status.is_error:
         return status
 
-    select = data['likes_id']
-    current_likes_count = data['likes_count']
-    if not select:
-        select = ''
-    change = 1
+    author_id = data['author_id']
 
-    if str(user_id) not in select.split(config.delimiter):
+    if user_id == author_id:
+        return request_status.Status(request_status.StatusType.ERROR, request_status.ErrorType.ValueError,
+                                     msg='User tries to like or dislike their own comment or article')
+
+    reverse_vote = 'dislikes'
+    if vote_type == 'dislikes':
+        reverse_vote = 'likes'
+
+    vote_id = data[vote_type + '_id']
+    vote_count = data[vote_type + '_count']
+    reverse_vote_id = data[reverse_vote + '_id']
+    reverse_vote_count = data[reverse_vote + '_count']
+    is_have_reverse_vote = False
+
+    import sys
+
+    if reverse_vote_id and str(user_id) in reverse_vote_id.split(config.delimiter):
         status = worker.update_entry(db,
                                      table_name,
                                      id_name,
                                      id,
-                                     'likes_id',
-                                     select + f'{config.delimiter}{user_id}{config.delimiter}')
+                                     reverse_vote + '_id',
+                                     reverse_vote_id.replace(f'{config.delimiter}{user_id}{config.delimiter}', ''))
+        if status.is_error:
+            return status
+
+        status = worker.update_entry(db,
+                                     table_name,
+                                     id_name,
+                                     id,
+                                     reverse_vote + '_count',
+                                     reverse_vote_count - 1)
+        if status.is_error:
+            return status
+        is_have_reverse_vote = True
+
+    if not vote_id:
+        vote_id = ''
+    change = 1
+
+    if str(user_id) not in vote_id.split(config.delimiter):
+        status = worker.update_entry(db,
+                                     table_name,
+                                     id_name,
+                                     id,
+                                     vote_type + '_id',
+                                     vote_id + f'{config.delimiter}{user_id}{config.delimiter}')
         if status.is_error:
             return status
     else:
@@ -181,24 +244,26 @@ def like(db, table_name, id_name, id, user_id):
                                      table_name,
                                      id_name,
                                      id,
-                                     'likes_id',
-                                     select.replace(f'{config.delimiter}{user_id}{config.delimiter}', ''))
+                                     vote_type + '_id',
+                                     vote_id.replace(f'{config.delimiter}{user_id}{config.delimiter}', ''))
         if status.is_error:
             return status
         change = -1
 
-    likes_count = current_likes_count + change
+    new_vote_count = vote_count + change
     status = worker.update_entry(db,
                                  table_name,
                                  id_name,
                                  id,
-                                 'likes_count',
-                                 likes_count)
+                                 vote_type + '_count',
+                                 new_vote_count)
     if status.is_error:
         return status
 
     if db == config.db_article.path:
-        set_likes_on_article(id, likes_count)
+        set_vote_on_article(id, new_vote_count, vote_type + '_count')
+        if is_have_reverse_vote:
+            set_vote_on_article(id, reverse_vote_count - 1, reverse_vote + '_count')
     if db == config.db_comment.path:
         status, article_id = worker.get_entry_data(db,
                                            table_name,
@@ -208,7 +273,9 @@ def like(db, table_name, id_name, id, user_id):
         if status.is_error:
             return status
         file_name = os.path.join(config.db_article_directory.path, f'{article_id["article_id"]}.json')
-        set_likes_on_comment(file_name, id, likes_count)
+        set_vote_on_comment(file_name, id, new_vote_count, vote_type + '_count')
+        if is_have_reverse_vote:
+            set_vote_on_comment(file_name, id, reverse_vote_count - 1, reverse_vote + '_count')
 
     return status
 
@@ -232,3 +299,11 @@ def update_user_info(field_name, field_value, user_id):
                                  field_name,
                                  field_value)
     return status
+
+def user_info_get(user_id):
+    status, data = worker.get_entry_data(config.db_user.path,
+                                   config.user_table_name,
+                                   '*',
+                                   config.user_id_name,
+                                   user_id)
+    return status, data

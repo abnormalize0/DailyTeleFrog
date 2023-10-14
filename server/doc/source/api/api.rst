@@ -21,7 +21,58 @@
 ``ValueError`` сигнализирует о том, у одно из параметров неверное значение, например для *id* пользователя имеет
 значение ``-1``. Поле ``message`` содержит сообщение с подробным описанием возникшей проблемы.
 
-api_get_article()
+api_article_post()
+^^^^^^^^^^^^^^^^^^
+
+Метод для опубликования статьи.
+
+.. code-block:: python
+
+    @app.route('/article', methods=['POST'])
+    def api_article_post()
+    """
+    :headers: 'article' - str(json)
+              'user-id' - str(int)
+
+    :returns: str(json) in format {'status': %JSON%, 'article-id': %INT%}
+    """
+
+Заголовок ``article`` является *json* объектом в строковом формате, который представляет собой статью.
+
+Статья обязана имееть следующую структуру:
+
+.. code-block:: python
+
+    {
+        'article': '%JSON%' # user-defined article structure
+        'preview_content': '%JSON%' # user-defined preview structure
+        'name': '%STR%'
+        'tags': '%STR%'
+        'created': '%STR%'
+    }
+
+Ключ ``article`` содержит тело статьи со структурой определенной пользователем.
+Сервер никак не изменяет статью, которую ему передали, и не обращается к ее содержимому.
+Поэтому вся структура сохраняется в неизменном виде. Это позволяет определить структуру статьи на строрне *frontend* и
+изменять ее без необходимости вносить изменения на сервер.
+
+Ключ ``preview_content`` содержит *json* с контентом, который требуется для предпоказа в ленте.
+Сервер никак не изменяет структуру и не обращается к ее содержимому.
+Это позволяет определить структуру контента для предпоказа на строрне *frontend* и
+изменять ее без необходимости вносить изменения на сервер.
+
+Ключ ``name`` содержит название статьи.
+
+Ключ ``tags`` содержит теги статьи, перечисленные через разделитель ``~``. Напирмер, статья имеющая теги ``Обзор``,
+``Call of Duty`` и ``Лонг`` будет иметь значение по ключу ``tags``: ``~Обзор~Call of duty~Лонг~``.
+
+Ключ ``created`` содержит дату публикации статьи в строковом формате.
+
+.. note::
+    Сервер сохраняет только перечисленные ключи и их значения.
+    Все остальные ключи будут проигнорированы, а данные по ним будут утеряны.
+
+api_article_get()
 ^^^^^^^^^^^^^^^^^
 
 Метод для получения статьи.
@@ -29,7 +80,7 @@ api_get_article()
 .. code-block:: python
 
     @app.route('/article', methods=['GET'])
-    def api_get_article()
+    def api_article_get()
     """
     :headers: 'article-id' - str(int)
 
@@ -106,85 +157,15 @@ api_get_article()
 
 Ключ ``created`` содержит дату публикации статьи в строковом формате.
 
-
-api_get_article_likes_comments()
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Метод для получения количества лайков и количества комментариев у статьи.
-
-.. code-block:: python
-
-    @app.route('/article/likes_comments', methods=['GET'])
-    def api_get_article_likes_comments()
-    """
-    :headers: 'article-id' - str(int)
-
-    :returns: str(json) in format {'status': %JSON%, 'likes-count': %INT%, 'comments-count': %INT%}
-    """
-
-Этот метод обрабатывает только один заголовок - *id* статьи,
-для которой нужно узнать количество комментариев и лайков.
-
-api_post_article()
-^^^^^^^^^^^^^^^^^^
-
-Метод для опубликования статьи.
-
-.. code-block:: python
-
-    @app.route('/article', methods=['POST'])
-    def api_post_article()
-    """
-    :headers: 'article' - str(json)
-              'user-id' - str(int)
-
-    :returns: str(json) in format {'status': %JSON%, 'article-id': %INT%}
-    """
-
-Заголовок ``article`` является *json* объектом в строковом формате, который представляет собой статью.
-
-Статья обязана имееть следующую структуру:
-
-.. code-block:: python
-
-    {
-        'article': '%JSON%' # user-defined article structure
-        'preview_content': '%JSON%' # user-defined preview structure
-        'name': '%STR%'
-        'tags': '%STR%'
-        'created': '%STR%'
-    }
-
-Ключ ``article`` содержит тело статьи со структурой определенной пользователем.
-Сервер никак не изменяет статью, которую ему передали, и не обращается к ее содержимому.
-Поэтому вся структура сохраняется в неизменном виде. Это позволяет определить структуру статьи на строрне *frontend* и
-изменять ее без необходимости вносить изменения на сервер.
-
-Ключ ``preview_content`` содержит *json* с контентом, который требуется для предпоказа в ленте.
-Сервер никак не изменяет структуру и не обращается к ее содержимому.
-Это позволяет определить структуру контента для предпоказа на строрне *frontend* и
-изменять ее без необходимости вносить изменения на сервер.
-
-Ключ ``name`` содержит название статьи.
-
-Ключ ``tags`` содержит теги статьи, перечисленные через разделитель ``~``. Напирмер, статья имеющая теги ``Обзор``,
-``Call of Duty`` и ``Лонг`` будет иметь значение по ключу ``tags``: ``~Обзор~Call of duty~Лонг~``.
-
-Ключ ``created`` содержит дату публикации статьи в строковом формате.
-
-.. note::
-    Сервер сохраняет только перечисленные ключи и их значения.
-    Все остальные ключи будут проигнорированы, а данные по ним будут утеряны.
-
-api_like_article()
-^^^^^^^^^^^^^^^^^^
+api_article_likes_post()
+^^^^^^^^^^^^^^^^^^^^^^^^
 
 Метод для переключения состояния лайка на статье.
 
 .. code-block:: python
 
     @app.route('/article/like', methods=['POST'])
-    def api_like_article()
+    def api_article_likes_post()
     """
     :headers: 'user-id' - str(int)
               'article-id' - str(int)
@@ -197,15 +178,72 @@ api_like_article()
 Если на этой статье уже лайк от этого пользователя, то его лайк снимется.
 Если на статье нет лайка от этого пользователя, то лайк будет поставлен.
 
-api_add_comment()
-^^^^^^^^^^^^^^^^^
+api_article_likes_get()
+^^^^^^^^^^^^^^^^^^^^^^^
+
+Метод для получения количества лайков у статьи.
+
+.. code-block:: python
+
+    @app.route('/article/likes', methods=['GET'])
+    def api_article_likes_get()
+    """
+    :headers: 'article-id' - str(int)
+
+    :returns: str(json) in format {'status': %JSON%, 'likes-count': %INT%}
+    """
+
+Этот метод обрабатывает только один заголовок - *id* статьи,
+для которой нужно узнать количество лайков.
+
+api_article_dislikes_post()
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Метод для переключения состояния дизлайка на статье.
+
+.. code-block:: python
+
+    @app.route('/article/dislike', methods=['POST'])
+    def api_article_dislikes_post()
+    """
+    :headers: 'user-id' - str(int)
+              'article-id' - str(int)
+
+    :returns: str(json) in format {'status': %JSON%}
+    """
+
+Заголовок ``user-id`` содержит *id* пользователя, который нажал кнопку дизлайка.
+Заголовок ``article-id`` содержит *id* статьи, для которой пользователь нажал кнопку дизлайка.
+Если на этой статье уже лайк от этого пользователя, то его лайк снимется.
+Если на статье нет дизлайка от этого пользователя, то лайк будет поставлен.
+
+api_article_dislikes_get()
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Метод для получения количества лайков у статьи.
+
+.. code-block:: python
+
+    @app.route('/article/dislikes', methods=['GET'])
+    def api_article_dislikes_get()
+    """
+    :headers: 'article-id' - str(int)
+
+    :returns: str(json) in format {'status': %JSON%, 'dislikes-count': %INT%}
+    """
+
+Этот метод обрабатывает только один заголовок - *id* статьи,
+для которой нужно узнать количество дизлайков.
+
+api_article_comments_post()
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Метод для добавления комметария к статье.
 
 .. code-block:: python
 
-    @app.route('/article/comments/add', methods=['POST'])
-    def api_add_comment()
+    @app.route('/article/comments', methods=['POST'])
+    def api_article_comments_post()
     '''
     :headers: 'user-id' - str(int)
               'article-id' - str(int)
@@ -219,15 +257,34 @@ api_add_comment()
 статьи, к которой пишется комментарий. Заголовок ``root`` содержит *id* комментария, на который отвечает пользователь.
 Если пользователь пишет комментрий к самой статье, то в заголовок ``root`` должно содержать значение ``-1``.
 Заголовок ``text`` содержит в себе текст комментария.
-api_like_comment()
-^^^^^^^^^^^^^^^^^^
+
+api_article_comments_get()
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Метод для получения количества комментариев у статьи.
+
+.. code-block:: python
+
+    @app.route('/article/comments', methods=['GET'])
+    def api_article_comments_get()
+    """
+    :headers: 'article-id' - str(int)
+
+    :returns: str(json) in format {'status': %JSON%, 'comments-count': %INT%}
+    """
+
+Этот метод обрабатывает только один заголовок - *id* статьи,
+для которой нужно узнать количество комментариев.
+
+api_article_comments_like_post()
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Метод для переключения состояния лайка на комментарии.
 
 .. code-block:: python
 
     @app.route('/article/comments/like', methods=['POST'])
-    def api_like_comment()
+    def api_article_comments_like_post()
     """
     :headers: 'user-id' - str(int)
               'comment-id' - str(int)
@@ -240,15 +297,15 @@ api_like_comment()
 Если на этом комментарии уже лайк от этого пользователя, то его лайк снимется. Если на комментарии
 нет лайка от этого пользователя, то лайк будет поставлен.
 
-api_get_comments_likes()
-^^^^^^^^^^^^^^^^^^^^^^^^
+api_article_comments_like_get()
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Метод для получения количества лайков на комментарии.
 
 .. code-block:: python
 
     @app.route('/article/comments/like', methods=['GET'])
-    def api_get_comments_likes():
+    def api_article_comments_like_get():
     """
     :headers: 'comment-id' - str(int)
 
@@ -257,6 +314,45 @@ api_get_comments_likes()
 
 Этот метод обрабатывает только один заголовок - *id* комментария,
 для которой нужно узнать количество лайков.
+
+api_article_comments_dislike_post()
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Метод для переключения состояния дизлайка на комментарии.
+
+.. code-block:: python
+
+    @app.route('/article/comments/dislike', methods=['POST'])
+    def api_article_comments_dislike_post()
+    """
+    :headers: 'user-id' - str(int)
+              'comment-id' - str(int)
+
+    :returns: str(json) in format {'status': %JSON%}
+    """
+
+Заголовок ``user-id`` содержит *id* пользователя, который нажал кнопку дизлайка.
+Заголовок ``comment-id`` содержит *id* комментария, для которой пользователь нажал кнопку дизлайка.
+Если на этом комментарии уже лайк от этого пользователя, то его лайк снимется. Если на комментарии
+нет дизлайка от этого пользователя, то лайк будет поставлен.
+
+api_article_comments_dislike_get()
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Метод для получения количества дизлайков на комментарии.
+
+.. code-block:: python
+
+    @app.route('/article/comments/dislike', methods=['GET'])
+    def api_article_comments_dislike_get():
+    """
+    :headers: 'comment-id' - str(int)
+
+    :returns: str(json) in format {'status': %JSON%, 'dislikes-count': %INT%}
+    """
+
+Этот метод обрабатывает только один заголовок - *id* комментария,
+для которой нужно узнать количество дизлайков.
 
 api_get_pages()
 ^^^^^^^^^^^^^^^
@@ -359,15 +455,15 @@ api_get_pages()
 .. note::
     Индексы страниц начинаются с ``0``.
 
-api_add_user()
-^^^^^^^^^^^^^^
+api_users_post()
+^^^^^^^^^^^^^^^^
 
 Метод для регистрации нового пользователя.
 
 .. code-block:: python
 
-    @app.route('/users/new', methods=['POST'])
-    def api_add_user()
+    @app.route('/users', methods=['POST'])
+    def api_users_post()
     """
     :headers: 'user-info' - str(json) in format {'name': %STR%,
                                                  'password': %STR%,
@@ -384,15 +480,43 @@ api_add_user()
 Поле ``blocked_tags`` является списком заблокированных тегов, разделенных символом ``~``.
 Например, это поле может иметь значение ``~Рикролл~MMO~nsfw~``.
 
-api_update_user_info()
-^^^^^^^^^^^^^^^^^^^^^^
+api_users_profile_get()
+^^^^^^^^^^^^^^^^^^^^^^^
+
+Метод, позволяющий получить всю информацию о пользователе, необходимую для отображения страницы профиля.
+
+.. code-block:: python
+
+    @app.route('/users/profile', methods=['GET'])
+    def api_users_profile_get()
+    """
+    :headers: 'user-id' - str(int)
+    :returns: str(json) in format {'status': %JSON%, 'profile': %JSON%}
+    """
+
+Заголовок ``user-id`` содержит *id* пользователя, для которого запрашивается информация о профиле.
+Объект ``json``, доступный по ключу *profile* имеет следующую структуру:
+
+.. code-block:: python
+
+    'profile': {
+        'user_id': '%INT%',
+        'name': '%STR%',
+        'password': '%STR%',
+        'page': '%STR%',
+        'avatar': '%STR%',
+        'blocked_tags': '%STR%'
+    }
+
+api_users_update_post()
+^^^^^^^^^^^^^^^^^^^^^^^
 
 Метод, изменяющий пользовательские данные.
 
 .. code-block:: python
 
     @app.route('/users/update', methods=['POST'])
-    def api_update_user_info()
+    def api_users_update_post()
     """
     :headers: 'user-info' - str(json) in format {'page': %STR%,
                                                  'avatar': %STR%,
@@ -406,15 +530,15 @@ api_update_user_info()
 Поле ``blocked_tags`` является списком заблокированных тегов, разделенных символом ``~``.
 Например, это поле может иметь значение ``~Рикролл~MMO~nsfw~``.
 
-api_change_user_password()
-^^^^^^^^^^^^^^^^^^^^^^^^^^
+api_users_password_post()
+^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Метод смены пользовательского пароля.
 
 .. code-block:: python
 
-    @app.route('/users/change_password', methods=['POST'])
-    def api_change_user_password()
+    @app.route('/users/password', methods=['POST'])
+    def api_users_password_post()
     """
     :headers: 'user-id' - str(int)
               'previous-password' - str
@@ -423,19 +547,19 @@ api_change_user_password()
     :returns: str(json) in format {'status': %JSON%}
     """
 
-Заголовок ``user-id`` содержи *id* пользователя, который хочет сменить пароль. Заголовок ``previous-password``
+Заголовок ``user-id`` содержит *id* пользователя, который хочет сменить пароль. Заголовок ``previous-password``
 содержит старый пароль пользователя. Если старый пароль будет указан неверно, то пароль не будет обновлен.
 Заголовок ``new-password`` содержит новый пароль, который пользователь хочет установить.
 
-api_check_user_password()
-^^^^^^^^^^^^^^^^^^^^^^^^^
+api_users_password_check_get()
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Метод для проверки пользовательского пароля.
 
 .. code-block:: python
 
-    @app.route('/users/check_password', methods=['GET'])
-    def api_check_user_password()
+    @app.route('/users/password/check', methods=['GET'])
+    def api_users_password_check_get()
     """
     :headers: 'user-id' - str(int)
               'password' - str

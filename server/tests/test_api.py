@@ -79,6 +79,35 @@ class TestAPI(base_test.BaseTest):
         self.assertEqual(error_type, 'OptionError',
                          msg = f'Error type: {error_type}\nMessage: {message}')
 
+    def test_article_post(self):
+        endpoint = '/article'
+        user_id, password = self.add_user()
+        article = {'name': 'test_name',
+                   'preview_content': {'type': 'image', 'data': 'ref'},
+                   'tags': '~tag1~tag2~tag3~',
+                   'created': '01.01.2000',
+                   'article': {'block1': 'text'}
+        }
+
+        # happy path
+        answer = requests.post(self.localhost + endpoint, headers={'user-id': str(user_id),
+                                                                     'article': json.dumps(article)})
+        self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
+
+        # no headers
+        self.check_no_headers(endpoint, 'post')
+
+        # headers with wrong value
+        answer = requests.post(self.localhost + endpoint, headers={'user-id': 'hehe', 'article': 'hehe'})
+        status_type = answer.json()['status']['type']
+        error_type = answer.json()['status']['error_type']
+        message = answer.json()['status']['message']
+        self.assertEqual(status_type, 'ERROR', msg = str(answer.json()['status']))
+        self.assertEqual(answer.json()['status']['error_type'], 'ValueError',
+                         msg = f'Error type: {error_type}\nMessage: {message}')
+
+        self.check_structure(endpoint, {'user-id': str(user_id)}, article, 'article')
+
     def test_article_get(self):
         endpoint = '/article'
         user_id, password = self.add_user()
@@ -109,26 +138,38 @@ class TestAPI(base_test.BaseTest):
         self.assertEqual(answer.json()['status']['error_type'], 'ValueError',
                          msg = f'Error type: {error_type}\nMessage: {message}')
 
-    def test_article_post(self):
-        endpoint = '/article'
+
+    def test_article_likes_post(self):
+        endpoint = '/article/likes'
         user_id, password = self.add_user()
-        article = {'name': 'test_name',
-                   'preview_content': {'type': 'image', 'data': 'ref'},
-                   'tags': '~tag1~tag2~tag3~',
-                   'created': '01.01.2000',
-                   'article': {'block1': 'text'}
-        }
+        article_id = self.add_arcticle(user_id=user_id)
 
         # happy path
-        answer = requests.post(self.localhost + endpoint, headers={'user-id': str(user_id),
-                                                                     'article': json.dumps(article)})
-        self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
+        for i in range(3):
+            answer = requests.post(self.localhost + '/article/dislikes', headers={'user-id': str(user_id + 1),
+                                                                                  'article-id': str(article_id)})
+            self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
+        answer = requests.post(self.localhost + endpoint, headers={'user-id': str(user_id + 1),
+                                                                   'article-id': str(article_id)})
+
+        # like must rewrite dislike
+        answer = requests.get(self.localhost + '/article/dislikes',
+                              headers={'article-id': str(article_id)})
+        self.assertEqual(answer.json()['status']['type'], 'OK', msg=answer.json()['status'])
+        self.assertEqual(answer.json()['dislikes-count'], 0)
+
+        # check like count
+        answer = requests.get(self.localhost + endpoint,
+                              headers={'article-id': str(article_id)})
+        self.assertEqual(answer.json()['status']['type'], 'OK', msg=answer.json()['status'])
+        self.assertEqual(answer.json()['likes-count'], 1)
 
         # no headers
         self.check_no_headers(endpoint, 'post')
 
-        # headers with wrong value
-        answer = requests.post(self.localhost + endpoint, headers={'user-id': 'hehe', 'article': 'hehe'})
+        # wrong header value
+        answer = requests.post(self.localhost + endpoint, headers={'user-id': 'hehe',
+                                                                   'article-id': str(article_id)})
         status_type = answer.json()['status']['type']
         error_type = answer.json()['status']['error_type']
         message = answer.json()['status']['message']
@@ -136,7 +177,281 @@ class TestAPI(base_test.BaseTest):
         self.assertEqual(answer.json()['status']['error_type'], 'ValueError',
                          msg = f'Error type: {error_type}\nMessage: {message}')
 
-        self.check_structure(endpoint, {'user-id': str(user_id)}, article, 'article')
+    def test_article_likes_get(self):
+        endpoint = '/article/likes'
+        user_id, password = self.add_user()
+        article_id = self.add_arcticle(user_id=user_id)
+
+        # happy path
+        answer = requests.get(self.localhost + endpoint, headers={'article-id': str(article_id)})
+        self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
+        self.assertEqual(answer.json()['likes-count'], 0)
+
+        # no headers
+        self.check_no_headers(endpoint, 'get')
+
+        # headers with wrong value
+        answer = requests.get(self.localhost + endpoint, headers={'article-id': 'hehe'})
+        status_type = answer.json()['status']['type']
+        error_type = answer.json()['status']['error_type']
+        message = answer.json()['status']['message']
+        self.assertEqual(status_type, 'ERROR', msg = str(answer.json()['status']))
+        self.assertEqual(answer.json()['status']['error_type'], 'ValueError',
+                         msg = f'Error type: {error_type}\nMessage: {message}')
+
+    def test_article_dislikes_post(self):
+        endpoint = '/article/dislikes'
+        user_id, password = self.add_user()
+        self.add_user()
+        article_id = self.add_arcticle(user_id=user_id)
+
+        # happy path
+        for i in range(3):
+            answer = requests.post(self.localhost + '/article/likes', headers={'user-id': str(user_id + 1),
+                                                                               'article-id': str(article_id)})
+            self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
+        answer = requests.post(self.localhost + endpoint, headers={'user-id': str(user_id + 1),
+                                                                   'article-id': str(article_id)})
+
+        # dislike must rewrite like
+        answer = requests.get(self.localhost + '/article/likes',
+                              headers={'article-id': str(article_id)})
+        self.assertEqual(answer.json()['status']['type'], 'OK', msg=answer.json()['status'])
+        self.assertEqual(answer.json()['likes-count'], 0)
+
+        # check dislike count
+        answer = requests.get(self.localhost + endpoint,
+                              headers={'article-id': str(article_id)})
+        self.assertEqual(answer.json()['status']['type'], 'OK', msg=answer.json()['status'])
+        self.assertEqual(answer.json()['dislikes-count'], 1)
+
+        # no headers
+        self.check_no_headers(endpoint, 'post')
+
+        # wrong header value
+        answer = requests.post(self.localhost + endpoint, headers={'user-id': 'hehe',
+                                                                   'article-id': str(article_id)})
+        status_type = answer.json()['status']['type']
+        error_type = answer.json()['status']['error_type']
+        message = answer.json()['status']['message']
+        self.assertEqual(status_type, 'ERROR', msg = str(answer.json()['status']))
+        self.assertEqual(answer.json()['status']['error_type'], 'ValueError',
+                         msg = f'Error type: {error_type}\nMessage: {message}')
+
+    def test_article_dislikes_get(self):
+        endpoint = '/article/dislikes'
+        user_id, password = self.add_user()
+        article_id = self.add_arcticle(user_id=user_id)
+
+        # happy path
+        answer = requests.get(self.localhost + endpoint, headers={'article-id': str(article_id)})
+        self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
+        self.assertEqual(answer.json()['dislikes-count'], 0)
+
+        # no headers
+        self.check_no_headers(endpoint, 'get')
+
+        # headers with wrong value
+        answer = requests.get(self.localhost + endpoint, headers={'article-id': 'hehe'})
+        status_type = answer.json()['status']['type']
+        error_type = answer.json()['status']['error_type']
+        message = answer.json()['status']['message']
+        self.assertEqual(status_type, 'ERROR', msg = str(answer.json()['status']))
+        self.assertEqual(answer.json()['status']['error_type'], 'ValueError',
+                         msg = f'Error type: {error_type}\nMessage: {message}')
+
+    def test_article_comments_get(self):
+        endpoint = '/article/comments'
+        user_id, password = self.add_user()
+        article_id = self.add_arcticle(user_id=user_id)
+
+        # happy path
+        answer = requests.get(self.localhost + endpoint, headers={'article-id': str(article_id)})
+        self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
+
+        # no headers
+        self.check_no_headers(endpoint, 'get')
+
+        # headers with wrong value
+        answer = requests.get(self.localhost + endpoint, headers={'article-id': 'hehe'})
+        status_type = answer.json()['status']['type']
+        error_type = answer.json()['status']['error_type']
+        message = answer.json()['status']['message']
+        self.assertEqual(status_type, 'ERROR', msg = str(answer.json()['status']))
+        self.assertEqual(answer.json()['status']['error_type'], 'ValueError',
+                         msg = f'Error type: {error_type}\nMessage: {message}')
+
+    def test_article_comments_post(self):
+        endpoint = '/article/comments'
+        user_id, password = self.add_user()
+        article_id = self.add_arcticle(user_id=user_id)
+        comment_text = "comment 1"
+
+        # happy path
+        answer = requests.post(self.localhost + endpoint, headers={'user-id': str(user_id),
+                                                                   'article-id': str(article_id),
+                                                                   'root': str(-1),
+                                                                   'text': comment_text})
+        self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
+
+        # no headers
+        self.check_no_headers(endpoint, 'post')
+
+        # wrong header value
+        answer = requests.post(self.localhost + endpoint, headers={'user-id': 'hehe',
+                                                                   'article-id': str(article_id),
+                                                                   'root': str(-1),
+                                                                   'text': comment_text})
+        status_type = answer.json()['status']['type']
+        error_type = answer.json()['status']['error_type']
+        message = answer.json()['status']['message']
+        self.assertEqual(status_type, 'ERROR', msg = str(answer.json()['status']))
+        self.assertEqual(answer.json()['status']['error_type'], 'ValueError',
+                         msg = f'Error type: {error_type}\nMessage: {message}')
+
+    def test_article_comments_likes_post(self):
+        endpoint = '/article/comments/likes'
+        user_id, password = self.add_user()
+        article_id = self.add_arcticle(user_id=user_id)
+        comment_text = "comment 1"
+        answer = requests.post(self.localhost + '/article/comments', headers={'user-id': str(user_id),
+                                                                              'article-id': str(article_id),
+                                                                              'root': str(-1),
+                                                                              'text': comment_text})
+        self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
+        comment_id = answer.json()['comment-id']
+
+        # happy path
+        for i in range(3):
+            answer = requests.post(self.localhost + '/article/comments/dislikes',
+                                   headers={'comment-id': str(comment_id), 'user-id': str(user_id + 1)})
+            self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
+        answer = requests.post(self.localhost + endpoint,
+                                   headers={'comment-id': str(comment_id), 'user-id': str(user_id + 1)})
+
+        # like must rewrite dislike
+        answer = requests.get(self.localhost + '/article/comments/dislikes', headers={'comment-id': str(comment_id)})
+        self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
+        self.assertEqual(answer.json()['dislikes-count'], 0)
+
+        # check likes count
+        answer = requests.get(self.localhost + endpoint, headers={'comment-id': str(comment_id)})
+        self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
+        self.assertEqual(answer.json()['likes-count'], 1)
+
+        # no headers
+        self.check_no_headers(endpoint, 'post')
+
+        # wrong header value
+        answer = requests.post(self.localhost + endpoint,
+                               headers={'comment-id': 'hehe', 'user-id': str(user_id)})
+        status_type = answer.json()['status']['type']
+        error_type = answer.json()['status']['error_type']
+        message = answer.json()['status']['message']
+        self.assertEqual(status_type, 'ERROR', msg = str(answer.json()['status']))
+        self.assertEqual(answer.json()['status']['error_type'], 'ValueError',
+                         msg = f'Error type: {error_type}\nMessage: {message}')
+
+    def test_article_comments_likes_get(self):
+        endpoint = '/article/comments/likes'
+        user_id, password = self.add_user()
+        article_id = self.add_arcticle(user_id=user_id)
+        comment_text = "comment 1"
+        answer = requests.post(self.localhost + '/article/comments', headers={'user-id': str(user_id),
+                                                                              'article-id': str(article_id),
+                                                                              'root': str(-1),
+                                                                              'text': comment_text})
+        self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
+        comment_id = answer.json()['comment-id']
+
+        # happy path
+        answer = requests.get(self.localhost + endpoint, headers={'comment-id': str(comment_id)})
+        self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
+        self.assertEqual(answer.json()['likes-count'], 0)
+
+        # no headers
+        self.check_no_headers(endpoint, 'get')
+
+        # wrong header value
+        answer = requests.get(self.localhost + endpoint, headers={'comment-id': 'hehe'})
+        status_type = answer.json()['status']['type']
+        error_type = answer.json()['status']['error_type']
+        message = answer.json()['status']['message']
+        self.assertEqual(status_type, 'ERROR', msg = str(answer.json()['status']))
+        self.assertEqual(answer.json()['status']['error_type'], 'ValueError',
+                         msg = f'Error type: {error_type}\nMessage: {message}')
+
+    def test_article_comments_dislikes_post(self):
+        endpoint = '/article/comments/dislikes'
+        user_id, password = self.add_user()
+        article_id = self.add_arcticle(user_id=user_id)
+        comment_text = "comment 1"
+        answer = requests.post(self.localhost + '/article/comments', headers={'user-id': str(user_id),
+                                                                              'article-id': str(article_id),
+                                                                              'root': str(-1),
+                                                                              'text': comment_text})
+        self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
+        comment_id = answer.json()['comment-id']
+
+        # happy path
+        for i in range(3):
+            answer = requests.post(self.localhost + '/article/comments/likes',
+                                   headers={'comment-id': str(comment_id), 'user-id': str(user_id + 1)})
+            self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
+        answer = requests.post(self.localhost + endpoint,
+                               headers={'comment-id': str(comment_id), 'user-id': str(user_id + 1)})
+
+        # dislike must rewrite like
+        answer = requests.get(self.localhost + '/article/comments/likes', headers={'comment-id': str(comment_id)})
+        self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
+        self.assertEqual(answer.json()['likes-count'], 0)
+
+        # check dislikes count
+        answer = requests.get(self.localhost + endpoint, headers={'comment-id': str(comment_id)})
+        self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
+        self.assertEqual(answer.json()['dislikes-count'], 1)
+
+        # no headers
+        self.check_no_headers(endpoint, 'post')
+
+        # wrong header value
+        answer = requests.post(self.localhost + endpoint,
+                               headers={'comment-id': 'hehe', 'user-id': str(user_id)})
+        status_type = answer.json()['status']['type']
+        error_type = answer.json()['status']['error_type']
+        message = answer.json()['status']['message']
+        self.assertEqual(status_type, 'ERROR', msg = str(answer.json()['status']))
+        self.assertEqual(answer.json()['status']['error_type'], 'ValueError',
+                         msg = f'Error type: {error_type}\nMessage: {message}')
+
+    def test_article_comments_dislikes_get(self):
+        endpoint = '/article/comments/dislikes'
+        user_id, password = self.add_user()
+        article_id = self.add_arcticle(user_id=user_id)
+        comment_text = "comment 1"
+        answer = requests.post(self.localhost + '/article/comments', headers={'user-id': str(user_id),
+                                                                              'article-id': str(article_id),
+                                                                              'root': str(-1),
+                                                                              'text': comment_text})
+        self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
+        comment_id = answer.json()['comment-id']
+
+        # happy path
+        answer = requests.get(self.localhost + endpoint, headers={'comment-id': str(comment_id)})
+        self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
+        self.assertEqual(answer.json()['dislikes-count'], 0)
+
+        # no headers
+        self.check_no_headers(endpoint, 'get')
+
+        # wrong header value
+        answer = requests.get(self.localhost + endpoint, headers={'comment-id': 'hehe'})
+        status_type = answer.json()['status']['type']
+        error_type = answer.json()['status']['error_type']
+        message = answer.json()['status']['message']
+        self.assertEqual(status_type, 'ERROR', msg = str(answer.json()['status']))
+        self.assertEqual(answer.json()['status']['error_type'], 'ValueError',
+                         msg = f'Error type: {error_type}\nMessage: {message}')
 
     def test_pages(self):
         endpoint = '/pages'
@@ -168,29 +483,8 @@ class TestAPI(base_test.BaseTest):
         self.assertEqual(answer.json()['status']['error_type'], 'ValueError',
                          msg = f'Error type: {error_type}\nMessage: {message}')
 
-    def test_article_likes_comments(self):
-        endpoint = '/article/likes_comments'
-        user_id, password = self.add_user()
-        article_id = self.add_arcticle(user_id=user_id)
-
-        # happy path
-        answer = requests.get(self.localhost + endpoint, headers={'article-id': str(article_id)})
-        self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
-
-        # no headers
-        self.check_no_headers(endpoint, 'get')
-
-        # headers with wrong value
-        answer = requests.get(self.localhost + endpoint, headers={'article-id': 'hehe'})
-        status_type = answer.json()['status']['type']
-        error_type = answer.json()['status']['error_type']
-        message = answer.json()['status']['message']
-        self.assertEqual(status_type, 'ERROR', msg = str(answer.json()['status']))
-        self.assertEqual(answer.json()['status']['error_type'], 'ValueError',
-                         msg = f'Error type: {error_type}\nMessage: {message}')
-
-    def test_user_new(self):
-        endpoint = '/users/new'
+    def test_users_post(self):
+        endpoint = '/users'
         user_info = {'name': 'test_name_1',
                      'password': 'qwerty',
                      'page': 'page_link',
@@ -208,7 +502,18 @@ class TestAPI(base_test.BaseTest):
                      'password': 'qwerty'}
         self.check_structure(endpoint, {}, user_info, 'user-info')
 
-    def test_user_update(self):
+    def test_users_profile_get(self):
+        endpoint = '/users/profile'
+        user_id, password = self.add_user()
+
+        # happy path
+        answer = requests.get(self.localhost + endpoint, headers={'user-id': json.dumps(user_id)})
+        self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
+
+        # no headers
+        self.check_no_headers(endpoint, 'get')
+
+    def test_users_update_post(self):
         endpoint = '/users/update'
         user_id, password = self.add_user()
         user_info = {'avatar': 'new_avatar_link',
@@ -233,14 +538,14 @@ class TestAPI(base_test.BaseTest):
         self.assertEqual(answer.json()['status']['error_type'], 'OptionError',
                          msg = f'Error type: {error_type}\nMessage: {message}')
 
-    def test_user_change_password(self):
-        endpoint = '/users/change_password'
+    def test_user_password_post(self):
+        endpoint = '/users/password'
         user_id, password = self.add_user()
 
         # happy path
         answer = requests.post(self.localhost + endpoint, headers={'user-id': str(user_id),
-                                                                  'previous-password': password,
-                                                                  'new-password': '1234'})
+                                                                   'previous-password': password,
+                                                                   'new-password': '1234'})
         self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
 
         # no headers
@@ -257,11 +562,11 @@ class TestAPI(base_test.BaseTest):
         self.assertEqual(answer.json()['status']['error_type'], 'ValueError',
                          msg = f'Error type: {error_type}\nMessage: {message}')
 
-    def test_user_check_password(self):
-        endpoint = '/users/check_password'
+    def test_user_password_check_get(self):
+        endpoint = '/users/password/check'
         user_id, password = self.add_user()
 
-        # happy path
+        # happy path 
         answer = requests.get(self.localhost + endpoint, headers={'user-id': str(user_id),
                                                                   'password': password})
         self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
@@ -275,125 +580,6 @@ class TestAPI(base_test.BaseTest):
                                                                   'password': 'hehe'})
         self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
         self.assertEqual(answer.json()['is-correct'], False, msg=str(answer.json()['status']))
-
-    def test_get_comments_like(self):
-        endpoint = '/article/comments/like'
-        user_id, password = self.add_user()
-        article_id = self.add_arcticle(user_id=user_id)
-        comment_text = "comment 1"
-        answer = requests.post(self.localhost + '/article/comments/add', headers={'user-id': str(user_id),
-                                                                                  'article-id': str(article_id),
-                                                                                  'root': str(-1),
-                                                                                  'text': comment_text})
-        self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
-        comment_id = answer.json()['comment-id']
-
-        # happy path
-        answer = requests.get(self.localhost + endpoint, headers={'comment-id': str(comment_id)})
-        self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
-        self.assertEqual(answer.json()['likes-count'], 1)
-
-        # no headers
-        self.check_no_headers(endpoint, 'get')
-
-        # wrong header value
-        answer = requests.get(self.localhost + endpoint, headers={'comment-id': 'hehe'})
-        status_type = answer.json()['status']['type']
-        error_type = answer.json()['status']['error_type']
-        message = answer.json()['status']['message']
-        self.assertEqual(status_type, 'ERROR', msg = str(answer.json()['status']))
-        self.assertEqual(answer.json()['status']['error_type'], 'ValueError',
-                         msg = f'Error type: {error_type}\nMessage: {message}')
-
-    def test_like_article(self):
-        endpoint = '/article/like'
-        user_id, password = self.add_user()
-        article_id = self.add_arcticle(user_id=user_id)
-
-        # happy path
-        for i in range(4):
-            answer = requests.post(self.localhost + endpoint, headers={'user-id': str(user_id),
-                                                                       'article-id': str(article_id)})
-            self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
-        answer = requests.get(self.localhost + '/article/likes_comments',
-                              headers={'article-id': str(article_id)})
-        self.assertEqual(answer.json()['status']['type'], 'OK', msg=answer.json()['status'])
-        self.assertEqual(answer.json()['likes-count'], 1)
-
-        # no headers
-        self.check_no_headers(endpoint, 'post')
-
-        # wrong header value
-        answer = requests.post(self.localhost + endpoint, headers={'user-id': 'hehe',
-                                                                  'article-id': str(article_id)})
-        status_type = answer.json()['status']['type']
-        error_type = answer.json()['status']['error_type']
-        message = answer.json()['status']['message']
-        self.assertEqual(status_type, 'ERROR', msg = str(answer.json()['status']))
-        self.assertEqual(answer.json()['status']['error_type'], 'ValueError',
-                         msg = f'Error type: {error_type}\nMessage: {message}')
-
-    def test_like_comment(self):
-        endpoint = '/article/comments/like'
-        user_id, password = self.add_user()
-        article_id = self.add_arcticle(user_id=user_id)
-        comment_text = "comment 1"
-        answer = requests.post(self.localhost + '/article/comments/add', headers={'user-id': str(user_id),
-                                                                                  'article-id': str(article_id),
-                                                                                  'root': str(-1),
-                                                                                  'text': comment_text})
-        self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
-        comment_id = answer.json()['comment-id']
-
-        # happy path
-        for i in range(4):
-            answer = requests.post(self.localhost + endpoint,
-                                   headers={'comment-id': str(comment_id), 'user-id': str(user_id)})
-            self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
-        answer = requests.get(self.localhost + endpoint, headers={'comment-id': str(comment_id)})
-        self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
-        self.assertEqual(answer.json()['likes-count'], 1)
-
-        # no headers
-        self.check_no_headers(endpoint, 'post')
-
-        # wrong header value
-        answer = requests.post(self.localhost + endpoint,
-                               headers={'comment-id': 'hehe', 'user-id': str(user_id)})
-        status_type = answer.json()['status']['type']
-        error_type = answer.json()['status']['error_type']
-        message = answer.json()['status']['message']
-        self.assertEqual(status_type, 'ERROR', msg = str(answer.json()['status']))
-        self.assertEqual(answer.json()['status']['error_type'], 'ValueError',
-                         msg = f'Error type: {error_type}\nMessage: {message}')
-
-    def test_post_comment(self):
-        endpoint = '/article/comments/add'
-        user_id, password = self.add_user()
-        article_id = self.add_arcticle(user_id=user_id)
-        comment_text = "comment 1"
-
-        # happy path
-        answer = requests.post(self.localhost + endpoint, headers={'user-id': str(user_id),
-                                                                   'article-id': str(article_id),
-                                                                   'root': str(-1),
-                                                                   'text': comment_text})
-        self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
-
-        # no headers
-        self.check_no_headers(endpoint, 'post')
-
-        # wrong header value
-        answer = requests.post(self.localhost + endpoint, headers={'user-id': 'hehe',
-                                                                   'article-id': str(article_id),
-                                                                   'root': str(-1),
-                                                                   'text': comment_text})
-        status_type = answer.json()['status']['type']
-        error_type = answer.json()['status']['error_type']
-        message = answer.json()['status']['message']
-        self.assertEqual(status_type, 'ERROR', msg = str(answer.json()['status']))
-        self.assertEqual(answer.json()['status']['error_type'], 'ValueError',
-                         msg = f'Error type: {error_type}\nMessage: {message}')
 
     def test_number_of_tests(self):
         api = open('../src/api.py', 'r')
