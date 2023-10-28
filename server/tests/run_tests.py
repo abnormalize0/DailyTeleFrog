@@ -1,3 +1,7 @@
+'''
+Этот файл служит для поиска и запуска тестов.
+'''
+
 import argparse
 import sys
 import unittest
@@ -116,7 +120,7 @@ def loop_step(current_loop, loop_count, tests):
         print('='*100)
     return passed, failed
 
-#RawTextHelpFormatter support multistring comments
+# RawTextHelpFormatter support multistring comments
 parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
 
 parser.add_argument('-N', '--show-only', action='store_true',

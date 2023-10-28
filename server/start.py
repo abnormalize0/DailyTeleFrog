@@ -1,3 +1,8 @@
+'''
+Этот файл служит для хранения логики запуска сервера и подготовки пространства для его корректной работы.
+Например, в этом файле реализована логика создания необходимых директорий для корректной работы сервера.
+'''
+
 import sys
 import argparse
 import sqlite3
@@ -90,7 +95,7 @@ def init_comments():
                     author_id INTEGER NOT NULL)''')
     connection.close()
 
-#RawTextHelpFormatter support multistring comments
+# RawTextHelpFormatter support multistring comments
 parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
 parser.add_argument('-i', '--init', action='store_true',
                     help='Create all server databases. Existing databases will be deleted')

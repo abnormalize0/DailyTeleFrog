@@ -1,3 +1,7 @@
+'''
+Этот файл служит для формирования запросов к базам данных и их выполнение.
+'''
+
 import sqlite3
 
 from .. import config
@@ -153,30 +157,9 @@ def create_select_request(requested_fields_name, table_name, id_name=None, id_va
         request = request[:-4]
     return request
 
-def get_all_entry_data(db, table_name, id_name, id_value):
-    connection = sqlite3.connect(db)
-    cursor = connection.cursor()
-
-    columns = cursor.execute(f"SELECT * FROM pragma_table_info('{table_name}')")
-    columns = columns.fetchall()
-    columns = [column_info[1] for column_info in columns]
-
-    select = cursor.execute(f'SELECT * FROM {table_name} WHERE {id_name} = {id_value}')
-    select = select.fetchall()
-    connection.close()
-
-    requested_data = {}
-    for i, field_name in enumerate(columns):
-            requested_data[field_name] = select[0][i]
-
-    return request_status.Status(request_status.StatusType.OK), requested_data
-
 @log.log_args_kwargs(config.log_db_api)
 @log.timer(config.log_db_api)
-def get_entry_data(db, table_name, fields_name='*', id_name=None, id_value=None, exclude=None):
-    if fields_name == '*':
-        return get_all_entry_data(db, table_name, id_name, id_value)
-
+def get_entry_data(db, table_name, fields_name, id_name=None, id_value=None, exclude=None):
     connection = sqlite3.connect(db)
     cursor = connection.cursor()
 

@@ -1,3 +1,7 @@
+'''
+Этот файл служит для хранения декораторов, которые используются для системы логгирования на сервере.
+'''
+
 import logging
 from flask import request
 from datetime import datetime
@@ -25,10 +29,15 @@ def timer(log_file:config.DynamicPath):
 
     return decorator
 
-def log_headers(func):
+def log_request(func):
     def wrapper(*args, **kwargs):
         logger = logging.getLogger(config.log_server_api.path)
-        logger.info(f'Got request {func.__name__}\nWith headers: {request.headers}')
+        logger.info(f'Got request {func.__name__}')
+        if request.is_json:
+            logger.info(f'Body: {request.json}')
+        else:
+            logger.info(f'Body: Empty')
+        logger.info(f'Headers: {request.headers}')
         result = func(*args, **kwargs)
         return result
 

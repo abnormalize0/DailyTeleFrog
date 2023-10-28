@@ -1,4 +1,5 @@
 /server/db
 /server/backup
+/server/log
 __pycache__*
 build*
