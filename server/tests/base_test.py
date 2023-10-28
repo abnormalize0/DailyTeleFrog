@@ -1,3 +1,7 @@
+'''
+Этот файл служит для хранения данных и методов, которые могут использованы во многих тестах.
+'''
+
 import unittest
 import requests
 import json
@@ -7,6 +11,21 @@ class BaseTest(unittest.TestCase):
     localhost = 'http://127.0.0.1:5000'
     user_count = 0
 
+    default_values = {
+        'int': 1,
+        'str': 'qwerty',
+        'json': {'key': 'value'},
+        'list_of_int': '~1~2~3~'
+    }
+
+    wrong_values = {
+        'int': 'f',
+        'str': '',
+        'json': '{["str"}]',
+        'list_of_int': '',
+        'list': ''
+    }
+
     def setUp(self):
         return
 
@@ -15,20 +34,21 @@ class BaseTest(unittest.TestCase):
 
     def add_user(self, **kwargs):
         password = 'qwerty'
-        user_info = {'name': 'test_name_' + str(self.user_count),
-                     'password': password}
+        answer = requests.post(self.localhost+'/users', json={'name': f'tester_{self.user_count}',
+                                                              'password': password})
+        self.assertEqual(answer.json()['status']['type'], 'OK', msg=answer.json()['status'])
         self.user_count += 1
-        headers={'user-info': json.dumps(user_info)}
-        requests.post(self.localhost+'/users', headers=headers)
         return self.user_count, password
 
     def add_arcticle(self, **kwargs):
         article = {'name': 'test_name',
-                   'preview_content': {'type': 'image', 'data': 'ref'},
+                   'preview-content': {'type': 'image', 'data': 'ref'},
                    'tags': ['test_tag_1', 'test_tag_2'],
                    'created': '01.01.2000',
-                   'article': {'block1': 'text'}
+                   'article-body': {'block1': 'text'}
         }
-        response = requests.post(self.localhost+'/article', headers={'user-id': str(kwargs['user_id']),
-                                                                     'article': json.dumps(article)})
+        response = requests.post(self.localhost+'/article',
+                                 headers={'user-id': str(kwargs['user_id'])},
+                                 json=article)
+        self.assertEqual(response.json()['status']['type'], 'OK', msg=response.json()['status'])
         return response.json()['article-id']

@@ -1,3 +1,7 @@
+'''
+Этот файл служит для хранения логики выполнения запросов, не связанной с изменениями в базах данных.
+'''
+
 import json
 import os
 
@@ -68,7 +72,7 @@ def create_article_file(article_id, article):
         json.dump(article, file, ensure_ascii=False, indent=4)
 
 def post_article(article, user_id):
-    status, author_preview = api.get_author_preview(user_id)
+    status, author_preview = api.user_get_data(user_id, ['name', 'page', 'avatar'])
     if status.is_error:
         return status, None
     article['author_preview'] = author_preview
@@ -92,14 +96,11 @@ def post_article(article, user_id):
 def add_user(user_info):
     return api.add_user(user_info)
 
-def get_user_profile(user_id):
-    return api.user_info_get(user_id)
-
 def update_user_info(user_info, user_id):
-    exluded_fields = ['user-id', 'name', 'password']
+    exluded_fields = ['user-id', 'password']
     for field in user_info.keys():
         if field not in exluded_fields:
-            status = api.update_user_info(field, user_info[field], user_id)
+            status = api.user_update_info(field, user_info[field], user_id)
         else:
             return request_status.Status(request_status.StatusType.ERROR,
                                          error_type=request_status.ErrorType.OptionError,
@@ -107,23 +108,11 @@ def update_user_info(user_info, user_id):
                                          You can not update this parameter by this method')
     return status
 
-def get_article_likes(article_id):
-    status, likes_count = api.get_likes_from_article(article_id)
-    return status, likes_count
-
-def get_article_dislikes(article_id):
-    status, dislikes_count = api.get_dislikes_from_article(article_id)
-    return status, dislikes_count
-
-def get_article_comments(article_id):
-    status, comments_count = api.get_comments_from_article(article_id)
-    return status, comments_count
-
-def check_password(password, user_id):
+def login(password, user_id):
     return api.check_password(password, user_id)
 
 def change_password(previous_password, new_password, user_id):
-    status, is_same = check_password(previous_password, user_id)
+    status, is_same = api.check_password(previous_password, user_id)
     if status.is_error:
         return status
     if not is_same:
@@ -151,14 +140,6 @@ def like_article(article_id, user_id):
                       'likes')
     return status
 
-def get_comment_likes(comment_id):
-    status, likes_count = api.get_likes_from_comment(comment_id)
-    return status, likes_count
-
-def get_comment_dislikes(comment_id):
-    status, dislikes_count = api.get_dislikes_from_comment(comment_id)
-    return status, dislikes_count
-
 def dislike_comment(comment_id, user_id):
     status = api.vote(config.db_comment.path,
                       config.comment_table_name,
@@ -177,6 +158,12 @@ def like_comment(comment_id, user_id):
                       'likes')
     return status
 
-def article_add_comment(article_id, root, cooment_text, user_id):
-    id = api.add_comment(article_id, root, cooment_text, user_id)
-    return id
+def add_comment(article_id, root, cooment_text, user_id):
+    status, id = api.add_comment(article_id, root, cooment_text, user_id)
+    return status, id
+
+def get_article_data(article_id, requested_data):
+    return api.article_get_data(article_id, requested_data)
+
+def get_user_data(user_id, requested_data):
+    return api.user_get_data(user_id, requested_data)

@@ -1,3 +1,9 @@
+'''
+Этот файл служит для хранения логики выполнения запросов, не связанной с изменениями в базах данных.
+Также в этом файле производится постобработка выполненых запросов к базам данных.
+Постобработка включает в себя приведение типов данных к нужным.
+'''
+
 import json
 import os
 
@@ -12,7 +18,7 @@ def check_password(password, user_id):
                                          id_name=config.user_id_name,
                                          id_value=user_id)
     if status.is_error:
-        return status, None
+        return status, False
     stored_password = data['password']
     return status, password == stored_password
 
@@ -24,14 +30,6 @@ def change_password(password, user_id):
                                  'password',
                                  password)
     return status
-
-def get_author_preview(user_id):
-    status, author_preview = worker.get_entry_data(config.db_user.path,
-                                                   config.user_table_name,
-                                                   ['name', 'page', 'avatar'],
-                                                   id_name=config.user_id_name,
-                                                   id_value=user_id)
-    return status, author_preview
 
 def get_user_blocked_tags(user_id):
     status, data = worker.get_entry_data(config.db_user.path,
@@ -57,46 +55,6 @@ def get_unblocked_articles(blocked_tags=None):
                                                 [config.article_id_name],
                                                 exclude=exclude_data)
     return status, articles_id[config.article_id_name]
-
-def get_likes_from_article(article_id):
-    status, data = worker.get_entry_data(config.db_article.path,
-                                         config.article_table_name,
-                                         ['likes_count'],
-                                         id_name=config.article_id_name,
-                                         id_value=article_id)
-    return status, data['likes_count']
-
-def get_dislikes_from_article(article_id):
-    status, data = worker.get_entry_data(config.db_article.path,
-                                         config.article_table_name,
-                                         ['dislikes_count'],
-                                         id_name=config.article_id_name,
-                                         id_value=article_id)
-    return status, data['dislikes_count']
-
-def get_comments_from_article(article_id):
-    status, data = worker.get_entry_data(config.db_article.path,
-                                         config.article_table_name,
-                                         ['comments_count'],
-                                         id_name=config.article_id_name,
-                                         id_value=article_id)
-    return status, data['comments_count']
-
-def get_likes_from_comment(comment_id):
-    status, likes_count = worker.get_entry_data(config.db_comment.path,
-                                                config.comment_table_name,
-                                                ['likes_count'],
-                                                id_name=config.comment_id_name,
-                                                id_value=comment_id)
-    return status, likes_count['likes_count']
-
-def get_dislikes_from_comment(comment_id):
-    status, dislikes_count = worker.get_entry_data(config.db_comment.path,
-                                                   config.comment_table_name,
-                                                   ['dislikes_count'],
-                                                   id_name=config.comment_id_name,
-                                                   id_value=comment_id)
-    return status, dislikes_count['dislikes_count']
 
 def create_comment(article_id, user_id):
     comment = {'author_id': user_id,
@@ -291,7 +249,7 @@ def add_user(info):
                                        info)
     return status, user_id
 
-def update_user_info(field_name, field_value, user_id):
+def user_update_info(field_name, field_value, user_id):
     status = worker.update_entry(config.db_user.path,
                                  config.user_table_name,
                                  config.user_id_name,
@@ -300,10 +258,18 @@ def update_user_info(field_name, field_value, user_id):
                                  field_value)
     return status
 
-def user_info_get(user_id):
+def article_get_data(article_id, requested_data):
+    status, data = worker.get_entry_data(config.db_article.path,
+                                         config.article_table_name,
+                                         requested_data,
+                                         config.article_id_name,
+                                         article_id)
+    return status, data
+
+def user_get_data(user_id, requested_data):
     status, data = worker.get_entry_data(config.db_user.path,
-                                   config.user_table_name,
-                                   '*',
-                                   config.user_id_name,
-                                   user_id)
+                                         config.user_table_name,
+                                         requested_data,
+                                         config.user_id_name,
+                                         user_id)
     return status, data
