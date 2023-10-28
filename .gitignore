@@ -1,5 +1,6 @@
 /server/db
 /server/backup
 /server/log
+/client/demo_project
 __pycache__*
 build*
