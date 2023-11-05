@@ -288,7 +288,8 @@ def api_users_post():
                                                        Parameter('password', 'str', True),
                                                        Parameter('page', 'str', False),
                                                        Parameter('avatar', 'str', False),
-                                                       Parameter('blocked-tags', 'str', False)])
+                                                       Parameter('blocked-tags', 'str', False),
+                                                       Parameter('description', 'str', False)])
     if status.is_error:
         return json.dumps({'status': dict(status)})
 
@@ -311,7 +312,8 @@ def api_users_data_get():
     status, requested_data = parse_fields(headers['requested-data'], [Parameter('page', 'str', False),
                                                                       Parameter('avatar', 'str', False),
                                                                       Parameter('blocked_tags', 'str', False),
-                                                                      Parameter('name', 'str', False)])
+                                                                      Parameter('name', 'str', False),
+                                                                      Parameter('description', 'str', False)])
 
     status, data = backend.get_user_data(headers['user-id'], requested_data)
     return json.dumps({'status': dict(status), 'data': data})
@@ -328,7 +330,8 @@ def api_users_data_post():
     status, fields = parse_structure(request.json, [Parameter('page', 'str', False),
                                                     Parameter('avatar', 'str', False),
                                                     Parameter('blocked-tags', 'str', False),
-                                                    Parameter('name', 'str', False)])
+                                                    Parameter('name', 'str', False),
+                                                    Parameter('description', 'str', False)])
     if status.is_error:
         return json.dumps({'status': dict(status)})
 

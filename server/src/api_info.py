@@ -241,6 +241,12 @@ def users_info():
             'type': 'str',
             'is_required': False,
             'container': 'body',
+        },
+        {
+            'name': 'description',
+            'type': 'str',
+            'is_required': False,
+            'container': 'body',
         }
     ]
 
@@ -281,6 +287,12 @@ def users_data_info():
             'type': 'str',
             'is_required': False,
             'container': 'body',
+        },
+        {
+            'name': 'description',
+            'type': 'str',
+            'is_required': False,
+            'container': 'body',
         }
     ]
 
@@ -314,6 +326,11 @@ def users_data_info():
                 },
                 {
                     'name': 'blocked_tags',
+                    'type': 'field',
+                    'is_required': False,
+                },
+                {
+                    'name': 'description',
                     'type': 'field',
                     'is_required': False,
                 }

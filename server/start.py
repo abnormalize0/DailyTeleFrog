@@ -57,7 +57,8 @@ def init_users():
                     password TEXT NOT NULL,
                     page TEXT,
                     avatar TEXT,
-                    blocked_tags TEXT)''')
+                    blocked_tags TEXT,
+                    description TEXT)''')
     connection.close()
 
 def init_articles():
