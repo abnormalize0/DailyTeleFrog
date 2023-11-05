@@ -487,6 +487,12 @@ api_users_post()
         'type': 'str',
         'is_required': False,
         'container': 'body',
+    },
+    {
+        'name': 'description',
+        'type': 'str',
+        'is_required': False,
+        'container': 'body',
     }
 
     :returns: str(json) in format {'status': %JSON%, 'user-id': %INT%}
@@ -496,6 +502,7 @@ api_users_post()
 Поля ``page`` и ``avatar`` являются ссылками на страницу пользователя и на его аватарку соответственно.
 Поле ``blocked_tags`` является списком заблокированных тегов, разделенных символом ``~``.
 Например, это поле может иметь значение ``~Рикролл~MMO~nsfw~``.
+Поле ``description`` содержит в себе текстовое описарние профиля.
 
 api_users_data_post()
 ^^^^^^^^^^^^^^^^^^^^^
@@ -537,6 +544,12 @@ api_users_data_post()
         'type': 'str',
         'is_required': False,
         'container': 'body',
+    },
+    {
+        'name': 'description',
+        'type': 'str',
+        'is_required': False,
+        'container': 'body',
     }
 
     :returns: str(json) in format {'status': %JSON%}
@@ -547,6 +560,7 @@ api_users_data_post()
 Поля ``page`` и ``avatar`` являются ссылками на страницу пользователя и на его аватарку соответственно.
 Поле ``blocked_tags`` является списком заблокированных тегов, разделенных символом ``~``.
 Например, это поле может иметь значение ``~Рикролл~MMO~nsfw~``.
+Поле ``description`` содержит в себе текстовое описарние профиля.
 
 api_users_data_get()
 ^^^^^^^^^^^^^^^^^^^^
@@ -590,6 +604,11 @@ api_users_data_get()
                 'name': 'blocked_tags',
                 'type': 'field',
                 'is_required': False,
+            },
+            {
+                'name': 'description',
+                'type': 'field',
+                'is_required': False,
             }
         ]
     }
@@ -599,7 +618,7 @@ api_users_data_get()
 
 Заголовок ``user-id`` содержит *id* пользователя, для которого запрашивается информация о профиле.
 Ключ ``requested-data`` содержит строку, которая будет преобразована сервером в список запрашиваемых данных. Например,
-``requested-data`` может содержать значение ``~name~page~avatar~blocked_tags~``.
+``requested-data`` может содержать значение ``~name~page~avatar~blocked_tags~description~``.
 
 api_users_password_post()
 ^^^^^^^^^^^^^^^^^^^^^^^^^
