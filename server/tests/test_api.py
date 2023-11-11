@@ -447,7 +447,7 @@ class TestAPI(base_test.BaseTest):
         self.assertIn('user-id', answer.json())
 
         user_id = answer.json()['user-id']
-        requested_data = '~name~name_history~avatar~blocked_tags~'
+        requested_data = '~name~name_history~avatar~blocked_tags~registration_date~'
         answer = requests.get(self.localhost + '/users/data', headers={'user-id': str(user_id),
                                                                        'requested-data': requested_data})
         self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
@@ -455,6 +455,7 @@ class TestAPI(base_test.BaseTest):
         self.assertEqual('~' + name + '~', answer.json()['data']['name_history'])
         self.assertEqual(avatar, answer.json()['data']['avatar'])
         self.assertEqual(blocked_tags, answer.json()['data']['blocked_tags'])
+        self.assertIn('registration_date', answer.json()['data'])
 
     def test_users_data_get(self):
         endpoint = '/users/data'
@@ -467,7 +468,7 @@ class TestAPI(base_test.BaseTest):
         user_id, password, user_name = self.add_user()
 
         # happy path
-        requested_data = '~name~name_history~avatar~blocked_tags~'
+        requested_data = '~name~name_history~avatar~blocked_tags~registration_date~'
         answer = requests.get(self.localhost + endpoint, headers={'user-id': str(user_id),
                                                                   'requested-data': requested_data})
         self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
@@ -475,6 +476,7 @@ class TestAPI(base_test.BaseTest):
         self.assertIn('name_history', answer.json()['data'])
         self.assertIn('avatar', answer.json()['data'])
         self.assertIn('blocked_tags', answer.json()['data'])
+        self.assertIn('registration_date', answer.json()['data'])
 
     def test_users_data_post(self):
         endpoint = '/users/data'

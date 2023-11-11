@@ -321,6 +321,11 @@ def users_data_info():
                     'name': 'description',
                     'type': 'field',
                     'is_required': False,
+                },
+                {
+                    'name': 'registration_date',
+                    'type': 'field',
+                    'is_required': False,
                 }
             ]
         }

@@ -505,6 +505,7 @@ api_users_post()
 При регистрации пользователя для него автоматически заводится следующие поля:
 
 * Поле ``name_history``, в котором хранится история имен пользователя 
+* Поле ``registration_date``, в котором хранится дата регистрации пользователя
 
 api_users_data_post()
 ^^^^^^^^^^^^^^^^^^^^^
@@ -607,6 +608,11 @@ api_users_data_get()
                 'name': 'description',
                 'type': 'field',
                 'is_required': False,
+            },
+            {
+                'name': 'registration_date',
+                'type': 'field',
+                'is_required': False,
             }
         ]
     }
@@ -616,7 +622,7 @@ api_users_data_get()
 
 Заголовок ``user-id`` содержит *id* пользователя, для которого запрашивается информация о профиле.
 Ключ ``requested-data`` содержит строку, которая будет преобразована сервером в список запрашиваемых данных. Например,
-``requested-data`` может содержать значение ``~name~name_history~avatar~blocked_tags~description~``.
+``requested-data`` может содержать значение ``~name~name_history~avatar~blocked_tags~description~registration_date~``.
 
 api_users_password_post()
 ^^^^^^^^^^^^^^^^^^^^^^^^^
