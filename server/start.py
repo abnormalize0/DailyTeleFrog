@@ -55,7 +55,7 @@ def init_users():
                     {config.user_id_name} INTEGER PRIMARY KEY,
                     name TEXT UNIQUE NOT NULL,
                     password TEXT NOT NULL,
-                    page TEXT,
+                    name_history TEXT,
                     avatar TEXT,
                     blocked_tags TEXT,
                     description TEXT)''')
