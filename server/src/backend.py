@@ -72,7 +72,7 @@ def create_article_file(article_id, article):
         json.dump(article, file, ensure_ascii=False, indent=4)
 
 def post_article(article, user_id):
-    status, author_preview = api.user_get_data(user_id, ['name', 'page', 'avatar'])
+    status, author_preview = api.user_get_data(user_id, ['name', 'avatar'])
     if status.is_error:
         return status, None
     article['author_preview'] = author_preview
@@ -94,6 +94,7 @@ def post_article(article, user_id):
     return status, article_id
 
 def add_user(user_info):
+    user_info['name_history'] = config.delimiter + user_info['name'] + config.delimiter
     return api.add_user(user_info)
 
 def update_user_info(user_info, user_id):
@@ -106,6 +107,11 @@ def update_user_info(user_info, user_id):
                                          error_type=request_status.ErrorType.OptionError,
                                          msg=f'Wrong user parameter {field}.\
                                          You can not update this parameter by this method')
+        if field == 'name' and not status.is_error:
+            status, data = api.user_get_data(user_id, ['name_history'])
+            name_history = data['name_history']
+            name_history += user_info[field] + config.delimiter
+            _ = api.user_update_info('name_history', name_history, user_id)
     return status
 
 def login(password, user_id):

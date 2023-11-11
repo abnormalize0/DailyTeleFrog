@@ -286,7 +286,6 @@ def api_pages_get():
 def api_users_post():
     status, user_info = parse_structure(request.json, [Parameter('name', 'str', True),
                                                        Parameter('password', 'str', True),
-                                                       Parameter('page', 'str', False),
                                                        Parameter('avatar', 'str', False),
                                                        Parameter('blocked-tags', 'str', False),
                                                        Parameter('description', 'str', False)])
@@ -309,7 +308,7 @@ def api_users_data_get():
     if status.is_error:
         return json.dumps({'status': dict(status)})
 
-    status, requested_data = parse_fields(headers['requested-data'], [Parameter('page', 'str', False),
+    status, requested_data = parse_fields(headers['requested-data'], [Parameter('name_history', 'str', False),
                                                                       Parameter('avatar', 'str', False),
                                                                       Parameter('blocked_tags', 'str', False),
                                                                       Parameter('name', 'str', False),
@@ -327,8 +326,7 @@ def api_users_data_post():
         return json.dumps({'status': dict(status)})
     user_id = user_id['user-id']
 
-    status, fields = parse_structure(request.json, [Parameter('page', 'str', False),
-                                                    Parameter('avatar', 'str', False),
+    status, fields = parse_structure(request.json, [Parameter('avatar', 'str', False),
                                                     Parameter('blocked-tags', 'str', False),
                                                     Parameter('name', 'str', False),
                                                     Parameter('description', 'str', False)])

@@ -221,13 +221,7 @@ def users_info():
         {
             'name': 'password',
             'type': 'str',
-            'is_required': False,
-            'container': 'body',
-        },
-        {
-            'name': 'page',
-            'type': 'str',
-            'is_required': False,
+            'is_required': True,
             'container': 'body',
         },
         {
@@ -271,12 +265,6 @@ def users_data_info():
             'container': 'body',
         },
         {
-            'name': 'page',
-            'type': 'str',
-            'is_required': False,
-            'container': 'body',
-        },
-        {
             'name': 'avatar',
             'type': 'str',
             'is_required': False,
@@ -315,7 +303,7 @@ def users_data_info():
                     'is_required': False,
                 },
                 {
-                    'name': 'page',
+                    'name': 'name_history',
                     'type': 'field',
                     'is_required': False,
                 },

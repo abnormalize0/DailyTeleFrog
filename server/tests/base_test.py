@@ -33,12 +33,13 @@ class BaseTest(unittest.TestCase):
         return
 
     def add_user(self, **kwargs):
+        name = f'tester_{self.user_count}'
         password = 'qwerty'
-        answer = requests.post(self.localhost+'/users', json={'name': f'tester_{self.user_count}',
+        answer = requests.post(self.localhost+'/users', json={'name': name,
                                                               'password': password})
         self.assertEqual(answer.json()['status']['type'], 'OK', msg=answer.json()['status'])
         self.user_count += 1
-        return self.user_count, password
+        return self.user_count, password, name
 
     def add_arcticle(self, **kwargs):
         article = {'name': 'test_name',
