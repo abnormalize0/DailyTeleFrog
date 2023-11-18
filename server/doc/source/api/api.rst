@@ -276,6 +276,9 @@ api_article_info_post()
 В запросе к серверу должна присутсвовать одна из команд ``like-article``, ``dislike-article``, ``like-comment``,
 ``dislike-comment`` или ``add-comment``.
 
+При запросе к серверу с одной из команд ``like-article``, ``dislike-article``, ``like-comment`` или
+``dislike-comment`` рейтинг автора статьи или комментария изменится автоматически.
+
 api_article_info_get()
 ^^^^^^^^^^^^^^^^^^^^^^
 
@@ -506,6 +509,7 @@ api_users_post()
 
 * Поле ``name_history``, в котором хранится история имен пользователя 
 * Поле ``registration_date``, в котором хранится дата регистрации пользователя
+* Поле ``rating``, в котором текуший рейтинг пользователя
 
 api_users_data_post()
 ^^^^^^^^^^^^^^^^^^^^^
@@ -611,6 +615,11 @@ api_users_data_get()
             },
             {
                 'name': 'registration_date',
+                'type': 'field',
+                'is_required': False,
+            },
+            {
+                'name': 'rating',
                 'type': 'field',
                 'is_required': False,
             }

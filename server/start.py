@@ -59,7 +59,8 @@ def init_users():
                     avatar TEXT,
                     blocked_tags TEXT,
                     description TEXT,
-                    registration_date)''')
+                    registration_date TEXT,
+                    rating INT)''')
     connection.close()
 
 def init_articles():
