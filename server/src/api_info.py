@@ -326,6 +326,11 @@ def users_data_info():
                     'name': 'registration_date',
                     'type': 'field',
                     'is_required': False,
+                },
+                {
+                    'name': 'rating',
+                    'type': 'field',
+                    'is_required': False,
                 }
             ]
         }

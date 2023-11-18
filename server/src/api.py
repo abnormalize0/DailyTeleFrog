@@ -313,7 +313,8 @@ def api_users_data_get():
                                                                       Parameter('blocked_tags', 'str', False),
                                                                       Parameter('name', 'str', False),
                                                                       Parameter('description', 'str', False),
-                                                                      Parameter('registration_date', 'str', False)])
+                                                                      Parameter('registration_date', 'str', False),
+                                                                      Parameter('rating', 'str', False)])
 
     status, data = backend.get_user_data(headers['user-id'], requested_data)
     return json.dumps({'status': dict(status), 'data': data})

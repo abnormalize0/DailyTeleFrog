@@ -97,6 +97,7 @@ def post_article(article, user_id):
 def add_user(user_info):
     user_info['name_history'] = config.delimiter + user_info['name'] + config.delimiter
     user_info['registration_date'] = datetime.now().strftime('%Y-%m-%d %H.%M.%S')
+    user_info['rating'] = 0
     return api.add_user(user_info)
 
 def update_user_info(user_info, user_id):

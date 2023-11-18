@@ -162,8 +162,7 @@ def vote(db, table_name, id_name, id, user_id, vote_type):
     reverse_vote_count = data[reverse_vote + '_count']
     is_have_reverse_vote = False
 
-    import sys
-
+    # user set like on disliked post/comment or dislike on liked post/comment
     if reverse_vote_id and str(user_id) in reverse_vote_id.split(config.delimiter):
         status = worker.update_entry(db,
                                      table_name,
@@ -208,6 +207,28 @@ def vote(db, table_name, id_name, id, user_id, vote_type):
             return status
         change = -1
 
+    # update posts/comments author rating
+    status, old_rating = worker.get_entry_data(config.db_user.path,
+                                               config.user_table_name,
+                                               ['rating'],
+                                               config.user_id_name,
+                                               author_id)
+    old_rating = old_rating['rating']
+    if vote_type == 'likes':
+        new_rating = old_rating + change * (1 + int(is_have_reverse_vote))
+    else:
+        new_rating = old_rating - change * (1 + int(is_have_reverse_vote))
+
+    status = worker.update_entry(config.db_user.path,
+                                 config.user_table_name,
+                                 config.user_id_name,
+                                 author_id,
+                                 'rating',
+                                 new_rating)
+    if status.is_error:
+        return status
+
+    # update likes/dislikes count
     new_vote_count = vote_count + change
     status = worker.update_entry(db,
                                  table_name,
@@ -224,10 +245,10 @@ def vote(db, table_name, id_name, id, user_id, vote_type):
             set_vote_on_article(id, reverse_vote_count - 1, reverse_vote + '_count')
     if db == config.db_comment.path:
         status, article_id = worker.get_entry_data(db,
-                                           table_name,
-                                           ['article_id'],
-                                           id_name=id_name,
-                                           id_value=id)
+                                                   table_name,
+                                                   ['article_id'],
+                                                   id_name=id_name,
+                                                   id_value=id)
         if status.is_error:
             return status
         file_name = os.path.join(config.db_article_directory.path, f'{article_id["article_id"]}.json')
