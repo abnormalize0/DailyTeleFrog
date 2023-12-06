@@ -52,4 +52,4 @@ class BaseTest(unittest.TestCase):
                                  headers={'user-id': str(kwargs['user_id'])},
                                  json=article)
         self.assertEqual(response.json()['status']['type'], 'OK', msg=response.json()['status'])
-        return response.json()['article-id']
+        return response.json()['article_id']
