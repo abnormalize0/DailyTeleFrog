@@ -60,7 +60,7 @@ def init_users():
                     blocked_tags TEXT,
                     description TEXT,
                     registration_date TEXT,
-                    rating INT)''')
+                    rating INTEGER)''')
     connection.close()
 
 def init_articles():

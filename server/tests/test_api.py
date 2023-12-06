@@ -213,6 +213,11 @@ class TestAPI(base_test.BaseTest):
         answer = requests.post(self.localhost + endpoint, headers={'user-id': str(user_id)}, json=article)
         self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
 
+        # test unlogged users
+        answer = requests.post(self.localhost + endpoint, headers={'user-id': str(0)}, json=article)
+        self.assertEqual(answer.json()['status']['type'], 'ERROR', msg=str(answer.json()['status']))
+        self.assertEqual(answer.json()['status']['error_type'], 'ValueError', msg=str(answer.json()['status']))
+
     def test_article_get(self):
         endpoint = '/article'
         method = 'get'
@@ -296,6 +301,42 @@ class TestAPI(base_test.BaseTest):
 
         self.assertEqual(answer.json()['status']['type'], 'OK',
                          msg=str(answer.json()['status']))
+
+        # test unlogged users
+        answer = requests.post(self.localhost + endpoint, 
+                               headers={'user-id': str(0),
+                                        'article-id': str(article_id)},
+                               json={'add-comment': add_comment})
+        self.assertEqual(answer.json()['status']['type'], 'ERROR', msg=str(answer.json()['status']))
+        self.assertEqual(answer.json()['status']['error_type'], 'ValueError', msg=str(answer.json()['status']))
+
+        answer = requests.post(self.localhost + endpoint, 
+                               headers={'user-id': str(0),
+                                        'article-id': str(article_id)},
+                               json={'like-article': like_article})
+        self.assertEqual(answer.json()['status']['type'], 'ERROR', msg=str(answer.json()['status']))
+        self.assertEqual(answer.json()['status']['error_type'], 'ValueError', msg=str(answer.json()['status']))
+
+        answer = requests.post(self.localhost + endpoint, 
+                               headers={'user-id': str(0),
+                                        'article-id': str(article_id)},
+                               json={'dislike-article': dislike_article})
+        self.assertEqual(answer.json()['status']['type'], 'ERROR', msg=str(answer.json()['status']))
+        self.assertEqual(answer.json()['status']['error_type'], 'ValueError', msg=str(answer.json()['status']))
+
+        answer = requests.post(self.localhost + endpoint, 
+                               headers={'user-id': str(0),
+                                        'article-id': str(article_id)},
+                               json={'like-comment': like_comment})
+        self.assertEqual(answer.json()['status']['type'], 'ERROR', msg=str(answer.json()['status']))
+        self.assertEqual(answer.json()['status']['error_type'], 'ValueError', msg=str(answer.json()['status']))
+
+        answer = requests.post(self.localhost + endpoint, 
+                               headers={'user-id': str(0),
+                                        'article-id': str(article_id)},
+                               json={'dislike-comment': dislike_comment})
+        self.assertEqual(answer.json()['status']['type'], 'ERROR', msg=str(answer.json()['status']))
+        self.assertEqual(answer.json()['status']['error_type'], 'ValueError', msg=str(answer.json()['status']))
 
         # check like post
         article_id = self.add_arcticle(user_id=user_id)
@@ -550,6 +591,16 @@ class TestAPI(base_test.BaseTest):
         for field in request_data:
             self.assertIn(field, answer.json()['data'])
 
+        # test unlogged users
+        request_data = '~likes_count~likes_id~dislikes_count~dislikes_id~comments_count~'
+        answer = requests.get(self.localhost + endpoint, headers={'user-id': str(0),
+                                                                  'article-id': str(article_id),
+                                                                  'requested-data': f'{request_data}'})
+        self.assertEqual(answer.json()['status']['type'], 'OK', msg=answer.json()['status'])
+        request_data = request_data.split('~')[1:-1]
+        for field in request_data:
+            self.assertIn(field, answer.json()['data'])
+
     def test_pages(self):
         endpoint = '/pages'
         method = 'get'
@@ -563,8 +614,15 @@ class TestAPI(base_test.BaseTest):
             article_id = self.add_arcticle(user_id=user_id)
 
         # happy path
-        
         answer = requests.get(self.localhost + endpoint, headers={'user-id': str(user_id), 'indexes': '~0~1~2~'})
+        self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
+        self.assertIn('pages', answer.json())
+        self.assertIn('0', answer.json()['pages'])
+        self.assertIn('1', answer.json()['pages'])
+        self.assertIn('2', answer.json()['pages'])
+
+        # test unlogged users
+        answer = requests.get(self.localhost + endpoint, headers={'user-id': str(0), 'indexes': '~0~1~2~'})
         self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
         self.assertIn('pages', answer.json())
         self.assertIn('0', answer.json()['pages'])
@@ -626,6 +684,12 @@ class TestAPI(base_test.BaseTest):
         self.assertIn('registration_date', answer.json()['data'])
         self.assertIn('rating', answer.json()['data'])
 
+        # test unlogged users
+        answer = requests.get(self.localhost + endpoint, headers={'user-id': str(0),
+                                                                  'requested-data': requested_data})
+        self.assertEqual(answer.json()['status']['type'], 'ERROR', msg=str(answer.json()['status']))
+        self.assertEqual(answer.json()['status']['error_type'], 'ValueError', msg=str(answer.json()['status']))
+
     def test_users_data_post(self):
         endpoint = '/users/data'
         method = 'post'
@@ -656,6 +720,15 @@ class TestAPI(base_test.BaseTest):
         self.assertEqual(answer.json()['data']['avatar'], avatar)
         self.assertEqual(answer.json()['data']['blocked_tags'], blocked_tags)
 
+        # test unlogged users
+        answer = requests.post(self.localhost + endpoint,
+                               headers={'user-id': str(0)},
+                               json={'name': name,
+                                     'avatar': avatar,
+                                     'blocked-tags': blocked_tags})
+        self.assertEqual(answer.json()['status']['type'], 'ERROR', msg=str(answer.json()['status']))
+        self.assertEqual(answer.json()['status']['error_type'], 'ValueError', msg=str(answer.json()['status']))
+
     def test_user_password_post(self):
         endpoint = '/users/password'
         method = 'post'
@@ -672,6 +745,14 @@ class TestAPI(base_test.BaseTest):
                                         'previous-password': password},
                                json={'new-password': '1234'})
         self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
+
+        # test unlogged users
+        answer = requests.post(self.localhost + endpoint,
+                               headers={'user-id': str(0),
+                                        'previous-password': password},
+                               json={'new-password': '1234'})
+        self.assertEqual(answer.json()['status']['type'], 'ERROR', msg=str(answer.json()['status']))
+        self.assertEqual(answer.json()['status']['error_type'], 'ValueError', msg=str(answer.json()['status']))
 
     def test_login_get(self):
         endpoint = '/login'

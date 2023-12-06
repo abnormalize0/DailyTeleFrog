@@ -32,6 +32,8 @@ def change_password(password, user_id):
     return status
 
 def get_user_blocked_tags(user_id):
+    if user_id == 0:
+        return request_status.Status(request_status.StatusType.OK), []
     status, data = worker.get_entry_data(config.db_user.path,
                                          config.user_table_name,
                                          ['blocked_tags'],
