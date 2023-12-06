@@ -71,7 +71,7 @@ api_article_post()
         'container': 'body',
     }
 
-    :returns: str(json) in format {'status': %JSON%, 'article-id': %INT%}
+    :returns: str(json) in format {'status': %JSON%, 'article_id': %INT%}
     """
 
 Ключ ``article-body`` содержит тело статьи со структурой определенной пользователем.
@@ -288,7 +288,7 @@ api_article_info_post()
     Если на сервер отправить такой запрос для пользователя с *id* равным 0,
     то сервер вернет ошибку.
 
-api_article_info_get()
+api_article_data_get()
 ^^^^^^^^^^^^^^^^^^^^^^
 
 Метод для получения информации о посте.
@@ -296,6 +296,7 @@ api_article_info_get()
 .. code-block:: python
 
     @app.route('/article/data', methods=['GET'])
+    def api_article_data_get()
     """
     :request:
     {
@@ -338,16 +339,16 @@ api_article_info_get()
         ]
     }
 
-    :returns: str(json) in format {'status': %JSON%, 'data': %JSON%}
+    :returns: str(json) in format {'status': %JSON%, %KEY1%: %ANSWER%, %KEY2%: %ANSWER%...}
     """
 
 Заголовок ``article-id`` содержит *id* статьи для которой будет выполняться команда.
 Ключ ``requested-data`` содержит строку, которая будет преобразована сервером в список запрашиваемых данных. Например,
 ``requested-data`` может содержать значение ``~likes_count~likes_id~dislikes_count~dislikes_id~comments_count~``.
 
-Ключ ``data`` содержит в себе перечень пар ключ-значение, где ключом выступает имя запрашиваемого поля.
+Ответ содержит все ключи, перечисленные в запросе. По каждому ключу лежит запрашиваемое значение.
 
-api_get_pages()
+api_pages_get()
 ^^^^^^^^^^^^^^^
 
 Метод позволяет получить страницы с несколькими статьями на каждой.
@@ -355,7 +356,7 @@ api_get_pages()
 .. code-block:: python
 
     @app.route('/pages', methods=['GET'])
-    def api_get_pages()
+    def api_pages_get()
     """
     :request:
     {
@@ -508,7 +509,7 @@ api_users_post()
         'container': 'body',
     }
 
-    :returns: str(json) in format {'status': %JSON%, 'user-id': %INT%}
+    :returns: str(json) in format {'status': %JSON%, 'user_id': %INT%}
     """
 
 Метод возвращает *id* созданного пользователя.
@@ -642,12 +643,14 @@ api_users_data_get()
         ]
     }
 
-    :returns: str(json) in format {'status': %JSON%, 'data': %JSON%}
+    :returns: str(json) in format {'status': %JSON%, %KEY1%: %ANSWER%, %KEY2%: %ANSWER%...}
     """
 
 Заголовок ``user-id`` содержит *id* пользователя, для которого запрашивается информация о профиле.
 Ключ ``requested-data`` содержит строку, которая будет преобразована сервером в список запрашиваемых данных. Например,
 ``requested-data`` может содержать значение ``~name~name_history~avatar~blocked_tags~description~registration_date~``.
+
+Ответ содержит все ключи, перечисленные в запросе. По каждому ключу лежит запрашиваемое значение.
 
 .. note::
     Если поле ``user-id`` будет содержать значение 0, то сервер вернет ошибку.

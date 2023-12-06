@@ -181,7 +181,7 @@ def api_article_post():
     article['preview_content'] = article.pop('preview-content')
 
     status, article_id = backend.post_article(article, headers['user-id'])
-    return json.dumps({'status': dict(status), 'article-id': article_id})
+    return json.dumps({'status': dict(status), 'article_id': article_id})
 
 @app.route('/article', methods=['GET'])
 @log.log_request
@@ -273,7 +273,9 @@ def api_article_data_get():
         return json.dumps({'status': dict(status)})
 
     status, data = backend.get_article_data(headers['article-id'], requested_data)
-    return json.dumps({'status': dict(status), 'data': data})
+    answer = {'status': dict(status)}
+    answer.update(data)
+    return json.dumps(answer)
 
 @app.route('/pages', methods=['GET'])
 @log.log_request
@@ -305,7 +307,7 @@ def api_users_post():
         user_info['blocked_tags'] = user_info.pop('blocked-tags')
 
     status, user_id = backend.add_user(user_info)
-    return json.dumps({'status': dict(status), 'user-id': user_id})
+    return json.dumps({'status': dict(status), 'user_id': user_id})
 
 @app.route('/users/data', methods=['GET'])
 @log.log_request
@@ -330,7 +332,9 @@ def api_users_data_get():
                                                                       Parameter('rating', 'str', False)])
 
     status, data = backend.get_user_data(headers['user-id'], requested_data)
-    return json.dumps({'status': dict(status), 'data': data})
+    answer = {'status': dict(status)}
+    answer.update(data)
+    return json.dumps(answer)
 
 @app.route('/users/data', methods=['POST'])
 @log.log_request
