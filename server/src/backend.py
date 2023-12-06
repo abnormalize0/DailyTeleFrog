@@ -62,9 +62,12 @@ def get_pages(indexes, user_id):
 
 def get_article(id):
     article = None
-    with open(os.path.join(config.db_article_directory.path,
-                           f'{id}.json'), encoding="utf-8") as file:
-        article = json.load(file)
+    try:
+        with open(os.path.join(config.db_article_directory.path,
+                            f'{id}.json'), encoding="utf-8") as file:
+            article = json.load(file)
+    except FileNotFoundError:
+        return None
     return article
 
 def create_article_file(article_id, article):

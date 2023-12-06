@@ -192,6 +192,10 @@ def api_article_get():
         return json.dumps({'status': dict(status)})
 
     article = backend.get_article(headers['article-id'])
+    if not article:
+        return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
+                                                                error_type=request_status.ErrorType.ValueError,
+                                                                msg=f"Article does not exist"))})
     return json.dumps({'status': dict(request_status.Status(request_status.StatusType.OK)), 'article': article})
 
 @app.route('/article/data', methods=['POST'])
@@ -273,6 +277,10 @@ def api_article_data_get():
         return json.dumps({'status': dict(status)})
 
     status, data = backend.get_article_data(headers['article-id'], requested_data)
+
+    if status.is_error:
+        return json.dumps({'status': dict(status)})
+
     answer = {'status': dict(status)}
     answer.update(data)
     return json.dumps(answer)
@@ -332,6 +340,10 @@ def api_users_data_get():
                                                                       Parameter('rating', 'str', False)])
 
     status, data = backend.get_user_data(headers['user-id'], requested_data)
+
+    if status.is_error:
+        return json.dumps({'status': dict(status)})
+
     answer = {'status': dict(status)}
     answer.update(data)
     return json.dumps(answer)
