@@ -156,6 +156,7 @@ def parse_structure(request_part:dict, structure:list):
     return request_status.Status(request_status.StatusType.OK), result
 
 @app.route('/article', methods=['POST'])
+@log.safe_api
 @log.log_request
 @log.timer(config.log_server_api)
 def api_article_post():
@@ -184,6 +185,7 @@ def api_article_post():
     return json.dumps({'status': dict(status), 'article_id': article_id})
 
 @app.route('/article', methods=['GET'])
+@log.safe_api
 @log.log_request
 @log.timer(config.log_server_api)
 def api_article_get():
@@ -199,6 +201,7 @@ def api_article_get():
     return json.dumps({'status': dict(request_status.Status(request_status.StatusType.OK)), 'article': article})
 
 @app.route('/article/data', methods=['POST'])
+@log.safe_api
 @log.log_request
 @log.timer(config.log_server_api)
 def api_article_data_post():
@@ -260,6 +263,7 @@ def api_article_data_post():
         return json.dumps({'status': dict(status), 'comment_id': comment_id})
 
 @app.route('/article/data', methods=['GET'])
+@log.safe_api
 @log.log_request
 @log.timer(config.log_server_api)
 def api_article_data_get():
@@ -286,6 +290,7 @@ def api_article_data_get():
     return json.dumps(answer)
 
 @app.route('/pages', methods=['GET'])
+@log.safe_api
 @log.log_request
 @log.timer(config.log_server_api)
 def api_pages_get():
@@ -299,6 +304,7 @@ def api_pages_get():
     return json.dumps({'status': dict(status), 'pages': pages})
 
 @app.route('/users', methods=['POST'])
+@log.safe_api
 @log.log_request
 @log.timer(config.log_server_api)
 def api_users_post():
@@ -318,6 +324,7 @@ def api_users_post():
     return json.dumps({'status': dict(status), 'user_id': user_id})
 
 @app.route('/users/data', methods=['GET'])
+@log.safe_api
 @log.log_request
 @log.timer(config.log_server_api)
 def api_users_data_get():
@@ -349,6 +356,7 @@ def api_users_data_get():
     return json.dumps(answer)
 
 @app.route('/users/data', methods=['POST'])
+@log.safe_api
 @log.log_request
 @log.timer(config.log_server_api)
 def api_users_data_post():
@@ -378,6 +386,7 @@ def api_users_data_post():
     return json.dumps({'status': dict(status)})
 
 @app.route('/users/password', methods=['POST'])
+@log.safe_api
 @log.log_request
 @log.timer(config.log_server_api)
 def api_users_password_post():
@@ -401,6 +410,7 @@ def api_users_password_post():
     return json.dumps({'status': dict(status)})
 
 @app.route('/login', methods=['GET'])
+@log.safe_api
 @log.log_request
 @log.timer(config.log_server_api)
 def api_login_get():
