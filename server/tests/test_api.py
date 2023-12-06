@@ -242,6 +242,11 @@ class TestAPI(base_test.BaseTest):
         self.assertIn('tags', answer.json()['article'].keys())
         self.assertIn('created', answer.json()['article'].keys())
 
+        # trying to read a non-existent article
+        answer = requests.get(self.localhost + endpoint, headers={'article-id': str(-1)})
+        self.assertEqual(answer.json()['status']['type'], 'ERROR', msg=str(answer.json()['status']))
+        self.assertEqual(answer.json()['status']['error_type'], 'ValueError', msg=str(answer.json()['status']))
+
     def test_article_data_post(self):
         endpoint = '/article/data'
         method = 'post'
@@ -600,6 +605,14 @@ class TestAPI(base_test.BaseTest):
         request_data = request_data.split('~')[1:-1]
         for field in request_data:
             self.assertIn(field, answer.json())
+
+        # trying to read a non-existent article
+        request_data = '~likes_count~likes_id~dislikes_count~dislikes_id~comments_count~'
+        answer = requests.get(self.localhost + endpoint, headers={'user-id': str(user_id),
+                                                                  'article-id': str(-1),
+                                                                  'requested-data': f'{request_data}'})
+        self.assertEqual(answer.json()['status']['type'], 'ERROR', msg=str(answer.json()['status']))
+        self.assertEqual(answer.json()['status']['error_type'], 'ValueError', msg=str(answer.json()['status']))
 
     def test_pages(self):
         endpoint = '/pages'
