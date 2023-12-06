@@ -8,7 +8,7 @@
 Эти зависимости перечислены в файле ``server/requirements.txt``.
 Их установку можно выполнить командой: ::
 
-    pip install requirements.txt
+    pip install -r requirements.txt
 
 Запуск сервера
 --------------

@@ -48,9 +48,7 @@ def safe_parser(func):
         except ValueError as err:
             return request_status.Status(request_status.StatusType.ERROR,
                                          error_type=request_status.ErrorType.ValueError,
-                                         msg=f'''Cannot convert {kwargs['parameter_name']}
-                                         with value {err.args[0].split(':')[-1]}
-                                         to {kwargs['convert_type']} or value is forbidden'''), None
+                                         msg=f"Cannot convert {kwargs['parameter_name']} or value is forbidden"), None
         return request_status.Status(request_status.StatusType.OK), headers
     return wrapper
 
@@ -165,6 +163,11 @@ def api_article_post():
     if status.is_error:
         return json.dumps({'status': dict(status)})
 
+    if headers['user-id'] == 0:
+        return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
+                                          error_type=request_status.ErrorType.ValueError, 
+                                          msg='Unlogged user cannot use this method'))})
+
     status, article = parse_structure(request.json, [Parameter('article-body', 'json', True),
                                                      Parameter('preview-content', 'json', True),
                                                      Parameter('name', 'str', True),
@@ -199,6 +202,11 @@ def api_article_data_post():
                                                         Parameter('article-id', 'int', True)])
     if status.is_error:
         return json.dumps({'status': dict(status)})
+
+    if headers['user-id'] == 0:
+        return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
+                                          error_type=request_status.ErrorType.ValueError, 
+                                          msg='Unlogged user cannot use this method'))})
 
     status, command = parse_structure(request.json, [Parameter('like-article', 'json', False),
                                                      Parameter('dislike-article', 'json', False),
@@ -308,6 +316,11 @@ def api_users_data_get():
     if status.is_error:
         return json.dumps({'status': dict(status)})
 
+    if headers['user-id'] == 0:
+        return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
+                                          error_type=request_status.ErrorType.ValueError, 
+                                          msg='Unlogged user cannot use this method'))})
+
     status, requested_data = parse_fields(headers['requested-data'], [Parameter('name_history', 'str', False),
                                                                       Parameter('avatar', 'str', False),
                                                                       Parameter('blocked_tags', 'str', False),
@@ -327,6 +340,11 @@ def api_users_data_post():
     if status.is_error:
         return json.dumps({'status': dict(status)})
     user_id = user_id['user-id']
+
+    if user_id == 0:
+        return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
+                                          error_type=request_status.ErrorType.ValueError, 
+                                          msg='Unlogged user cannot use this method'))})
 
     status, fields = parse_structure(request.json, [Parameter('avatar', 'str', False),
                                                     Parameter('blocked-tags', 'str', False),
@@ -352,6 +370,11 @@ def api_users_password_post():
     if status.is_error:
         return json.dumps({'status': dict(status)})
 
+    if headers['user-id'] == 0:
+        return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
+                                          error_type=request_status.ErrorType.ValueError, 
+                                          msg='Unlogged user cannot use this method'))})
+
     status, new_password = parse_structure(request.json, [Parameter('new-password', 'str', True)])
     if status.is_error:
         return json.dumps({'status': dict(status)})
@@ -369,6 +392,11 @@ def api_login_get():
                                                         Parameter('password', 'str', True)])
     if status.is_error:
         return json.dumps({'status': dict(status)})
+
+    if headers['user-id'] == 0:
+        return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
+                                          error_type=request_status.ErrorType.ValueError, 
+                                          msg='Unlogged user cannot use this method'))})
 
     status, is_password_correct = backend.login(headers['password'], headers['user-id'])
     return json.dumps({'status': dict(status), 'is-correct': is_password_correct})
