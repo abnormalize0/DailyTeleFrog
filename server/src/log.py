@@ -3,10 +3,13 @@
 '''
 
 import logging
+import traceback
+import json
 from flask import request
 from datetime import datetime
 
 from . import config
+from . import request_status
 
 def timer(log_file:config.DynamicPath):
     def decorator(func):
@@ -54,3 +57,17 @@ def log_args_kwargs(log_file:config.DynamicPath):
             return result
         return wrapper
     return decorator
+
+def safe_api(func):
+    def wrapper(*args, **kwargs):
+        try:
+            result = func(*args, **kwargs)
+            return result
+        except Exception:
+            logger = logging.getLogger(config.log_server_api.path)
+            logger.error(traceback.format_exc())
+            return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
+                                              request_status.ErrorType.UnexceptedError,
+                                              msg='Unexcepted error'))})
+    wrapper.__name__ = func.__name__
+    return wrapper
