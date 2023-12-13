@@ -1,5 +1,12 @@
+<style>
+  @import '../css/PreviewStyle.css';
+</style>
+
+
 <script setup>
   import { ref, onMounted, onUpdated } from 'vue';
+  import { DateTime, Settings } from 'luxon';
+  Settings.defaultLocale = 'ru';
 
   let PAGE_PER_ARTICLES = 5;
 
@@ -39,7 +46,7 @@
   })
 
   async function like_change(post_id) { //заглушка пока не будет рабочего апи от сервера
-    const request = await fetch("http://127.0.0.1:5000/article/like", {
+    const request = await fetch("http://127.0.0.1:5000/article/likes", {
       method: 'POST',
       headers: {
         'user-id': localStorage.id,
@@ -50,10 +57,57 @@
     console.log(status);
     let like = document.getElementById("like" + post_id);
     if(((like.innerHTML).split(" ")[1]) == 1) {
-      like.innerHTML = "♥ 2";
+      like.innerHTML = "2";
     } else {
-      like.innerHTML = "♡ 1";
+      like.innerHTML = "1";
     }
+  }
+
+  async function dislike_change(post_id, command) { //заглушка пока не будет рабочего апи от сервера
+    const request = await fetch("http://127.0.0.1:5000/article/data", {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'user-id': localStorage.id,
+        'article-id': post_id,
+      },
+      body: JSON.stringify({command: {}})
+    })
+    let status = await request.json();
+    console.log(status);
+    let like = document.getElementById("like" + post_id);
+    if(((like.innerHTML).split(" ")[1]) == 1) {
+      like.innerHTML = "2";
+    } else {
+      like.innerHTML = "1";
+    }
+  }
+
+  function timeAgo(date) {
+    date = 1702184400000;
+    let seconds = DateTime.now().toUnixInteger() - date / 1000;
+    let current_date = DateTime.now().toObject();
+    let post_date = DateTime.fromMillis(date).toObject();
+    let days = DateTime.now().diff(DateTime.fromMillis(date), ["days"]).toObject();
+    console.log(days)
+    if (current_date.year != post_date.year) {
+      return DateTime.fromMillis(date).toLocaleString({month: 'long', day: 'numeric', year: 'numeric'});
+    }
+    if ((days.days < 2)&&(days.days > 1)) {
+      return 'вчера';
+    }
+    if ((current_date.day != post_date.day)||(current_date.month != post_date.month)) {
+      return DateTime.fromMillis(date).toLocaleString({month: 'long', day: 'numeric'});
+    }
+    if (seconds <= 10) {
+      return 'только что';
+    }
+    return DateTime.now().minus({ seconds: DateTime.now().toUnixInteger() - date / 1000 }).toRelative();
+  }
+
+  function tooltip_time(date) {
+    date = 1702184400000;
+    return DateTime.fromMillis(date).toLocaleString({month: 'long', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   }
 </script>
 
@@ -63,30 +117,38 @@
       <div id="feed">
         <div v-for="post in posts" :key="post.id" >
           <router-link :to="{ name: 'post', params: { id: post.article_id } }" custom v-slot="{ navigate }">
-            <div :class="`post-item`" :id="'post' + post_id++">
+            <div class="post-item" :id="'post' + post_id++">
+              <div class="post-top">
+                <div @click="navigate" class="post-title">{{ post.name }}</div>
+                <div class="post-menu-button">...</div>
+              </div>
               <div @click="navigate">
-                <br>
-                <h1>{{ post.name }}</h1>
-                <div v-for="(block, index) in post.preview_content" v-bind:key="index"> 
+                <div class="post-content" v-for="(block, index) in post.preview_content" v-bind:key="index"> 
                   <div v-if="block.type == 0"><h1>{{ decodeURIComponent(block.content) }}</h1></div>
                   <div v-if="block.type == 1">{{ decodeURIComponent(block.content) }}</div>
-                  <div v-if="block.type == 2" ><img width='600' :src=decodeURIComponent(block.content)></div>
-                  
+                  <div v-if="block.type == 2"><img class="post-image" :src=decodeURIComponent(block.content)></div>
                 </div>
-                <br><br>
-                <i style="top: 0px; left:0px; position: absolute;">Запостил пользователь {{ post.author_preview.name }} {{ post.created }} </i>
               </div>
-
-              <div style="position: absolute; bottom: 0px; left:10px;">
-                <div style="display: inline-block; margin: 10px 5px;" v-for="(tag, index) in post.tags" :key="index">
+              <div class="post-tags">
+                <div style="display: inline-block; margin: 0 10px 0 0;" v-for="(tag, index) in post.tags" :key="index">
                   <router-link :to="{ name: 'tag', params: { id: decodeURIComponent(post.tags[index]) } }" custom v-slot="{ navigate }">
-                    <div @click="navigate" >{{ tag }}</div>
+                    <div class="post-tag" @click="navigate">{{ tag }}</div>
                   </router-link>
                 </div>
               </div>
-              <div style="right: 10px; bottom: 0px; position: absolute;">
-                <div style="display: inline-block; margin: 10px 5px;">🗪 {{ post.comments_count }}</div>
-                <div @click="like_change(post.article_id)" :id="'like'+post.article_id" style="display: inline-block; margin: 10px 5px;">♡ {{ post.likes_count }}</div>
+              <hr>
+              <div class="post-bottom">
+                <img class="post-avatar highlight" src="https://img.gruporeforma.com/imagenes/960x640/6/462/5461086.jpg">
+                <img class="post-subavatar highlight" src="https://upload.wikimedia.org/wikipedia/commons/9/9f/Nintendo-switch-icon.png">
+                <div class="post-author" >{{ post.author_preview.name }}</div>
+                <div class="post-subsite">@Nintendo</div>
+                <div class="post-time"> {{timeAgo(post.created)}} <div class="post-time-tooltip">{{ tooltip_time(post.created) }}</div> </div>
+                <div class="post-misc" ></div>
+                <div class="post-views" >0 просмотров </div>
+                <div class="post-misc" >🗪 {{ post.comments_count }}</div>
+                <div class="post-misc" @click="like_change(post.article_id)" :id="'display_like'+post.article_id">↑</div>
+                <div class="post-misc" :id="'like'+post.article_id">{{ post.likes_count }}</div>
+                <div class="post-misc" @click="dislike_change(post.article_id, 'dislike-article')" :id="'display_dislike'+post.article_id">↓</div>
               </div>
             </div>
           </router-link>
@@ -109,6 +171,15 @@
     let json = await request.json();
     console.log(json);
     for(let i = 0; i < json.pages[page].length; i++) {
+      // const another_request = await fetch("http://127.0.0.1:5000/article/data", {
+      //   method: 'GET',
+      //   headers: {
+      //     'article-id': json.pages[page][i].id,
+      //     'requested-data': '~dislikes_id~'
+      //   }
+      // });
+      // let new_json = await another_request.json();
+      // console.log(new_json);
       posts.value.push({
         id: i,
         name: decodeURIComponent(json.pages[page][i].name),

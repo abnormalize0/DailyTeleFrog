@@ -1,9 +1,10 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@100;200;300;400;500;600&display=swap');
+
 #app {
     font-family: Avenir, Helvetica, Arial, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    text-align: center;
-    color: #2c3e50;
+    color: white;
   }
   
   body::-webkit-scrollbar{
@@ -11,9 +12,10 @@
   }
   
   .top {
+    text-align: center;
     position: sticky;
     top: 0px;
-    background-color: white;
+    background-color: #0D0A1E;
     display: block;
     z-index: 100;
   }
@@ -31,14 +33,14 @@
     color: #42b983;
   }
   
-  .post-item {
-    background-color: rgb(246, 246, 246);
-    border-radius: 25px;
-    margin-bottom: 30px;
-    position: relative;
-  }
-  
   html { 
     margin-top: -22px !important; 
+    background-color: #0D0A1E;
   } 
   
+  .highlight:hover {
+    filter: brightness(110%);
+    -webkit-filter: brightness(110%);
+    -moz-filter: brightness(110%);
+    transition: 0.3s;
+  }
