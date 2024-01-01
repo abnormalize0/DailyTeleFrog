@@ -623,6 +623,16 @@ class TestAPI(base_test.BaseTest):
                              structure=answer.json()[method])
 
         user_id, password, user_name = self.add_user()
+        answer = requests.get(self.localhost + endpoint, headers={'user-id': str(user_id), 'indexes': '~0~1~2~'})
+        self.assertEqual(answer.json()['status']['type'], 'ERROR', msg=str(answer.json()['status']))
+        self.assertEqual(answer.json()['status']['error_type'], 'ValueError', msg=str(answer.json()['status']))
+
+        user_id, password, user_name = self.add_user()
+        article_id = self.add_arcticle(user_id=user_id)
+        answer = requests.get(self.localhost + endpoint, headers={'user-id': str(user_id), 'indexes': '~0~1~2~'})
+        self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
+
+        user_id, password, user_name = self.add_user()
         for i in range(20):
             article_id = self.add_arcticle(user_id=user_id)
 

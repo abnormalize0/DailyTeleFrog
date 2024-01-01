@@ -56,6 +56,12 @@ def get_unblocked_articles(blocked_tags=None):
                                                 config.article_table_name,
                                                 [config.article_id_name],
                                                 exclude=exclude_data)
+
+    if status.is_error:
+        return status, None
+
+    if type(articles_id[config.article_id_name]) is not list:
+        articles_id[config.article_id_name] = [articles_id[config.article_id_name]]
     return status, articles_id[config.article_id_name]
 
 def create_comment(article_id, user_id):
