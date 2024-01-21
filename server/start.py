@@ -11,7 +11,7 @@ import os
 import logging
 from datetime import datetime
 
-from src import api
+from src.api import api
 from src import config
 
 def backup():
@@ -57,10 +57,16 @@ def init_users():
                     password TEXT NOT NULL,
                     name_history TEXT,
                     avatar TEXT,
+                    sub_tags TEXT,
                     blocked_tags TEXT,
+                    sub_users TEXT,
+                    blocked_users TEXT,
+                    sub_communities TEXT,
+                    blocked_communities TEXT,
                     description TEXT,
-                    registration_date TEXT,
+                    creation_date INT NOT NULL,
                     rating INTEGER)''')
+    connection.commit()
     connection.close()
 
 def init_articles():
@@ -71,7 +77,9 @@ def init_articles():
     cursor.execute(f'''CREATE TABLE {config.article_table_name} (
                     {config.article_id_name} INTEGER PRIMARY KEY,
                     name TEXT NOT NULL,
-                    created TEXT NOT NULL,
+                    creation_date INT NOT NULL,
+                    community TEXT,
+                    rating INTEGER,
                     likes_count INTEGER,
                     likes_id TEXT,
                     dislikes_count INTEGER,
@@ -81,6 +89,7 @@ def init_articles():
                     author_preview JSON NOT NULL,
                     author_id INTEGER NOT NULL,
                     tags TEXT)''')
+    connection.commit()
     connection.close()
 
 def init_comments():
@@ -90,12 +99,15 @@ def init_comments():
     cursor = connection.cursor()
     cursor.execute(f'''CREATE TABLE {config.comment_table_name} (
                     {config.comment_id_name} INTEGER PRIMARY KEY,
+                    creation_date INT NOT NULL,
+                    rating INTEGER,
                     likes_count INTEGER,
                     likes_id TEXT,
                     dislikes_count INTEGER,
                     dislikes_id TEXT,
                     article_id INTEGER NOT NULL,
                     author_id INTEGER NOT NULL)''')
+    connection.commit()
     connection.close()
 
 # RawTextHelpFormatter support multistring comments

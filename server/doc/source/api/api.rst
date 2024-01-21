@@ -64,12 +64,6 @@ api_article_post()
         'is_required': True,
         'container': 'body',
     },
-    {
-        'name': 'created',
-        'type': 'str',
-        'is_required': True,
-        'container': 'body',
-    }
 
     :returns: str(json) in format {'status': %JSON%, 'article_id': %INT%}
     """
@@ -89,7 +83,9 @@ api_article_post()
 Ключ ``tags`` содержит теги статьи, перечисленные через разделитель ``~``. Напирмер, статья имеющая теги ``Обзор``,
 ``Call of Duty`` и ``Лонг`` будет иметь значение по ключу ``tags``: ``~Обзор~Call of duty~Лонг~``.
 
-Ключ ``created`` содержит дату публикации статьи в строковом формате.
+При публикации статьи для нее автоматически заводится следующие поля:
+
+* Поле ``creation_date``, в котором хранится дата публикации статьи в милисекундах от 1970 года
 
 .. note::
     Сервер сохраняет только перечисленные ключи и их значения.
@@ -151,7 +147,7 @@ api_article_get()
         'likes_id': '%STR%'
         'comments_count': '%INT%'
         'tags': '%STR%'
-        'created': '%STR%'
+        'creation_date': '%STR%'
     }
 
 Ключ ``article_body`` содержит тело статьи со структурой определенной пользователем.
@@ -188,7 +184,7 @@ api_article_get()
 Ключ ``tags`` содержит теги статьи, перечисленные через разделитель ``~``. Напирмер, статья имеющая теги ``Обзор``,
 ``Call of Duty`` и ``Лонг`` будет иметь значение по ключу ``tags``: ``~Обзор~~Call of duty~~Лонг~``.
 
-Ключ ``created`` содержит дату публикации статьи в строковом формате.
+Ключ ``creation_date`` содержит дату публикации статьи в милисекундых от 1970 года.
 
 api_article_info_post()
 ^^^^^^^^^^^^^^^^^^^^^^^
@@ -284,7 +280,7 @@ api_article_info_post()
 ``dislike-comment`` рейтинг автора статьи или комментария изменится автоматически.
 
 .. note::
-    Незалогиненные пользователи оставлять комментарии, лайкать и дизлайкать.
+    Незалогиненные пользователи не могут оставлять комментарии, лайкать и дизлайкать.
     Если на сервер отправить такой запрос для пользователя с *id* равным 0,
     то сервер вернет ошибку.
 
@@ -335,6 +331,11 @@ api_article_data_get()
                 'name': 'comments_count',
                 'type': 'field',
                 'is_required': False,
+            },
+            {
+                'name': 'creation_date',
+                'type': 'field',
+                'is_required': False,
             }
         ]
     }
@@ -371,6 +372,90 @@ api_pages_get()
         'is_required': True,
         'container': 'header'
     },
+    {
+        'name': 'include-nonsub',
+        'type': 'bool',
+        'is_required': True,
+        'container': 'header'
+    },
+    {
+        'name': 'sort-column',
+        'type': 'str',
+        'is_required': True,
+        'container': 'header'
+    },
+    {
+        'name': 'sort-direction',
+        'type': 'str',
+        'is_required': True,
+        'container': 'header'
+    },
+    {
+        'name': 'upper-date',
+        'type': 'date',
+        'is_required': False,
+        'container': 'header'
+    },
+    {
+        'name': 'lower-date',
+        'type': 'date',
+        'is_required': False,
+        'container': 'header'
+    },
+    {
+        'name': 'upper-rating',
+        'type': 'int',
+        'is_required': False,
+        'container': 'header'
+    },
+    {
+        'name': 'lower-rating',
+        'type': 'int',
+        'is_required': False,
+        'container': 'header'
+    },
+    {
+        'name': 'include-tags',
+        'type': 'list',
+        'is_required': False,
+        'container': 'header',
+        'structure': []
+    },
+    {
+        'name': 'exclude-tags',
+        'type': 'list',
+        'is_required': False,
+        'container': 'header',
+        'structure': []
+    },
+    {
+        'name': 'include-authors',
+        'type': 'list',
+        'is_required': False,
+        'container': 'header',
+        'structure': []
+    },
+    {
+        'name': 'exclude-authors',
+        'type': 'list',
+        'is_required': False,
+        'container': 'header',
+        'structure': []
+    },
+    {
+        'name': 'include-communities',
+        'type': 'list',
+        'is_required': False,
+        'container': 'header',
+        'structure': []
+    },
+    {
+        'name': 'exclude-communities',
+        'type': 'list',
+        'is_required': False,
+        'container': 'header',
+        'structure': []
+    },
 
     :returns: str(json) in format {'status': %JSON%, 'pages': %JSON%}
     """
@@ -379,6 +464,21 @@ api_pages_get()
 Если страницы запрашиваются для незалогиненного пользователя, то этот заголовок должен содержать значение ``-1``.
 Заголовок ``indexes`` содержит список *id* запрашиваемых страниц перечисленных через символ ``~``.
 Например, заголовок может содержать значение ``~1~2~3~``.
+Ключ ``include-nonsub`` является флагом для включения в выборку постов, в которых нет информации, на которую
+пользователь подписан.
+Ключ ``sort-column`` содержит в себе значение, по которому должны быть отсортированы посты в выдаче.
+Значение обязано быть одним из ``creation_date`` или ``rating``.
+Ключ ``sort-direction`` содержит в себе значение направлюения сортировки.
+Для сортировки по убыванию значение должно быть ``descending``.
+Для сортировки по возрастанию значение должно быть ``ascending``.
+Ключи ``upper-date``, ``lower-date``, ``upper-rating`` и ``lower-rating`` содержат в себе границы для соответствующих
+параметров статей.
+Ключи ``include-tags``, ``include-authors`` и ``include-communities`` содержат в себе параметры, все из которых должны
+присутствовать в статьях в выборке.
+Ключи ``exclude-tags``, ``exclude-authors`` и ``exclude-communities`` содержат в себе параметры, ни один из которых
+не должен присутствовать в статьях в выборке.
+
+
 Возвращаемый ``JSON`` содержит ключ *pages*, который содержит запрашиваемые страницы со следующей структурой:
 
 .. code-block:: python
@@ -407,7 +507,7 @@ api_pages_get()
             'dislikes_count': '%INT%'
             'comments_count': '%INT%'
             'tags': '%STR%'
-            'created': '%STR%'
+            'creation_date': '%STR%'
         },
         {
             'ANOTHER ARTICLE'
@@ -459,7 +559,7 @@ api_pages_get()
 Ключ ``tags`` содержит теги статьи, перечисленные через разделитель ``~``. Напирмер, статья имеющая теги ``Обзор``,
 ``Call of Duty`` и ``Лонг`` будет иметьlikes_id значение по ключу ``tags``: ``~Обзор~Call of duty~Лонг~``.
 
-Ключ ``created`` содержит дату публикации статьи в строковом формате.
+Ключ ``creation_date`` содержит дату публикации статьи в милисекундах от 1970 года.
 
 .. note::
     Для незалогиненных пользователей метод работает, считая, что для такого пользователя нет заблокированных тегов.
@@ -497,10 +597,46 @@ api_users_post()
         'container': 'body',
     },
     {
-        'name': 'blocked-tags',
-        'type': 'str',
+        'name': 'sub-tags',
+        'type': 'list',
         'is_required': False,
         'container': 'body',
+        'structure': [],
+    },
+    {
+        'name': 'blocked-tags',
+        'type': 'list',
+        'is_required': False,
+        'container': 'body',
+        'structure': [],
+    },
+    {
+        'name': 'sub-authors',
+        'type': 'list',
+        'is_required': False,
+        'container': 'body',
+        'structure': [],
+    },
+    {
+        'name': 'blocked-authors',
+        'type': 'list',
+        'is_required': False,
+        'container': 'body',
+        'structure': [],
+    },
+    {
+        'name': 'sub-communities',
+        'type': 'list',
+        'is_required': False,
+        'container': 'body',
+        'structure': [],
+    },
+    {
+        'name': 'blocked-communities',
+        'type': 'list',
+        'is_required': False,
+        'container': 'body',
+        'structure': [],
     },
     {
         'name': 'description',
@@ -514,14 +650,19 @@ api_users_post()
 
 Метод возвращает *id* созданного пользователя.
 Поле ``avatar`` является ссылкой на аватарку пользователя.
-Поле ``blocked_tags`` является списком заблокированных тегов, разделенных символом ``~``.
+Поле ``sub-tags`` является списком тегов, на которые пользователь подписан, разделенных символом ``~``.
 Например, это поле может иметь значение ``~Рикролл~MMO~nsfw~``.
+Поле ``blocked-tags`` является списком заблокированных тегов, разделенных символом ``~``.
+Поле ``sub-authors`` является списком авторов, на которые пользователь подписан, разделенных символом ``~``.
+Поле ``blocked-authors`` является списком заблокированных авторов, разделенных символом ``~``.
+Поле ``sub-communities`` является списком сообществ, на которые пользователь подписан, разделенных символом ``~``.
+Поле ``blocked-communities`` является списком заблокированных сообществ, разделенных символом ``~``.
 Поле ``description`` содержит в себе текстовое описарние профиля.
 
 При регистрации пользователя для него автоматически заводится следующие поля:
 
-* Поле ``name_history``, в котором хранится история имен пользователя 
-* Поле ``registration_date``, в котором хранится дата регистрации пользователя
+* Поле ``name_history``, в котором хранится история имен пользователя
+* Поле ``creation_date``, в котором хранится дата регистрации пользователя в милисекундах от 1970 года
 * Поле ``rating``, в котором текуший рейтинг пользователя
 
 api_users_data_post()
@@ -554,10 +695,46 @@ api_users_data_post()
         'container': 'body',
     },
     {
-        'name': 'blocked-tags',
-        'type': 'str',
+        'name': 'sub-tags',
+        'type': 'list',
         'is_required': False,
         'container': 'body',
+        'structure': [],
+    },
+    {
+        'name': 'blocked-tags',
+        'type': 'list',
+        'is_required': False,
+        'container': 'body',
+        'structure': [],
+    },
+    {
+        'name': 'sub-authors',
+        'type': 'list',
+        'is_required': False,
+        'container': 'body',
+        'structure': [],
+    },
+    {
+        'name': 'blocked-authors',
+        'type': 'list',
+        'is_required': False,
+        'container': 'body',
+        'structure': [],
+    },
+    {
+        'name': 'sub-communities',
+        'type': 'list',
+        'is_required': False,
+        'container': 'body',
+        'structure': [],
+    },
+    {
+        'name': 'blocked-communities',
+        'type': 'list',
+        'is_required': False,
+        'container': 'body',
+        'structure': [],
     },
     {
         'name': 'description',
@@ -572,8 +749,13 @@ api_users_data_post()
 Метод принимает только один заголовок с *id* пользователя.
 Поле ``name`` соответствует никнейму пользователя.
 Поле ``avatar`` является ссылкой на аватарку пользователя.
-Поле ``blocked_tags`` является списком заблокированных тегов, разделенных символом ``~``.
+Поле ``sub-tags`` является списком тегов, на которые пользователь подписан, разделенных символом ``~``.
 Например, это поле может иметь значение ``~Рикролл~MMO~nsfw~``.
+Поле ``blocked-tags`` является списком заблокированных тегов, разделенных символом ``~``.
+Поле ``sub-authors`` является списком авторов, на которые пользователь подписан, разделенных символом ``~``.
+Поле ``blocked-authors`` является списком заблокированных авторов, разделенных символом ``~``.
+Поле ``sub-communities`` является списком сообществ, на которые пользователь подписан, разделенных символом ``~``.
+Поле ``blocked-communities`` является списком заблокированных сообществ, разделенных символом ``~``.
 Поле ``description`` содержит в себе текстовое описарние профиля.
 
 Если было обновлено поле ``name``, то поле ``name_history`` будет обновлено сервером автоматически.
@@ -621,9 +803,40 @@ api_users_data_get()
                 'is_required': False,
             },
             {
+                'name': 'sub_tags',
+                'type': 'field',
+                'is_required': False,
+                'container': 'body',
+            },
+            {
                 'name': 'blocked_tags',
                 'type': 'field',
                 'is_required': False,
+                'container': 'body',
+            },
+            {
+                'name': 'sub_authors',
+                'type': 'field',
+                'is_required': False,
+                'container': 'body',
+            },
+            {
+                'name': 'blocked_authors',
+                'type': 'field',
+                'is_required': False,
+                'container': 'body',
+            },
+            {
+                'name': 'sub_communities',
+                'type': 'field',
+                'is_required': False,
+                'container': 'body',
+            },
+            {
+                'name': 'blocked_communities',
+                'type': 'field',
+                'is_required': False,
+                'container': 'body',
             },
             {
                 'name': 'description',
@@ -631,7 +844,7 @@ api_users_data_get()
                 'is_required': False,
             },
             {
-                'name': 'registration_date',
+                'name': 'creation_date',
                 'type': 'field',
                 'is_required': False,
             },
@@ -648,7 +861,7 @@ api_users_data_get()
 
 Заголовок ``user-id`` содержит *id* пользователя, для которого запрашивается информация о профиле.
 Ключ ``requested-data`` содержит строку, которая будет преобразована сервером в список запрашиваемых данных. Например,
-``requested-data`` может содержать значение ``~name~name_history~avatar~blocked_tags~description~registration_date~``.
+``requested-data`` может содержать значение ``~name~name_history~avatar~blocked_tags~description~creation_date~``.
 
 Ответ содержит все ключи, перечисленные в запросе. По каждому ключу лежит запрашиваемое значение.
 
@@ -729,5 +942,5 @@ api_login_get()
 При отсутсвии пользователя с *id* ``is-correct`` будет содержать значение ``False``
 
 .. note::
-    Если поле ``user-id`` будет содержать значение 0, то сервер вернет ошибку. 
+    Если поле ``user-id`` будет содержать значение 0, то сервер вернет ошибку.
     Нельзя проверить пароль у незалогиненного пользователя.

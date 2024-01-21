@@ -15,7 +15,9 @@ class BaseTest(unittest.TestCase):
         'int': 1,
         'str': 'qwerty',
         'json': {'key': 'value'},
-        'list_of_int': '~1~2~3~'
+        'list_of_int': '~1~2~3~',
+        'bool': 'true',
+        'date': '1-1-2024'
     }
 
     wrong_values = {
@@ -23,7 +25,9 @@ class BaseTest(unittest.TestCase):
         'str': '',
         'json': '{["str"}]',
         'list_of_int': '',
-        'list': ''
+        'list': '',
+        'bool': 'hehe',
+        'date': '1.1.2024'
     }
 
     def setUp(self):
@@ -44,8 +48,7 @@ class BaseTest(unittest.TestCase):
     def add_arcticle(self, **kwargs):
         article = {'name': 'test_name',
                    'preview-content': {'type': 'image', 'data': 'ref'},
-                   'tags': ['test_tag_1', 'test_tag_2'],
-                   'created': '01.01.2000',
+                   'tags': '~tag1~tag2~',
                    'article-body': {'block1': 'text'}
         }
         response = requests.post(self.localhost+'/article',

@@ -12,6 +12,7 @@ import shutil
 import signal
 import json
 import re
+from datetime import datetime
 
 import base_test
 
@@ -186,7 +187,7 @@ class TestAPI(base_test.BaseTest):
                                           structure=nested_structure,
                                           body=body,
                                           headers=headers,
-                                          position=position, 
+                                          position=position,
                                           container=container)
 
                 body, headers = self.restore_structure(body, headers, position[:], container)
@@ -205,7 +206,7 @@ class TestAPI(base_test.BaseTest):
         article = {'name': 'test_name',
                    'preview-content': {'type': 'image', 'data': 'ref'},
                    'tags': '~tag1~tag2~tag3~',
-                   'created': '01.01.2000',
+                   'creation_date': '01.01.2000',
                    'article-body': {'block1': 'text'}
         }
 
@@ -240,7 +241,7 @@ class TestAPI(base_test.BaseTest):
         self.assertIn('likes_id', answer.json()['article'].keys())
         self.assertIn('comments_count', answer.json()['article'].keys())
         self.assertIn('tags', answer.json()['article'].keys())
-        self.assertIn('created', answer.json()['article'].keys())
+        self.assertIn('creation_date', answer.json()['article'].keys())
 
         # trying to read a non-existent article
         answer = requests.get(self.localhost + endpoint, headers={'article-id': str(-1)})
@@ -263,10 +264,11 @@ class TestAPI(base_test.BaseTest):
         like_article = {}
         dislike_article = {}
         add_comment = {'text': 'Hello, world!', 'root': -1}
-        answer = requests.post(self.localhost + endpoint, 
+        answer = requests.post(self.localhost + endpoint,
                                headers={'user-id': str(user_id),
                                         'article-id': str(article_id)},
                                json={'add-comment': add_comment})
+        self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
         comment_id = answer.json()['comment_id']
         like_comment = {'comment_id': comment_id}
         dislike_comment = {'comment_id': comment_id}
@@ -275,7 +277,7 @@ class TestAPI(base_test.BaseTest):
                          msg=str(answer.json()['status']))
         self.assertIn('comment_id', answer.json())
 
-        answer = requests.post(self.localhost + endpoint, 
+        answer = requests.post(self.localhost + endpoint,
                                headers={'user-id': str(user_id + 1),
                                         'article-id': str(article_id)},
                                json={'like-article': like_article})
@@ -283,7 +285,7 @@ class TestAPI(base_test.BaseTest):
         self.assertEqual(answer.json()['status']['type'], 'OK',
                          msg=str(answer.json()['status']))
 
-        answer = requests.post(self.localhost + endpoint, 
+        answer = requests.post(self.localhost + endpoint,
                                headers={'user-id': str(user_id + 1),
                                         'article-id': str(article_id)},
                                json={'dislike-article': dislike_article})
@@ -291,7 +293,7 @@ class TestAPI(base_test.BaseTest):
         self.assertEqual(answer.json()['status']['type'], 'OK',
                          msg=str(answer.json()['status']))
 
-        answer = requests.post(self.localhost + endpoint, 
+        answer = requests.post(self.localhost + endpoint,
                                headers={'user-id': str(user_id + 1),
                                         'article-id': str(article_id)},
                                json={'like-comment': like_comment})
@@ -299,7 +301,7 @@ class TestAPI(base_test.BaseTest):
         self.assertEqual(answer.json()['status']['type'], 'OK',
                          msg=str(answer.json()['status']))
 
-        answer = requests.post(self.localhost + endpoint, 
+        answer = requests.post(self.localhost + endpoint,
                                headers={'user-id': str(user_id + 1),
                                         'article-id': str(article_id)},
                                json={'dislike-comment': dislike_comment})
@@ -308,35 +310,35 @@ class TestAPI(base_test.BaseTest):
                          msg=str(answer.json()['status']))
 
         # test unlogged users
-        answer = requests.post(self.localhost + endpoint, 
+        answer = requests.post(self.localhost + endpoint,
                                headers={'user-id': str(0),
                                         'article-id': str(article_id)},
                                json={'add-comment': add_comment})
         self.assertEqual(answer.json()['status']['type'], 'ERROR', msg=str(answer.json()['status']))
         self.assertEqual(answer.json()['status']['error_type'], 'ValueError', msg=str(answer.json()['status']))
 
-        answer = requests.post(self.localhost + endpoint, 
+        answer = requests.post(self.localhost + endpoint,
                                headers={'user-id': str(0),
                                         'article-id': str(article_id)},
                                json={'like-article': like_article})
         self.assertEqual(answer.json()['status']['type'], 'ERROR', msg=str(answer.json()['status']))
         self.assertEqual(answer.json()['status']['error_type'], 'ValueError', msg=str(answer.json()['status']))
 
-        answer = requests.post(self.localhost + endpoint, 
+        answer = requests.post(self.localhost + endpoint,
                                headers={'user-id': str(0),
                                         'article-id': str(article_id)},
                                json={'dislike-article': dislike_article})
         self.assertEqual(answer.json()['status']['type'], 'ERROR', msg=str(answer.json()['status']))
         self.assertEqual(answer.json()['status']['error_type'], 'ValueError', msg=str(answer.json()['status']))
 
-        answer = requests.post(self.localhost + endpoint, 
+        answer = requests.post(self.localhost + endpoint,
                                headers={'user-id': str(0),
                                         'article-id': str(article_id)},
                                json={'like-comment': like_comment})
         self.assertEqual(answer.json()['status']['type'], 'ERROR', msg=str(answer.json()['status']))
         self.assertEqual(answer.json()['status']['error_type'], 'ValueError', msg=str(answer.json()['status']))
 
-        answer = requests.post(self.localhost + endpoint, 
+        answer = requests.post(self.localhost + endpoint,
                                headers={'user-id': str(0),
                                         'article-id': str(article_id)},
                                json={'dislike-comment': dislike_comment})
@@ -345,7 +347,7 @@ class TestAPI(base_test.BaseTest):
 
         # check like post
         article_id = self.add_arcticle(user_id=user_id)
-        answer = requests.post(self.localhost + endpoint, 
+        answer = requests.post(self.localhost + endpoint,
                                headers={'user-id': str(user_id + 1),
                                         'article-id': str(article_id)},
                                json={'like-article': like_article})
@@ -359,7 +361,7 @@ class TestAPI(base_test.BaseTest):
         self.assertEqual(answer.json()['likes_count'], 1)
 
         # check like rewrite like
-        answer = requests.post(self.localhost + endpoint, 
+        answer = requests.post(self.localhost + endpoint,
                                headers={'user-id': str(user_id + 1),
                                         'article-id': str(article_id)},
                                json={'like-article': like_article})
@@ -372,7 +374,7 @@ class TestAPI(base_test.BaseTest):
         self.assertEqual(answer.json()['likes_count'], 0)
 
         # check dislike post
-        answer = requests.post(self.localhost + endpoint, 
+        answer = requests.post(self.localhost + endpoint,
                                headers={'user-id': str(user_id + 1),
                                         'article-id': str(article_id)},
                                json={'dislike-article': dislike_article})
@@ -386,7 +388,7 @@ class TestAPI(base_test.BaseTest):
         self.assertEqual(answer.json()['dislikes_count'], 1)
 
         # check dislike rewrite dislike
-        answer = requests.post(self.localhost + endpoint, 
+        answer = requests.post(self.localhost + endpoint,
                                headers={'user-id': str(user_id + 1),
                                         'article-id': str(article_id)},
                                json={'dislike-article': dislike_article})
@@ -399,13 +401,13 @@ class TestAPI(base_test.BaseTest):
         self.assertEqual(answer.json()['dislikes_count'], 0)
 
         # check like rewrite dislike
-        answer = requests.post(self.localhost + endpoint, 
+        answer = requests.post(self.localhost + endpoint,
                                headers={'user-id': str(user_id + 1),
                                         'article-id': str(article_id)},
                                json={'dislike-article': dislike_article})
         self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
 
-        answer = requests.post(self.localhost + endpoint, 
+        answer = requests.post(self.localhost + endpoint,
                                headers={'user-id': str(user_id + 1),
                                         'article-id': str(article_id)},
                                json={'like-article': like_article})
@@ -420,7 +422,7 @@ class TestAPI(base_test.BaseTest):
         self.assertEqual(answer.json()['dislikes_count'], 0)
 
         # check dislike rewrite like
-        answer = requests.post(self.localhost + endpoint, 
+        answer = requests.post(self.localhost + endpoint,
                                headers={'user-id': str(user_id + 1),
                                         'article-id': str(article_id)},
                                json={'dislike-article': dislike_article})
@@ -437,7 +439,7 @@ class TestAPI(base_test.BaseTest):
         user_endpoint = '/users/data'
         user_id, password, user_name = self.add_user()
         article_id = self.add_arcticle(user_id=user_id)
-        answer = requests.post(self.localhost + endpoint, 
+        answer = requests.post(self.localhost + endpoint,
                                headers={'user-id': str(user_id),
                                         'article-id': str(article_id)},
                                json={'add-comment': add_comment})
@@ -448,7 +450,7 @@ class TestAPI(base_test.BaseTest):
         user_2, password, user_name = self.add_user()
 
         # check that like increase rating
-        answer = requests.post(self.localhost + endpoint, 
+        answer = requests.post(self.localhost + endpoint,
                                headers={'user-id': str(user_2),
                                         'article-id': str(article_id)},
                                json={'like-article': like_article})
@@ -457,7 +459,7 @@ class TestAPI(base_test.BaseTest):
         self.assertEqual(answer.json()['rating'], 1)
 
         # check that undo like decrease rating
-        answer = requests.post(self.localhost + endpoint, 
+        answer = requests.post(self.localhost + endpoint,
                                headers={'user-id': str(user_2),
                                         'article-id': str(article_id)},
                                json={'like-article': like_article})
@@ -466,7 +468,7 @@ class TestAPI(base_test.BaseTest):
         self.assertEqual(answer.json()['rating'], 0)
 
         # check that dislike decrease rating
-        answer = requests.post(self.localhost + endpoint, 
+        answer = requests.post(self.localhost + endpoint,
                                headers={'user-id': str(user_2),
                                         'article-id': str(article_id)},
                                json={'dislike-article': dislike_article})
@@ -475,7 +477,7 @@ class TestAPI(base_test.BaseTest):
         self.assertEqual(answer.json()['rating'], -1)
 
         # check that undo dislike increase rating
-        answer = requests.post(self.localhost + endpoint, 
+        answer = requests.post(self.localhost + endpoint,
                                headers={'user-id': str(user_2),
                                         'article-id': str(article_id)},
                                json={'dislike-article': dislike_article})
@@ -484,14 +486,14 @@ class TestAPI(base_test.BaseTest):
         self.assertEqual(answer.json()['rating'], 0)
 
         # check that like on dislike increase rating
-        answer = requests.post(self.localhost + endpoint, 
+        answer = requests.post(self.localhost + endpoint,
                                headers={'user-id': str(user_2),
                                         'article-id': str(article_id)},
                                json={'dislike-article': dislike_article})
         answer = requests.get(self.localhost + user_endpoint, headers={'user-id': str(user_id),
                                                                       'requested-data': f'{request_data}'})
         self.assertEqual(answer.json()['rating'], -1)
-        answer = requests.post(self.localhost + endpoint, 
+        answer = requests.post(self.localhost + endpoint,
                                headers={'user-id': str(user_2),
                                         'article-id': str(article_id)},
                                json={'like-article': like_article})
@@ -500,14 +502,14 @@ class TestAPI(base_test.BaseTest):
         self.assertEqual(answer.json()['rating'], 1)
 
          # check that like on dislike increase rating
-        answer = requests.post(self.localhost + endpoint, 
+        answer = requests.post(self.localhost + endpoint,
                                headers={'user-id': str(user_2),
                                         'article-id': str(article_id)},
                                json={'dislike-article': dislike_article})
         answer = requests.get(self.localhost + user_endpoint, headers={'user-id': str(user_id),
                                                                       'requested-data': f'{request_data}'})
         self.assertEqual(answer.json()['rating'], -1)
-        answer = requests.post(self.localhost + endpoint, 
+        answer = requests.post(self.localhost + endpoint,
                                headers={'user-id': str(user_2),
                                         'article-id': str(article_id)},
                                json={'dislike-article': dislike_article})
@@ -517,7 +519,7 @@ class TestAPI(base_test.BaseTest):
 
         # check rating with comments
         # check that like increase rating
-        answer = requests.post(self.localhost + endpoint, 
+        answer = requests.post(self.localhost + endpoint,
                                headers={'user-id': str(user_2),
                                         'article-id': str(article_id)},
                                json={'like-comment': like_comment})
@@ -526,7 +528,7 @@ class TestAPI(base_test.BaseTest):
         self.assertEqual(answer.json()['rating'], 1)
 
         # check that undo like decrease rating
-        answer = requests.post(self.localhost + endpoint, 
+        answer = requests.post(self.localhost + endpoint,
                                headers={'user-id': str(user_2),
                                         'article-id': str(article_id)},
                                json={'like-comment': like_comment})
@@ -535,7 +537,7 @@ class TestAPI(base_test.BaseTest):
         self.assertEqual(answer.json()['rating'], 0)
 
         # check that dislike decrease rating
-        answer = requests.post(self.localhost + endpoint, 
+        answer = requests.post(self.localhost + endpoint,
                                headers={'user-id': str(user_2),
                                         'article-id': str(article_id)},
                                json={'dislike-comment': dislike_comment})
@@ -544,7 +546,7 @@ class TestAPI(base_test.BaseTest):
         self.assertEqual(answer.json()['rating'], -1)
 
         # check that undo dislike increase rating
-        answer = requests.post(self.localhost + endpoint, 
+        answer = requests.post(self.localhost + endpoint,
                                headers={'user-id': str(user_2),
                                         'article-id': str(article_id)},
                                json={'dislike-comment': dislike_comment})
@@ -553,14 +555,14 @@ class TestAPI(base_test.BaseTest):
         self.assertEqual(answer.json()['rating'], 0)
 
         # check that like on dislike increase rating
-        answer = requests.post(self.localhost + endpoint, 
+        answer = requests.post(self.localhost + endpoint,
                                headers={'user-id': str(user_2),
                                         'article-id': str(article_id)},
                                json={'dislike-comment': dislike_comment})
         answer = requests.get(self.localhost + user_endpoint, headers={'user-id': str(user_id),
                                                                       'requested-data': f'{request_data}'})
         self.assertEqual(answer.json()['rating'], -1)
-        answer = requests.post(self.localhost + endpoint, 
+        answer = requests.post(self.localhost + endpoint,
                                headers={'user-id': str(user_2),
                                         'article-id': str(article_id)},
                                json={'like-comment': like_comment})
@@ -569,7 +571,7 @@ class TestAPI(base_test.BaseTest):
         self.assertEqual(answer.json()['rating'], 1)
 
          # check that like on dislike increase rating
-        answer = requests.post(self.localhost + endpoint, 
+        answer = requests.post(self.localhost + endpoint,
                                headers={'user-id': str(user_2),
                                         'article-id': str(article_id)},
                                json={'dislike-comment': dislike_comment})
@@ -623,29 +625,128 @@ class TestAPI(base_test.BaseTest):
                              structure=answer.json()[method])
 
         user_id, password, user_name = self.add_user()
-        answer = requests.get(self.localhost + endpoint, headers={'user-id': str(user_id), 'indexes': '~0~1~2~'})
+        answer = requests.get(self.localhost + endpoint, headers={'user-id': str(user_id), 'indexes': '~0~1~2~',
+                                                                  'include-nonsub': 'true',
+                                                                  'sort-column': 'creation_date',
+                                                                  'sort-direction': 'descending'})
         self.assertEqual(answer.json()['status']['type'], 'ERROR', msg=str(answer.json()['status']))
         self.assertEqual(answer.json()['status']['error_type'], 'ValueError', msg=str(answer.json()['status']))
 
         user_id, password, user_name = self.add_user()
         article_id = self.add_arcticle(user_id=user_id)
-        answer = requests.get(self.localhost + endpoint, headers={'user-id': str(user_id), 'indexes': '~0~1~2~'})
+        answer = requests.get(self.localhost + endpoint, headers={'user-id': str(user_id), 'indexes': '~0~1~2~',
+                                                                  'include-nonsub': 'true',
+                                                                  'sort-column': 'creation_date',
+                                                                  'sort-direction': 'descending'})
         self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
 
+        def post_article(author, community, tags):
+            article = {'name': 'test_name',
+                       'preview-content': {'type': 'image', 'data': 'ref'},
+                       'tags': tags,
+                       'community': str(community),
+                       'article-body': {'block1': 'text'}
+            }
+            answer = requests.post(self.localhost+'/article',
+                                     headers={'user-id': str(author)},
+                                     json=article)
+
         user_id, password, user_name = self.add_user()
-        for i in range(20):
-            article_id = self.add_arcticle(user_id=user_id)
+
+        tags = ['t1', 't2', 't3']
+        communities = ['c1', 'c2', 'c3']
+        authors = ['1', '2', '3']
+        for author in authors:
+            for community in communities:
+                for tag in tags:
+                    article_tags = tags[:]
+                    article_tags.remove(tag)
+                    str_tags = '~' + article_tags[0] + '~' + article_tags[1] + '~'
+                    post_article(author, community, str_tags)
 
         # happy path
-        answer = requests.get(self.localhost + endpoint, headers={'user-id': str(user_id), 'indexes': '~0~1~2~'})
+        # test sort direction
+        answer = requests.get(self.localhost + endpoint, headers={'user-id': str(user_id), 'indexes': '~0~',
+                                                                  'include-nonsub': 'true',
+                                                                  'sort-column': 'creation_date',
+                                                                  'sort-direction': 'descending'})
         self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
         self.assertIn('pages', answer.json())
         self.assertIn('0', answer.json()['pages'])
-        self.assertIn('1', answer.json()['pages'])
-        self.assertIn('2', answer.json()['pages'])
+        for i, _ in enumerate(answer.json()['pages']['0'][:-1]):
+            date_1 = answer.json()['pages']['0'][i]['creation_date']
+            date_2 = answer.json()['pages']['0'][i+1]['creation_date']
+            self.assertGreater(date_1, date_2)
+
+        answer = requests.get(self.localhost + endpoint, headers={'user-id': str(user_id), 'indexes': '~0~',
+                                                                  'include-nonsub': 'true',
+                                                                  'sort-column': 'creation_date',
+                                                                  'sort-direction': 'ascending'})
+        self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
+        self.assertIn('pages', answer.json())
+        self.assertIn('0', answer.json()['pages'])
+        for i, _ in enumerate(answer.json()['pages']['0'][:-1]):
+            date_1 = answer.json()['pages']['0'][i]['creation_date']
+            date_2 = answer.json()['pages']['0'][i+1]['creation_date']
+            self.assertLess(date_1, date_2)
+
+        # test exclude
+        answer = requests.get(self.localhost + endpoint, headers={'user-id': str(user_id), 'indexes': '~0~',
+                                                                  'include-nonsub': 'true',
+                                                                  'sort-column': 'creation_date',
+                                                                  'sort-direction': 'descending',
+                                                                  'exclude-tags': '~t1~t2~'})
+        self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
+        self.assertIn('pages', answer.json())
+        self.assertIn('0', answer.json()['pages'])
+        for i, _ in enumerate(answer.json()['pages']['0'][:-1]):
+            self.assertNotIn('t1', answer.json()['pages']['0'][i]['tags'])
+            self.assertNotIn('t2', answer.json()['pages']['0'][i]['tags'])
+
+        # test include
+        answer = requests.get(self.localhost + endpoint, headers={'user-id': str(user_id), 'indexes': '~0~',
+                                                                  'include-nonsub': 'true',
+                                                                  'sort-column': 'creation_date',
+                                                                  'sort-direction': 'descending',
+                                                                  'include-tags': '~t1~'})
+        self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
+        self.assertIn('pages', answer.json())
+        self.assertIn('0', answer.json()['pages'])
+        for i, _ in enumerate(answer.json()['pages']['0'][:-1]):
+            self.assertIn('t1', answer.json()['pages']['0'][i]['tags'])
+
+        # test bounds
+        bound = answer.json()['pages']['0'][2]['creation_date']
+        answer = requests.get(self.localhost + endpoint, headers={'user-id': str(user_id), 'indexes': '~0~',
+                                                                  'include-nonsub': 'true',
+                                                                  'sort-column': 'creation_date',
+                                                                  'sort-direction': 'descending',
+                                                                  'upper-date': str(bound)})
+        self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
+        self.assertIn('pages', answer.json())
+        self.assertIn('0', answer.json()['pages'])
+        for i, _ in enumerate(answer.json()['pages']['0'][:-1]):
+            self.assertGreaterEqual(bound, answer.json()['pages']['0'][i]['creation_date'])
+
+        # test nonsub
+        answer = requests.post(self.localhost + '/users/data', headers={'user-id': str(user_id)},
+                               json = {'sub-tags': '~t1~'})
+        self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
+        answer = requests.get(self.localhost + endpoint, headers={'user-id': str(user_id), 'indexes': '~0~1~2~',
+                                                                  'include-nonsub': 'false',
+                                                                  'sort-column': 'creation_date',
+                                                                  'sort-direction': 'descending'})
+        self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
+        self.assertIn('pages', answer.json())
+        self.assertIn('0', answer.json()['pages'])
+        for i, _ in enumerate(answer.json()['pages']['0'][:-1]):
+            self.assertIn('t1', answer.json()['pages']['0'][i]['tags'])
 
         # test unlogged users
-        answer = requests.get(self.localhost + endpoint, headers={'user-id': str(0), 'indexes': '~0~1~2~'})
+        answer = requests.get(self.localhost + endpoint, headers={'user-id': str(0), 'indexes': '~0~1~2~',
+                                                                  'include-nonsub': 'true',
+                                                                  'sort-column': 'creation_date',
+                                                                  'sort-direction': 'descending'})
         self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
         self.assertIn('pages', answer.json())
         self.assertIn('0', answer.json()['pages'])
@@ -674,7 +775,7 @@ class TestAPI(base_test.BaseTest):
         self.assertIn('user_id', answer.json())
 
         user_id = answer.json()['user_id']
-        requested_data = '~name~name_history~avatar~blocked_tags~registration_date~rating~'
+        requested_data = '~name~name_history~avatar~blocked_tags~creation_date~rating~'
         answer = requests.get(self.localhost + '/users/data', headers={'user-id': str(user_id),
                                                                        'requested-data': requested_data})
         self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
@@ -683,7 +784,7 @@ class TestAPI(base_test.BaseTest):
         self.assertEqual(avatar, answer.json()['avatar'])
         self.assertEqual(blocked_tags, answer.json()['blocked_tags'])
         self.assertEqual(0, answer.json()['rating'])
-        self.assertIn('registration_date', answer.json())
+        self.assertIn('creation_date', answer.json())
 
     def test_users_data_get(self):
         endpoint = '/users/data'
@@ -696,7 +797,7 @@ class TestAPI(base_test.BaseTest):
         user_id, password, user_name = self.add_user()
 
         # happy path
-        requested_data = '~name~name_history~avatar~blocked_tags~registration_date~rating~'
+        requested_data = '~name~name_history~avatar~blocked_tags~creation_date~rating~'
         answer = requests.get(self.localhost + endpoint, headers={'user-id': str(user_id),
                                                                   'requested-data': requested_data})
         self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
@@ -704,7 +805,7 @@ class TestAPI(base_test.BaseTest):
         self.assertIn('name_history', answer.json())
         self.assertIn('avatar', answer.json())
         self.assertIn('blocked_tags', answer.json())
-        self.assertIn('registration_date', answer.json())
+        self.assertIn('creation_date', answer.json())
         self.assertIn('rating', answer.json())
 
         # test unlogged users
@@ -787,7 +888,7 @@ class TestAPI(base_test.BaseTest):
 
         user_id, password, user_name = self.add_user()
 
-        # happy path 
+        # happy path
         answer = requests.get(self.localhost + endpoint, headers={'user-id': str(user_id),
                                                                   'password': password})
         self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
@@ -795,12 +896,12 @@ class TestAPI(base_test.BaseTest):
 
         # special rule: incorrect id return is-correct = False
         answer = requests.get(self.localhost + endpoint, headers={'user-id': str(user_id+1),
-                                                                   'password': password})
+                                                                  'password': password})
         self.assertEqual(answer.json()['status']['type'], 'ERROR', msg=str(answer.json()['status']))
         self.assertEqual(answer.json()['is-correct'], False, msg=str(answer.json()['is-correct']))
 
     def test_number_of_tests(self):
-        api = open('../src/api.py', 'r')
+        api = open('../src/api/api.py', 'r')
         api_methods_count = 0
         for line in api:
             if re.fullmatch('def api_.*', line.strip()):

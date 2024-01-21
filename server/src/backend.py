@@ -4,14 +4,15 @@
 
 import json
 import os
-from datetime import datetime
+import time
 
 from .db import api
 from . import config
 from . import request_status
 
-def get_page_articles(index, blocked_tags):
-    status, articles = api.get_unblocked_articles(blocked_tags)
+def get_page_articles(index, user_id, include_nonsub, sort_column, sort_direction, include, exclude, bounds):
+    status, articles = api.get_unblocked_articles(user_id, include_nonsub, sort_column, sort_direction,
+                                                  include, exclude, bounds)
     if status.is_error:
         return status, None
     page_articles = []
@@ -26,15 +27,16 @@ def select_preview(article):
     preview['name'] = article['name']
     preview['preview_content'] = article['preview_content']
     preview['tags'] = article['tags']
-    preview['created'] = article['created']
+    preview['creation_date'] = article['creation_date']
     preview['author_preview'] = article['author_preview']
     preview['likes_count'] = article['likes_count']
     preview['dislikes_count'] = article['dislikes_count']
     preview['comments_count'] = article['comments_count']
     return preview
 
-def get_page(index, blocked_tags = None):
-    status, page_articles = get_page_articles(index, blocked_tags)
+def get_page(index, user_id, include_nonsub, sort_column, sort_direction, include, exclude, bounds):
+    status, page_articles = get_page_articles(index, user_id, include_nonsub, sort_column, sort_direction,
+                                              include, exclude, bounds)
     if status.is_error:
         return status, None
     previews = []
@@ -48,13 +50,10 @@ def get_page(index, blocked_tags = None):
             previews.append(preview)
     return status, previews
 
-def get_pages(indexes, user_id):
+def get_pages(indexes, user_id, include_nonsub, sort_column, sort_direction, include, exclude, bounds):
     pages = {}
-    status, blocked_tags = api.get_user_blocked_tags(user_id)
-    if status.is_error:
-        return status, None
     for index in indexes:
-        status, page = get_page(index, blocked_tags)
+        status, page = get_page(index, user_id, include_nonsub, sort_column, sort_direction, include, exclude, bounds)
         if status.is_error:
             return status, None
         pages[index] = page
@@ -81,7 +80,9 @@ def post_article(article, user_id):
         return status, None
     article['author_preview'] = author_preview
     article['author_id'] = user_id
+    article['creation_date'] = round(time.time() * 1000)
     article['answers'] = []
+    article['rating'] = 0
     article['likes_count'] = 0
     article['likes_id'] = ''
     article['dislikes_count'] = 0
@@ -89,6 +90,8 @@ def post_article(article, user_id):
     article['comments_count'] = 0
     data = select_preview(article)
     data['author_id'] = article['author_id']
+    data['creation_date'] = article['creation_date']
+    data['rating'] = article['rating']
     data['likes_id'] = article['likes_id']
     data['dislikes_id'] = article['dislikes_id']
     status, article_id = api.post_article_to_db(data)
@@ -99,7 +102,7 @@ def post_article(article, user_id):
 
 def add_user(user_info):
     user_info['name_history'] = config.delimiter + user_info['name'] + config.delimiter
-    user_info['registration_date'] = datetime.now().strftime('%Y-%m-%d %H.%M.%S')
+    user_info['creation_date'] = round(time.time() * 1000)
     user_info['rating'] = 0
     return api.add_user(user_info)
 

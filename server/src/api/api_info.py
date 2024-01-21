@@ -46,12 +46,6 @@ def article_info():
             'is_required': True,
             'container': 'body',
         },
-        {
-            'name': 'created',
-            'type': 'str',
-            'is_required': True,
-            'container': 'body',
-        }
     ]
 
     request_get = [
@@ -178,6 +172,16 @@ def article_data_info():
                     'name': 'comments_count',
                     'type': 'field',
                     'is_required': False,
+                },
+                {
+                    'name': 'creation_date',
+                    'type': 'field',
+                    'is_required': False,
+                },
+                {
+                    'name': 'rating',
+                    'type': 'field',
+                    'is_required': False,
                 }
             ]
         }
@@ -203,6 +207,90 @@ def pages_info():
             'type': 'list_of_int',
             'is_required': True,
             'container': 'header'
+        },
+        {
+            'name': 'include-nonsub',
+            'type': 'bool',
+            'is_required': True,
+            'container': 'header'
+        },
+        {
+            'name': 'sort-column',
+            'type': 'str',
+            'is_required': True,
+            'container': 'header'
+        },
+        {
+            'name': 'sort-direction',
+            'type': 'str',
+            'is_required': True,
+            'container': 'header'
+        },
+        {
+            'name': 'upper-date',
+            'type': 'date',
+            'is_required': False,
+            'container': 'header'
+        },
+        {
+            'name': 'lower-date',
+            'type': 'date',
+            'is_required': False,
+            'container': 'header'
+        },
+        {
+            'name': 'upper-rating',
+            'type': 'int',
+            'is_required': False,
+            'container': 'header'
+        },
+        {
+            'name': 'lower-rating',
+            'type': 'int',
+            'is_required': False,
+            'container': 'header'
+        },
+        {
+            'name': 'include-tags',
+            'type': 'list',
+            'is_required': False,
+            'container': 'header',
+            'structure': []
+        },
+        {
+            'name': 'exclude-tags',
+            'type': 'list',
+            'is_required': False,
+            'container': 'header',
+            'structure': []
+        },
+        {
+            'name': 'include-authors',
+            'type': 'list',
+            'is_required': False,
+            'container': 'header',
+            'structure': []
+        },
+        {
+            'name': 'exclude-authors',
+            'type': 'list',
+            'is_required': False,
+            'container': 'header',
+            'structure': []
+        },
+        {
+            'name': 'include-communities',
+            'type': 'list',
+            'is_required': False,
+            'container': 'header',
+            'structure': []
+        },
+        {
+            'name': 'exclude-communities',
+            'type': 'list',
+            'is_required': False,
+            'container': 'header',
+            'structure': []
         },
     ]
 
@@ -231,10 +319,46 @@ def users_info():
             'container': 'body',
         },
         {
-            'name': 'blocked-tags',
-            'type': 'str',
+            'name': 'sub-tags',
+            'type': 'list',
             'is_required': False,
             'container': 'body',
+            'structure': [],
+        },
+        {
+            'name': 'blocked-tags',
+            'type': 'list',
+            'is_required': False,
+            'container': 'body',
+            'structure': [],
+        },
+        {
+            'name': 'sub-authors',
+            'type': 'list',
+            'is_required': False,
+            'container': 'body',
+            'structure': [],
+        },
+        {
+            'name': 'blocked-authors',
+            'type': 'list',
+            'is_required': False,
+            'container': 'body',
+            'structure': [],
+        },
+        {
+            'name': 'sub-communities',
+            'type': 'list',
+            'is_required': False,
+            'container': 'body',
+            'structure': [],
+        },
+        {
+            'name': 'blocked-communities',
+            'type': 'list',
+            'is_required': False,
+            'container': 'body',
+            'structure': [],
         },
         {
             'name': 'description',
@@ -271,10 +395,46 @@ def users_data_info():
             'container': 'body',
         },
         {
-            'name': 'blocked-tags',
-            'type': 'str',
+            'name': 'sub-tags',
+            'type': 'list',
             'is_required': False,
             'container': 'body',
+            'structure': [],
+        },
+        {
+            'name': 'blocked-tags',
+            'type': 'list',
+            'is_required': False,
+            'container': 'body',
+            'structure': [],
+        },
+        {
+            'name': 'sub-authors',
+            'type': 'list',
+            'is_required': False,
+            'container': 'body',
+            'structure': [],
+        },
+        {
+            'name': 'blocked-authors',
+            'type': 'list',
+            'is_required': False,
+            'container': 'body',
+            'structure': [],
+        },
+        {
+            'name': 'sub-communities',
+            'type': 'list',
+            'is_required': False,
+            'container': 'body',
+            'structure': [],
+        },
+        {
+            'name': 'blocked-communities',
+            'type': 'list',
+            'is_required': False,
+            'container': 'body',
+            'structure': [],
         },
         {
             'name': 'description',
@@ -313,9 +473,40 @@ def users_data_info():
                     'is_required': False,
                 },
                 {
+                    'name': 'sub_tags',
+                    'type': 'field',
+                    'is_required': False,
+                    'container': 'body',
+                },
+                {
                     'name': 'blocked_tags',
                     'type': 'field',
                     'is_required': False,
+                    'container': 'body',
+                },
+                {
+                    'name': 'sub_authors',
+                    'type': 'field',
+                    'is_required': False,
+                    'container': 'body',
+                },
+                {
+                    'name': 'blocked_authors',
+                    'type': 'field',
+                    'is_required': False,
+                    'container': 'body',
+                },
+                {
+                    'name': 'sub_communities',
+                    'type': 'field',
+                    'is_required': False,
+                    'container': 'body',
+                },
+                {
+                    'name': 'blocked_communities',
+                    'type': 'field',
+                    'is_required': False,
+                    'container': 'body',
                 },
                 {
                     'name': 'description',
@@ -323,7 +514,7 @@ def users_data_info():
                     'is_required': False,
                 },
                 {
-                    'name': 'registration_date',
+                    'name': 'creation_date',
                     'type': 'field',
                     'is_required': False,
                 },
