@@ -46,9 +46,9 @@ def update_entry(db, table_name, id_name, id_value, field_name, field_value):
     connection = sqlite3.connect(db)
     cursor = connection.cursor()
     if type(field_value) == list:
-        string_value = ''
+        string_value = config.delimiter
         for value in field_value:
-            string_value += config.DELIMITER + str(value) + config.DELIMITER
+            string_value += str(value) + config.delimiter
         field_value = string_value
     update = f"UPDATE {table_name} SET {field_name} = '{field_value}' WHERE {id_name} = {id_value}"
     cursor.execute(update)
@@ -83,6 +83,11 @@ def add_entry(db, table_name, data):
     required_columns_values = ''
     for column_name in required_columns:
         try:
+            if type(data[column_name]) == list:
+                string_value = config.delimiter
+                for value in data[column_name]:
+                    string_value += str(value) + config.delimiter
+                data[column_name] = string_value
             required_columns_values += '"' + str(data[column_name]) + '", '
         except:
             connection.close()
@@ -109,6 +114,11 @@ def add_entry(db, table_name, data):
             continue
 
         try:
+            if type(data[column_name]) == list:
+                string_value = config.delimiter
+                for value in data[column_name]:
+                    string_value += str(value) + config.delimiter
+                data[column_name] = string_value
             nonrequired_columns_values += '"' + str(data[column_name]) + '", '
             nonrequired_column_names += str(column_name) + ', '
         except:
@@ -132,34 +142,113 @@ def add_entry(db, table_name, data):
     connection.close()
     return request_status.Status(request_status.StatusType.OK), id
 
-def add_exclude_select_part(exclude):
+def add_include_select_part(include:dict):
     additional_part = ''
-    for field_name in exclude.keys():
-        additional_part += f'{field_name} NOT LIKE'
-        for field_value in exclude[field_name]:
-            additional_part += f' {field_value} AND NOT LIKE'
-        additional_part = additional_part[:-8]
+    left = ''
+    right = ''
+    for field_name in include.keys():
+        additional_part += f''
+        if field_name == 'tags':
+            left = '%~'
+            right = '~%'
+        else:
+            left = ''
+            right = ''
+        for field_value in include[field_name]:
+            additional_part += f"{field_name} LIKE '{left}{field_value}{right}' AND "
     additional_part = additional_part[:-5]
     return additional_part
 
-def create_select_request(requested_fields_name, table_name, id_name=None, id_value=None, exclude=None):
+def add_exclude_select_part(exclude:dict):
+    additional_part = ''
+    left = ''
+    right = ''
+    for field_name in exclude.keys():
+        if field_name == 'tags':
+            left = '%~'
+            right = '~%'
+        else:
+            left = ''
+            right = ''
+        for field_value in exclude[field_name]:
+            additional_part += f"{field_name} NOT LIKE '{left}{field_value}{right}' AND "
+    additional_part = additional_part[:-5]
+    return additional_part
+
+def add_bounds_select_part(bounds):
+    additional_part = ''
+    if 'upper-date' in bounds.keys():
+        additional_part += f'creation_date < {bounds["upper-date"]} AND '
+    if 'lower-date' in bounds.keys():
+        additional_part += f'creation_date > {bounds["lower-date"]} AND '
+    if 'upper-rating' in bounds.keys():
+        additional_part += f'rating < {bounds["upper-rating"]} AND '
+    if 'lower-rating' in bounds.keys():
+        additional_part += f'rating > {bounds["lower-rating"]} AND '
+    additional_part = additional_part[:-5]
+    return additional_part
+
+def add_sort(sort_column, sort_direction):
+    if sort_direction == 'ascending':
+        return f'ORDER BY {sort_column} ASC'
+    else:
+        return f'ORDER BY {sort_column} DESC'
+
+def remove_nonsub_from_select(id):
+    connection = sqlite3.connect(config.db_user.path)
+    cursor = connection.cursor()
+
+    _ = f'SELECT sub_tags, sub_users, sub_communities from {config.user_table_name} WHERE {config.user_id_name} = {id}'
+    select = cursor.execute(_)
+    select = select.fetchall()
+    connection.close()
+
+    sub_tag = select[0][0]
+    sub_user = select[0][1]
+    sub_community = select[0][2]
+
+    additional_part = ''
+    if sub_tag or sub_user or sub_community:
+        if sub_tag:
+            for tag in sub_tag.split('~')[1:-1]:
+                additional_part += f"tags LIKE '%~{tag}~%' OR "
+        if sub_user:
+            for user in sub_user.split('~')[1:-1]:
+                additional_part += f"author_id LIKE '%~{user}~%' OR "
+        if sub_community:
+            for community in sub_community.split('~')[1:-1]:
+                additional_part += f"community LIKE '%~{community}~%' OR "
+        additional_part = additional_part[:-4]
+
+    return additional_part
+
+def create_select_request(requested_fields_name, table_name,
+                          id_name=None, id_value=None, include_nonsub=None, include=None, exclude=None,
+                          bounds=None, sort_column=None, sort_direction=None, user_id=None):
     request = f'SELECT {requested_fields_name} FROM {table_name}'
 
-    if not id_value and not exclude:
-        return request
-
-    request += ' WHERE '
-    if id_value:
-        request += f'{id_name} = {id_value} AND'
-    if exclude:
-        request += add_exclude_select_part(exclude)
-    else:
-        request = request[:-4]
+    if id_value or include or exclude or bounds or not include_nonsub:
+        request += ' WHERE '
+        if id_value:
+            request += f'{id_name} = {id_value} AND '
+        if include:
+            request += add_include_select_part(include) + ' AND '
+        if exclude:
+            request += add_exclude_select_part(exclude) + ' AND '
+        if bounds:
+            request += add_bounds_select_part(bounds) + ' AND '
+        if include_nonsub is not None and not include_nonsub:
+            request += remove_nonsub_from_select(user_id) + ' AND '
+        request = request[:-5]
+    if sort_column and sort_direction:
+        request += ' ' + add_sort(sort_column, sort_direction)
     return request
 
 @log.log_args_kwargs(config.log_db_api)
 @log.timer(config.log_db_api)
-def get_entry_data(db, table_name, fields_name, id_name=None, id_value=None, exclude=None):
+def get_entry_data(db, table_name, fields_name,
+                   id_name=None, id_value=None, include=None, exclude=None,
+                   include_nonsub=None, bounds=None, sort_column=None, sort_direction=None, user_id=None):
     connection = sqlite3.connect(db)
     cursor = connection.cursor()
 
@@ -172,7 +261,17 @@ def get_entry_data(db, table_name, fields_name, id_name=None, id_value=None, exc
         requested_fields_name += field_name + ', '
     requested_fields_name = requested_fields_name[:-2]
 
-    select = create_select_request(requested_fields_name, table_name, id_name, id_value, exclude)
+    select = create_select_request(requested_fields_name,
+                                   table_name,
+                                   id_name,
+                                   id_value,
+                                   include_nonsub,
+                                   include,
+                                   exclude,
+                                   bounds,
+                                   sort_column,
+                                   sort_direction,
+                                   user_id)
     select = cursor.execute(select)
     select = select.fetchall()
     connection.close()

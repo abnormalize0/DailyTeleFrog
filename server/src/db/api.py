@@ -6,6 +6,7 @@
 
 import json
 import os
+import time
 
 from . import worker
 from .. import config
@@ -31,31 +32,55 @@ def change_password(password, user_id):
                                  password)
     return status
 
-def get_user_blocked_tags(user_id):
+def get_unblocked_articles(user_id, include_nonsub, sort_column, sort_direction, include, exclude, bounds):
     if user_id == 0:
         return request_status.Status(request_status.StatusType.OK), []
     status, data = worker.get_entry_data(config.db_user.path,
                                          config.user_table_name,
-                                         ['blocked_tags'],
+                                         ['blocked_tags', 'blocked_users', 'blocked_communities'],
                                          id_name=config.user_id_name,
                                          id_value=user_id)
     if status.is_error:
         return status, None
 
-    bloked_tags = None
+    blocked_tags = []
+    blocked_users = []
+    blocked_communities = []
 
     if data['blocked_tags']:
-        bloked_tags = data['blocked_tags'].split(config.delimiter)[1:-1]
-    return status, bloked_tags
+        blocked_tags = data['blocked_tags'].split(config.delimiter)[1:-1]
+    if exclude and 'tags' in exclude.keys():
+        blocked_tags.extend(exclude['tags'])
+    if data['blocked_users']:
+        blocked_users = data['blocked_users'].split(config.delimiter)[1:-1]
+    if exclude and 'users' in exclude.keys():
+        blocked_users.extend(exclude['users'])
+    if data['blocked_communities']:
+        blocked_communities = data['blocked_communities'].split(config.delimiter)[1:-1]
+    if exclude and 'communities' in exclude.keys():
+        blocked_communities.extend(exclude['communities'])
 
-def get_unblocked_articles(blocked_tags=None):
-    exclude_data = None
+    if status.is_error:
+        return status, None
+
+    exclude_data = {}
     if blocked_tags:
-        exclude_data = {'tags': blocked_tags}
+        exclude_data['tags'] = blocked_tags
+    if blocked_users:
+        exclude_data['users'] = blocked_users
+    if blocked_communities:
+        exclude_data['communities'] = blocked_communities
+
     status, articles_id = worker.get_entry_data(config.db_article.path,
                                                 config.article_table_name,
                                                 [config.article_id_name],
-                                                exclude=exclude_data)
+                                                include_nonsub = include_nonsub,
+                                                include=include,
+                                                exclude=exclude_data,
+                                                bounds=bounds,
+                                                sort_column=sort_column,
+                                                sort_direction=sort_direction,
+                                                user_id=user_id)
 
     if status.is_error:
         return status, None
@@ -66,6 +91,8 @@ def get_unblocked_articles(blocked_tags=None):
 
 def create_comment(article_id, user_id):
     comment = {'author_id': user_id,
+               'creation_date': round(time.time() * 1000),
+               'rating': 0,
                'likes_count': 0,
                'likes_id': '',
                'dislikes_count': 0,
@@ -75,8 +102,8 @@ def create_comment(article_id, user_id):
                                           config.comment_table_name,
                                           comment)
     if status.is_error:
-        return status, None
-    return status, comment_id
+        return status, None, None
+    return status, comment_id, comment['creation_date']
 
 def append_answer_to_comment(root, comment, root_id):
     for index, child_root in enumerate(root['answers']):
@@ -89,11 +116,13 @@ def append_answer_to_comment(root, comment, root_id):
     return False, None
 
 def add_comment(article_id, root_id, comment_text, user_id):
-    status, comment_id = create_comment(article_id, user_id)
+    status, comment_id, creation_date = create_comment(article_id, user_id)
     if status.is_error:
         return status, None
     comment = {'comment_text': comment_text,
+               'creation_date': creation_date,
                'author_id': user_id,
+               'rating': 0,
                'likes_count': 0,
                'dislikes_count': 0,
                'id': comment_id,
@@ -244,6 +273,19 @@ def vote(db, table_name, id_name, id, user_id, vote_type):
                                  id,
                                  vote_type + '_count',
                                  new_vote_count)
+    if status.is_error:
+        return status
+
+    status, likes_dislikes = worker.get_entry_data(db, table_name, ['likes_count', 'dislikes_count'], id_name, id)
+    if status.is_error:
+        return status
+
+    status = worker.update_entry(db,
+                                 table_name,
+                                 id_name,
+                                 id,
+                                 'rating',
+                                 likes_dislikes['likes_count'] - likes_dislikes['dislikes_count'])
     if status.is_error:
         return status
 
