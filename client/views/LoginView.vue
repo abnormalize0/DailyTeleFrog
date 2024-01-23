@@ -1,7 +1,7 @@
 <script setup>
   import router from '../router';
   async function login_request() {
-    const request = await fetch("http://127.0.0.1:5000/users/check_password", {
+    const request = await fetch("http://127.0.0.1:5000/login", {
       method: 'GET',
       headers: {
         'user-id': document.login.login.value,

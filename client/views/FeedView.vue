@@ -83,8 +83,7 @@
     }
   }
 
-  function timeAgo(date) {
-    date = 1702184400000;
+  function time_ago(date) {
     let seconds = DateTime.now().toUnixInteger() - date / 1000;
     let current_date = DateTime.now().toObject();
     let post_date = DateTime.fromMillis(date).toObject();
@@ -106,7 +105,6 @@
   }
 
   function tooltip_time(date) {
-    date = 1702184400000;
     return DateTime.fromMillis(date).toLocaleString({month: 'long', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   }
 </script>
@@ -142,7 +140,7 @@
                 <img class="post-subavatar highlight" src="https://upload.wikimedia.org/wikipedia/commons/9/9f/Nintendo-switch-icon.png">
                 <div class="post-author" >{{ post.author_preview.name }}</div>
                 <div class="post-subsite">@Nintendo</div>
-                <div class="post-time"> {{timeAgo(post.created)}} <div class="post-time-tooltip">{{ tooltip_time(post.created) }}</div> </div>
+                <div class="post-time"> {{time_ago(post.created)}} <div class="post-time-tooltip">{{ tooltip_time(post.created) }}</div> </div>
                 <div class="post-misc" ></div>
                 <div class="post-views" >0 просмотров </div>
                 <div class="post-misc" >🗪 {{ post.comments_count }}</div>
@@ -166,6 +164,10 @@
       headers: {
         'indexes': "~"+page+"~",
         'user-id': localStorage.id,
+        'include-nonsub': true,
+        'sort-column': 'creation_date',
+        'sort-direction': "descending"
+
       }
     })
     let json = await request.json();
@@ -183,7 +185,7 @@
       posts.value.push({
         id: i,
         name: decodeURIComponent(json.pages[page][i].name),
-        created: json.pages[page][i].created,
+        created: json.pages[page][i].creation_date,
         preview_content: json.pages[page][i].preview_content,
         tags: decodeURIComponent(json.pages[page][i].tags).split("~").filter(elm => elm),
         article_id: json.pages[page][i].id,

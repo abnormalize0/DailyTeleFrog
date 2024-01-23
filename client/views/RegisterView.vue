@@ -3,19 +3,19 @@ import router from '../router';
   async function register_request() {
     let user_info = {
       name: document.register.login.value,
-      password: document.register.password.value,
-      page: document.register.login.value,
+      password: document.register.password.value
     };
-    const request = await fetch("http://127.0.0.1:5000/users/new", {
+    const request = await fetch("http://127.0.0.1:5000/users", {
       method: 'POST',
       headers: {
-        'user-info': JSON.stringify(user_info),
+        'Content-Type': 'application/json'
       },
+      body: JSON.stringify(user_info),
     });
     let status = await request.json();
     console.log(status);
     if (status.status) {
-      localStorage.id = status["user-id"];
+      localStorage.id = status.user_id;
       router.push({ name: 'feed'});
     } else {
       alert("Что-то пошло не так.");

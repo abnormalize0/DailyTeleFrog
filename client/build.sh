@@ -8,3 +8,5 @@ mkdir demo_project/src/css
 cp css/* demo_project/src/css
 cd demo_project
 npm install @vueuse/core
+npm install --save luxon
+npm install axios
