@@ -17,6 +17,7 @@
       },
     } )
     article.value = await request.json();
+    console.log(article.value.article.article_body)
   }
 
   onMounted(async () => {
@@ -27,7 +28,7 @@
 <template v-if="article.article.name">
   <div class="post-item" id="post-item">
     <h1>{{ decodeURIComponent(article.article.name) }}</h1>
-    <div v-for="(block, index) in article.article.article" v-bind:key="index"> 
+    <div v-for="(block, index) in article.article.article_body" v-bind:key="index"> 
       <div v-if="block.type == 0"><h1>{{ decodeURIComponent(block.content) }}</h1></div>
       <div v-if="block.type == 1">{{ decodeURIComponent(block.content) }}</div>
       <div v-if="block.type == 2" ><img width='600' :src=decodeURIComponent(block.content)></div>

@@ -221,28 +221,27 @@
         content: encodeURIComponent(content[blocks.value[i]]),
       });
     }
-    let date = new Date().toLocaleDateString("de-DE");
     let post = {
-      article: article, 
-      preview_content: article, 
+      'article-body': JSON.stringify(article), 
+      'preview-content': JSON.stringify(article), 
       name: encodeURIComponent("test"), 
       tags: encodeURIComponent("~abc~bca~cab~"), 
-      created: date,
     };
     console.log(JSON.stringify(post));
     const request = await fetch("http://127.0.0.1:5000/article", {
       method: 'POST',
       headers: {
-        'article': JSON.stringify(post),
-        'user-id': localStorage.id,
+        'Content-Type': 'application/json',
+        'user-id': localStorage.id
       },
+      body: JSON.stringify(post)
     });
     let status = await request.json();
     console.log(status);
     if(status.status) {
-      router.push({ name: 'post', params: { id: status["article-id"] } });
+      router.push({ name: 'post', params: { id: status.article_id } });
     } else {
-      alert("Ошбика добавления поста.");
+      alert("Ошибка добавления поста.");
     }
   }
     
