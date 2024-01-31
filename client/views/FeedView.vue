@@ -4,16 +4,16 @@
 
 <template id="post_template">
   <section class="posts-list">
-    <div class="list" @scroll = "handleScroll">
+    <div class="list">
       <div id="feed">
         <div v-for="post in posts" :key="post.id" >
           <router-link :to="{ name: 'post', params: { id: post.article_id } }" custom v-slot="{ navigate }">
-            <div class="post-item" :id="'post' + post_id++">
+            <div class="post-item" :id="'post' + post.id">
               <div class="post-top">
                 <div @click="navigate" class="post-title">{{ post.name }}</div>
                 <div class="post-menu-button">...</div>
               </div>
-              <div @click="navigate">
+              <div @click="navigate" v-if="posts.length != 0">
                 <div class="post-content" v-for="(block, index) in post.preview_content" v-bind:key="index"> 
                   <div v-if="block.type == 0"><h1>{{ decodeURIComponent(block.content) }}</h1></div>
                   <div v-if="block.type == 1">{{ decodeURIComponent(block.content) }}</div>
@@ -108,6 +108,7 @@
             dislikes_count: json.pages[page][i].dislikes_count,
             comments_count: json.pages[page][i].comments_count,
           })
+          this.load_line_id = i;  //костыль для бесконечной ленты
         }
       },
       async like_change(post_id) { //добавить обновление в реальном времени в дальнейшем
@@ -166,12 +167,12 @@
       this.posts.splice(0);
       this.load_line_id = this.PAGE_PER_ARTICLES;
       this.page = 0;
-
+      
       window.addEventListener('scroll', this.handleScroll);
     },
     updated() {
       this.allow = 1;
-      this.post_id = 1;
+      // this.post_id = 1;
     },
     beforeUnmount() {
       window.removeEventListener('scroll', this.handleScroll);
