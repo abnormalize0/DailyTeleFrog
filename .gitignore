@@ -2,5 +2,6 @@
 /server/backup
 /server/log
 /client/demo_project
+/client/node_modules
 __pycache__*
 build*

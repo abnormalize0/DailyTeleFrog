@@ -1,0 +1,10 @@
+{
+  "dependencies": {
+    "@jamescoyle/vue-icon": "^0.1.2",
+    "@mdi/js": "^7.4.47",
+    "@vueuse/core": "^10.7.2",
+    "axios": "^1.6.7",
+    "luxon": "^3.4.4",
+    "vue": "^3.4.15"
+  }
+}
