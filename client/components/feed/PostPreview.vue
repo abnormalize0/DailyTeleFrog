@@ -1,6 +1,6 @@
 <template>
   <router-link :to="{ name: 'post', params: { id: post.article_id } }" custom v-slot="{ navigate }">
-    <div class="post-item" :id="'post' + post.id">
+    <div class="post-item" :id="'post' + post.article_id">
       <div class="post-top">
         <div @click="navigate" class="post-title">{{ post.name }}</div>
         <div class="post-menu-button">...</div>

@@ -6,7 +6,7 @@
   <section class="posts-list">
     <div class="list">
       <div id="feed">
-        <div v-for="post in posts" :key="post.id" >
+        <div v-for="post in posts" :key="post.article_id" >
           <PostPreview :post="post" />
         </div>
       </div>
@@ -29,7 +29,7 @@
       };
     },
     methods: {
-      handleScroll() {
+      async handleScroll() {
         if(this.allow === 0) {
           return;
         }
@@ -40,10 +40,11 @@
         }
         let load_line_element = element.getBoundingClientRect();
         if(load_line_element.top <= (window.innerHeight || document.documentElement.clientHeight)) {
+          console.log("id is " + this.load_line_id)
           this.load_line_id += this.PAGE_PER_ARTICLES;
           this.allow = 0;
           this.page++;
-          this.get_posts(this.page);
+          await this.get_posts(this.page);
         }
       },
       async get_posts(page) {
@@ -61,7 +62,6 @@
         console.log(json);
         for(let i = 0; i < json.pages[page].length; i++) {
           this.posts.push({
-            id: i,
             name: decodeURIComponent(json.pages[page][i].name),
             created: json.pages[page][i].creation_date,
             preview_content: json.pages[page][i].preview_content,
@@ -72,7 +72,7 @@
             dislikes_count: json.pages[page][i].dislikes_count,
             comments_count: json.pages[page][i].comments_count,
           })
-          this.load_line_id = i;  //костыль для бесконечной ленты
+          this.load_line_id = json.pages[page][i].id;  //костыль для бесконечной ленты
         }
       }
     },
