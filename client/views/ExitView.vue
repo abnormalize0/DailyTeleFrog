@@ -1,7 +1,7 @@
 <script setup>
   import router from '../router';
   // localStorage.removeItem('id');
-  localStorage.id = -1;
+  localStorage.id = 0;
   router.push({ name: 'feed'});
 </script>
 
