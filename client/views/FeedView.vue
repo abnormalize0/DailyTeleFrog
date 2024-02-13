@@ -21,7 +21,7 @@
     data() {
       return {
         PAGE_PER_ARTICLES:5, 
-        posts:[], 
+        posts: [], 
         page:0, 
         post_id:1, 
         load_line_id:5, 
