@@ -1,5 +1,6 @@
 <style>
   @import '../public/css//MainStyle.css';
+  @import '../public/css/styles.css';
 </style>
 
 <script setup>

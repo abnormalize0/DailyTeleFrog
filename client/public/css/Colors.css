@@ -1,43 +1,47 @@
 .background-main-color {
-  background-color: #0C0D22;
+  background-color: #0C0D22 !important;
 }
 
 .background-secondary-color {
-  background-color: #101131;
+  background-color: #101131 !important;
 }
 
 .background-secondary-color:hover {
-  background-color: #1F214D;
+  background-color: #1F214D !important;
 }
 
 .text-color {
-  color: #DDE5F7;
+  color: #DDE5F7 !important;
 }
 
 .text-secondary-color {
-  color: #979EA4;
+  color: #979EA4 !important;
 }
 
 .text-secondary-color:hover {
-  color: C6CDD3;
+  color: C6CDD3 !important;
 }
 
 .primary-first-color {
-  color: #254DF7;
+  color: #254DF7 !important;
 }
 
 .primary-second-color {
-  color: #91D0FB;
+  color: #91D0FB !important;
 }
 
 .on-background-secondary-color {
-  background-color: #2F2F6A;
+  background-color: #2F2F6A !important;
+}
+
+.on-background-secondary-color:hover {
+  background-color: #64648D !important;
 }
 
 .success-color {
-  color: #1CC900;
+  color: #1CC900 !important;
 }
 
 .mistake-color {
-  color: #C90C00;
+  color: #C90C00 !important;
 }
