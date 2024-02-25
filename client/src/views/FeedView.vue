@@ -1,5 +1,5 @@
 <style>
-  @import '../css/PreviewStyle.css';
+  @import '../../public/css/PreviewStyle.css';
 </style>
 
 <template id="post_template">

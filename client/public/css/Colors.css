@@ -1,0 +1,43 @@
+.background-main-color {
+  background-color: #0C0D22;
+}
+
+.background-secondary-color {
+  background-color: #101131;
+}
+
+.background-secondary-color:hover {
+  background-color: #1F214D;
+}
+
+.text-color {
+  color: #DDE5F7;
+}
+
+.text-secondary-color {
+  color: #979EA4;
+}
+
+.text-secondary-color:hover {
+  color: C6CDD3;
+}
+
+.primary-first-color {
+  color: #254DF7;
+}
+
+.primary-second-color {
+  color: #91D0FB;
+}
+
+.on-background-secondary-color {
+  background-color: #2F2F6A;
+}
+
+.success-color {
+  color: #1CC900;
+}
+
+.mistake-color {
+  color: #C90C00;
+}

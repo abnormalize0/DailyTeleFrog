@@ -1,5 +1,5 @@
 <style>
-  @import '../css/NewPostStyle.css';
+  @import '../../public/css/NewPostStyle.css';
 </style>
 
 <script setup>
