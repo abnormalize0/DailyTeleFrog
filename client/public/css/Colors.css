@@ -1,0 +1,27 @@
+.main-background-color {
+  background: #0C0D22;
+}
+
+.secondary-background-color {
+  background-color: #101131;
+}
+
+.text-color {
+  color: #DDE5F7;
+}
+
+.text-secondary-color {
+  color: #979EA4;
+}
+
+.primary-first-color {
+  color: #254DF7;
+}
+
+.primary-second-color {
+  color: #91D0FB;
+}
+
+.on-secondary-background-color {
+  background-color: #2F2F6A;
+}
