@@ -12,12 +12,21 @@ from . import worker
 from .. import config
 from .. import request_status
 
-def check_password(password, user_id):
-    status, data = worker.get_entry_data(config.db_user.path,
-                                         config.user_table_name,
-                                         ['password'],
-                                         id_name=config.user_id_name,
-                                         id_value=user_id)
+def check_password(password, user_id=None, email=None):
+    status = None
+    data = None
+    if user_id:
+        status, data = worker.get_entry_data(config.db_user.path,
+                                            config.user_table_name,
+                                            ['password'],
+                                            id_name=config.user_id_name,
+                                            id_value=user_id)
+    else:
+        status, data = worker.get_entry_data(config.db_user.path,
+                                            config.user_table_name,
+                                            ['password'],
+                                            id_name='email',
+                                            id_value=email)
     if status.is_error:
         return status, False
     stored_password = data['password']
@@ -33,13 +42,16 @@ def change_password(password, user_id):
     return status
 
 def get_unblocked_articles(user_id, include_nonsub, sort_column, sort_direction, include, exclude, bounds):
+    status = None
+    data = {}
     if user_id == 0:
-        return request_status.Status(request_status.StatusType.OK), []
-    status, data = worker.get_entry_data(config.db_user.path,
-                                         config.user_table_name,
-                                         ['blocked_tags', 'blocked_users', 'blocked_communities'],
-                                         id_name=config.user_id_name,
-                                         id_value=user_id)
+        status = request_status.Status(request_status.StatusType.OK)
+    else:
+        status, data = worker.get_entry_data(config.db_user.path,
+                                            config.user_table_name,
+                                            ['blocked_tags', 'blocked_users', 'blocked_communities'],
+                                            id_name=config.user_id_name,
+                                            id_value=user_id)
     if status.is_error:
         return status, None
 
@@ -47,15 +59,15 @@ def get_unblocked_articles(user_id, include_nonsub, sort_column, sort_direction,
     blocked_users = []
     blocked_communities = []
 
-    if data['blocked_tags']:
+    if data.get('blocked_tags'):
         blocked_tags = data['blocked_tags'].split(config.delimiter)[1:-1]
     if exclude and 'tags' in exclude.keys():
         blocked_tags.extend(exclude['tags'])
-    if data['blocked_users']:
+    if data.get('blocked_users'):
         blocked_users = data['blocked_users'].split(config.delimiter)[1:-1]
     if exclude and 'users' in exclude.keys():
         blocked_users.extend(exclude['users'])
-    if data['blocked_communities']:
+    if data.get('blocked_communities'):
         blocked_communities = data['blocked_communities'].split(config.delimiter)[1:-1]
     if exclude and 'communities' in exclude.keys():
         blocked_communities.extend(exclude['communities'])

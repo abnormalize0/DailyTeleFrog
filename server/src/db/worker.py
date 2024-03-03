@@ -13,7 +13,9 @@ def is_field_exist(db, table_name, id_name=None, id_value=None, field_name=None)
     cursor = connection.cursor()
     is_id_exist = True
     if id_name:
-        is_id_exist = cursor.execute(f'SELECT * from {table_name} WHERE {id_name} = {id_value}')
+        import sys
+        select = f"SELECT * from {table_name} WHERE {id_name} = '{id_value}'"
+        is_id_exist = cursor.execute(select)
         is_id_exist = is_id_exist.fetchall()
     if not is_id_exist:
         connection.close()
@@ -230,7 +232,7 @@ def create_select_request(requested_fields_name, table_name,
     if id_value or include or exclude or bounds or not include_nonsub:
         request += ' WHERE '
         if id_value:
-            request += f'{id_name} = {id_value} AND '
+            request += f"{id_name} = '{id_value}' AND "
         if include:
             request += add_include_select_part(include) + ' AND '
         if exclude:

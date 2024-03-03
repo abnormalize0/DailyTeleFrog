@@ -25,7 +25,10 @@ class TestAPI(base_test.BaseTest):
         if os.path.exists(self.workdir):
             pid_file = open(os.path.join(self.workdir, 'lastpid.txt'), 'r')
             pid = pid_file.readline()
-            os.kill(int(pid), signal.SIGKILL)
+            try:
+                os.kill(int(pid), signal.SIGKILL)
+            except Exception:
+                pass
             shutil.rmtree(self.workdir, ignore_errors=True)
 
         self.server = subprocess.Popen(['python3', '../start.py', '-i',
@@ -202,7 +205,8 @@ class TestAPI(base_test.BaseTest):
                              method=method,
                              structure=answer.json()[method])
 
-        user_id, password, user_name = self.add_user()
+        user_info = self.add_user()
+        user_id = user_info[0]
         article = {'name': 'test_name',
                    'preview-content': {'type': 'image', 'data': 'ref'},
                    'tags': '~tag1~tag2~tag3~',
@@ -227,7 +231,8 @@ class TestAPI(base_test.BaseTest):
                              method=method,
                              structure=answer.json()[method])
 
-        user_id, password, user_name = self.add_user()
+        user_info = self.add_user()
+        user_id = user_info[0]
         article_id = self.add_arcticle(user_id=user_id)
 
         # happy path
@@ -256,8 +261,9 @@ class TestAPI(base_test.BaseTest):
                              method=method,
                              structure=answer.json()[method])
 
-        user_id, password, user_name = self.add_user()
-        _ = self.add_user()
+        user_info = self.add_user()
+        user_id = user_info[0]
+        user_info = self.add_user()
         article_id = self.add_arcticle(user_id=user_id)
 
         # happy path
@@ -437,7 +443,8 @@ class TestAPI(base_test.BaseTest):
 
         # check user rating
         user_endpoint = '/users/data'
-        user_id, password, user_name = self.add_user()
+        user_info = self.add_user()
+        user_id = user_info[0]
         article_id = self.add_arcticle(user_id=user_id)
         answer = requests.post(self.localhost + endpoint,
                                headers={'user-id': str(user_id),
@@ -447,7 +454,8 @@ class TestAPI(base_test.BaseTest):
         comment_id = answer.json()['comment_id']
         like_comment = {'comment_id': comment_id}
         dislike_comment = {'comment_id': comment_id}
-        user_2, password, user_name = self.add_user()
+        user_info = self.add_user()
+        user_2 = user_info[0]
 
         # check that like increase rating
         answer = requests.post(self.localhost + endpoint,
@@ -587,7 +595,8 @@ class TestAPI(base_test.BaseTest):
                              method=method,
                              structure=answer.json()[method])
 
-        user_id, password, user_name = self.add_user()
+        user_info = self.add_user()
+        user_id = user_info[0]
         article_id = self.add_arcticle(user_id=user_id)
         request_data = '~likes_count~likes_id~dislikes_count~dislikes_id~comments_count~'
         answer = requests.get(self.localhost + endpoint, headers={'user-id': str(user_id),
@@ -624,7 +633,8 @@ class TestAPI(base_test.BaseTest):
                              method=method,
                              structure=answer.json()[method])
 
-        user_id, password, user_name = self.add_user()
+        user_info = self.add_user()
+        user_id = user_info[0]
         answer = requests.get(self.localhost + endpoint, headers={'user-id': str(user_id), 'indexes': '~0~1~2~',
                                                                   'include-nonsub': 'true',
                                                                   'sort-column': 'creation_date',
@@ -632,13 +642,25 @@ class TestAPI(base_test.BaseTest):
         self.assertEqual(answer.json()['status']['type'], 'ERROR', msg=str(answer.json()['status']))
         self.assertEqual(answer.json()['status']['error_type'], 'ValueError', msg=str(answer.json()['status']))
 
-        user_id, password, user_name = self.add_user()
+        user_info = self.add_user()
+        user_id = user_info[0]
         article_id = self.add_arcticle(user_id=user_id)
         answer = requests.get(self.localhost + endpoint, headers={'user-id': str(user_id), 'indexes': '~0~1~2~',
                                                                   'include-nonsub': 'true',
                                                                   'sort-column': 'creation_date',
                                                                   'sort-direction': 'descending'})
         self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
+        self.assertIn("name", answer.json()["pages"]["0"][0])
+        self.assertIn("preview_content", answer.json()["pages"]["0"][0])
+        self.assertIn("tags", answer.json()["pages"]["0"][0])
+        self.assertIn("creation_date", answer.json()["pages"]["0"][0])
+        self.assertIn("author_preview", answer.json()["pages"]["0"][0])
+        self.assertIn("likes_count", answer.json()["pages"]["0"][0])
+        self.assertIn("likes_id", answer.json()["pages"]["0"][0])
+        self.assertIn("dislikes_count", answer.json()["pages"]["0"][0])
+        self.assertIn("dislikes_id", answer.json()["pages"]["0"][0])
+        self.assertIn("comments_count", answer.json()["pages"]["0"][0])
+        self.assertIn("id", answer.json()["pages"]["0"][0])
 
         def post_article(author, community, tags):
             article = {'name': 'test_name',
@@ -651,7 +673,8 @@ class TestAPI(base_test.BaseTest):
                                      headers={'user-id': str(author)},
                                      json=article)
 
-        user_id, password, user_name = self.add_user()
+        user_info = self.add_user()
+        user_id = user_info[0]
 
         tags = ['t1', 't2', 't3']
         communities = ['c1', 'c2', 'c3']
@@ -762,12 +785,14 @@ class TestAPI(base_test.BaseTest):
                              structure=answer.json()[method])
 
         name = 'test_name_1'
+        email = 'test@,test.test'
         password = 'password'
         avatar = 'avatar'
         blocked_tags = '~tag1~tag2~tag3~'
 
         # happy path
         answer = requests.post(self.localhost + endpoint, json={'name': name,
+                                                                'email': email,
                                                                 'password': password,
                                                                 'avatar': avatar,
                                                                 'blocked-tags': blocked_tags})
@@ -775,11 +800,12 @@ class TestAPI(base_test.BaseTest):
         self.assertIn('user_id', answer.json())
 
         user_id = answer.json()['user_id']
-        requested_data = '~name~name_history~avatar~blocked_tags~creation_date~rating~'
+        requested_data = '~name~email~name_history~avatar~blocked_tags~creation_date~rating~'
         answer = requests.get(self.localhost + '/users/data', headers={'user-id': str(user_id),
                                                                        'requested-data': requested_data})
         self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
         self.assertEqual(name, answer.json()['name'])
+        self.assertEqual(email, answer.json()['email'])
         self.assertEqual('~' + name + '~', answer.json()['name_history'])
         self.assertEqual(avatar, answer.json()['avatar'])
         self.assertEqual(blocked_tags, answer.json()['blocked_tags'])
@@ -794,14 +820,16 @@ class TestAPI(base_test.BaseTest):
                              method=method,
                              structure=answer.json()[method])
 
-        user_id, password, user_name = self.add_user()
+        user_info = self.add_user()
+        user_id = user_info[0]
 
         # happy path
-        requested_data = '~name~name_history~avatar~blocked_tags~creation_date~rating~'
+        requested_data = '~name~email~name_history~avatar~blocked_tags~creation_date~rating~'
         answer = requests.get(self.localhost + endpoint, headers={'user-id': str(user_id),
                                                                   'requested-data': requested_data})
         self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
         self.assertIn('name', answer.json())
+        self.assertIn('email', answer.json())
         self.assertIn('name_history', answer.json())
         self.assertIn('avatar', answer.json())
         self.assertIn('blocked_tags', answer.json())
@@ -822,20 +850,24 @@ class TestAPI(base_test.BaseTest):
                              method=method,
                              structure=answer.json()[method])
 
-        user_id, password, user_name = self.add_user()
+        user_info = self.add_user()
+        user_id = user_info[0]
+        user_name = user_info[2]
 
         # happy path
         name = 'new_name'
+        email = 'new_email@email.email'
         avatar = 'avatar_link'
         blocked_tags = '~tag1~tag2~'
         answer = requests.post(self.localhost + endpoint,
                                headers={'user-id': str(user_id)},
                                json={'name': name,
                                      'avatar': avatar,
+                                     'email': email,
                                      'blocked-tags': blocked_tags})
         self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
 
-        requested_data = '~name~name_history~avatar~blocked_tags~'
+        requested_data = '~name~email~name_history~avatar~blocked_tags~'
         answer = requests.get(self.localhost + endpoint, headers={'user-id': str(user_id),
                                                                   'requested-data': requested_data})
         self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
@@ -861,7 +893,9 @@ class TestAPI(base_test.BaseTest):
                              method=method,
                              structure=answer.json()[method])
 
-        user_id, password, user_name = self.add_user()
+        user_info = self.add_user()
+        user_id = user_info[0]
+        password = user_info[1]
 
         # happy path
         answer = requests.post(self.localhost + endpoint,
@@ -886,10 +920,18 @@ class TestAPI(base_test.BaseTest):
                              method=method,
                              structure=answer.json()[method])
 
-        user_id, password, user_name = self.add_user()
+        user_info = self.add_user()
+        user_id = user_info[0]
+        password = user_info[1]
+        email = user_info[3]
 
         # happy path
         answer = requests.get(self.localhost + endpoint, headers={'user-id': str(user_id),
+                                                                  'password': password})
+        self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
+        self.assertEqual(answer.json()['is-correct'], True, msg=str(answer.json()['status']))
+
+        answer = requests.get(self.localhost + endpoint, headers={'email': email,
                                                                   'password': password})
         self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
         self.assertEqual(answer.json()['is-correct'], True, msg=str(answer.json()['status']))
