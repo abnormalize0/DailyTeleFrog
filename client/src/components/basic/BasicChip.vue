@@ -1,5 +1,5 @@
 <template>
-  <v-chip class="on-background-secondary-color text-color">
+  <v-chip class="on-background-secondary-color text-color p4">
     {{content}}
   </v-chip>
 </template>

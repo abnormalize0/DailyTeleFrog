@@ -1,0 +1,16 @@
+@font-face {
+  font-family: "Suisse Intl Regular";
+  src: url(../fonts/SuisseIntl-Regular.ttf);
+}
+
+.p-button {
+  font-family: var(--family-name) !important;
+  font-size: 12px !important;
+  letter-spacing: 0 !important;
+}
+
+.p4 {
+  font-family: var(--family-name) !important;
+  font-size: 10px !important;
+  letter-spacing: 0 !important;
+}

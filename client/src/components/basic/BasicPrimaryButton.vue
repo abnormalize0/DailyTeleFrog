@@ -1,6 +1,6 @@
 <template>
   <v-btn 
-    class="primary-first-color text-color primary-rounded"
+    class="primary-first-color text-color primary-rounded p-button"
     height="44px"
   >
     {{content}}
