@@ -54,6 +54,7 @@ def init_users():
     cursor.execute(f'''CREATE TABLE {config.user_table_name} (
                     {config.user_id_name} INTEGER PRIMARY KEY,
                     name TEXT UNIQUE NOT NULL,
+                    email TEXT UNIQUE NOT NULL,
                     password TEXT NOT NULL,
                     name_history TEXT,
                     avatar TEXT,

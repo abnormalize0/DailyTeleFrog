@@ -253,6 +253,7 @@ def api_pages_get():
 def api_users_post():
     status, user_info = api_types.parse_structure(request.json, 
                                                   [api_types.Parameter('name', 'str', True),
+                                                   api_types.Parameter('email', 'str', True),
                                                    api_types.Parameter('password', 'str', True),
                                                    api_types.Parameter('avatar', 'str', False),
                                                    api_types.Parameter('sub-tags', 'list', False),
@@ -307,6 +308,7 @@ def api_users_data_get():
                                                      api_types.Parameter('sub_communities', 'list', False),
                                                      api_types.Parameter('blocked_communities', 'list', False),
                                                      api_types.Parameter('name', 'str', False),
+                                                     api_types.Parameter('email', 'str', False),
                                                      api_types.Parameter('description', 'str', False),
                                                      api_types.Parameter('creation_date', 'str', False),
                                                      api_types.Parameter('rating', 'str', False)])
@@ -343,6 +345,7 @@ def api_users_data_post():
                                                               api_types.Parameter('sub-communities', 'str', False),
                                                               api_types.Parameter('blocked-communities', 'str', False),
                                                               api_types.Parameter('name', 'str', False),
+                                                              api_types.Parameter('email', 'str', False),
                                                               api_types.Parameter('description', 'str', False)])
     if status.is_error:
         return json.dumps({'status': dict(status)})
@@ -395,17 +398,30 @@ def api_users_password_post():
 @log.log_request
 @log.timer(config.log_server_api)
 def api_login_get():
-    status, headers = api_types.parse_structure(request.headers, [api_types.Parameter('user-id', 'int', True),
-                                                                  api_types.Parameter('password', 'str', True)])
+    status, password = api_types.parse_structure(request.headers, [api_types.Parameter('password', 'str', True)])
+    if status.is_error:
+        return json.dumps({'status': dict(status)})
+    password = password['password']
+
+    status, login = api_types.parse_structure(request.headers, [api_types.Parameter('email', 'str', False),
+                                                                api_types.Parameter('user-id', 'int', False),])
     if status.is_error:
         return json.dumps({'status': dict(status)})
 
-    if headers['user-id'] == 0:
+    if 'user-id' in login and 'email' in login:
+        return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
+                                          error_type=request_status.ErrorType.ValueError,
+                                          msg='User can login via user-id OR via email.'))})
+
+    if 'user-id' in login and login['user-id'] == 0:
         return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
                                           error_type=request_status.ErrorType.ValueError,
                                           msg='Unlogged user cannot use this method'))})
 
-    status, is_password_correct = backend.login(headers['password'], headers['user-id'])
+    if 'user-id' in login:
+        status, is_password_correct = backend.login(password, user_id=login['user-id'])
+    else:
+        status, is_password_correct = backend.login(password, email=login['email'])
     return json.dumps({'status': dict(status), 'is-correct': is_password_correct})
 
 def run_server():

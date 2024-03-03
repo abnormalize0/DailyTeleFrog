@@ -307,6 +307,12 @@ def users_info():
             'container': 'body',
         },
         {
+            'name': 'email',
+            'type': 'str',
+            'is_required': True,
+            'container': 'body',
+        },
+        {
             'name': 'password',
             'type': 'str',
             'is_required': True,
@@ -389,6 +395,12 @@ def users_data_info():
             'container': 'body',
         },
         {
+            'name': 'email',
+            'type': 'str',
+            'is_required': False,
+            'container': 'body',
+        },
+        {
             'name': 'avatar',
             'type': 'str',
             'is_required': False,
@@ -460,6 +472,11 @@ def users_data_info():
                 {
                     'name': 'name',
                     'type': 'field',
+                    'is_required': False,
+                },
+                {
+                    'name': 'email',
+                    'type': 'str',
                     'is_required': False,
                 },
                 {
@@ -567,14 +584,20 @@ def login_info():
         {
             'name': 'user-id',
             'type': 'int',
-            'is_required': True,
-            'container': 'header'
+            'is_required': False,
+            'container': 'header',
+        },
+        {
+            'name': 'email',
+            'type': 'str',
+            'is_required': False,
+            'container': 'header',
         },
         {
             'name': 'password',
             'type': 'str',
             'is_required': True,
-            'container': 'header'
+            'container': 'header',
         }
     ]
 

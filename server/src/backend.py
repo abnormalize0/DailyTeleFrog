@@ -30,7 +30,9 @@ def select_preview(article):
     preview['creation_date'] = article['creation_date']
     preview['author_preview'] = article['author_preview']
     preview['likes_count'] = article['likes_count']
+    preview['likes_id'] = article['likes_id']
     preview['dislikes_count'] = article['dislikes_count']
+    preview['dislikes_id'] = article['dislikes_id']
     preview['comments_count'] = article['comments_count']
     return preview
 
@@ -123,8 +125,8 @@ def update_user_info(user_info, user_id):
             _ = api.user_update_info('name_history', name_history, user_id)
     return status
 
-def login(password, user_id):
-    return api.check_password(password, user_id)
+def login(password, email=None, user_id=None):
+    return api.check_password(password, user_id=user_id, email=email)
 
 def change_password(previous_password, new_password, user_id):
     status, is_same = api.check_password(previous_password, user_id)
