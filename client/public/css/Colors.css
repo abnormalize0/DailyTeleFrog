@@ -23,7 +23,12 @@
 }
 
 .primary-first-color {
-  color: #254DF7 !important;
+  background-color: #254DF7 !important;
+  z-index: 999;
+}
+
+.primary-first-color:hover {
+  background-color: #717FDD !important;
 }
 
 .primary-second-color {
