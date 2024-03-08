@@ -70,7 +70,7 @@ def add_entry(db, table_name, data):
     'name' (its name);
     'type' (data type if given, else '');
     'notnull' (whether or not the column can be NULL);
-    'dflt_value' (the default value for the column);
+    'default_value' (the default value for the column);
     'pk' (either zero for columns that are not part of the primary key,
           or the 1-based index of the column within the primary key)
     '''
@@ -138,7 +138,13 @@ def add_entry(db, table_name, data):
         insert_column_names = required_column_names + nonrequired_column_names[:-2]
 
     insert = f'INSERT INTO {table_name} ({insert_column_names}) VALUES ({insert_columns_values})'
-    cursor.execute(insert)
+    try:
+        cursor.execute(insert)
+    except sqlite3.IntegrityError as ex:
+        return request_status.Status(request_status.StatusType.ERROR,
+                                         error_type=request_status.ErrorType.OptionError,
+                                         msg=f'An error occurred while trying to write to the database: {ex}'
+                                        ), None
     connection.commit()
     id = cursor.lastrowid
     connection.close()
