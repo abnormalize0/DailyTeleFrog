@@ -1,4 +1,6 @@
 .grid-container {
-    grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr;
-    column-gap: 40px;
+  grid-template-columns: 65px 65px 65px 65px 65px 65px 65px 65px 65px 65px 65px 65px !important;
+  column-gap: 40px !important;
+  display: grid !important;
+  justify-content: center !important;
 }
