@@ -53,6 +53,8 @@ def update_entry(db, table_name, id_name, id_value, field_name, field_value):
             string_value += str(value) + config.delimiter
         field_value = string_value
     update = f"UPDATE {table_name} SET {field_name} = '{field_value}' WHERE {id_name} = {id_value}"
+    import sys
+    print(update, file=sys.stderr)
     cursor.execute(update)
     connection.commit()
     connection.close()
@@ -147,6 +149,11 @@ def add_entry(db, table_name, data):
                                         ), None
     connection.commit()
     id = cursor.lastrowid
+    if db==config.db_user.path:
+        import sys
+        select = "SELECT * FROM users"
+        answer = cursor.execute(select).fetchall()
+        print(answer, file=sys.stderr)
     connection.close()
     return request_status.Status(request_status.StatusType.OK), id
 
@@ -202,11 +209,11 @@ def add_sort(sort_column, sort_direction):
     else:
         return f'ORDER BY {sort_column} DESC'
 
-def remove_nonsub_from_select(id):
+def remove_nonsub_from_select(login):
     connection = sqlite3.connect(config.db_user.path)
     cursor = connection.cursor()
 
-    _ = f'SELECT sub_tags, sub_users, sub_communities from {config.user_table_name} WHERE {config.user_id_name} = {id}'
+    _ = f'SELECT sub_tags, sub_users, sub_communities from {config.user_table_name} WHERE {config.user_id_name} = {login}'
     select = cursor.execute(_)
     select = select.fetchall()
     connection.close()
@@ -232,7 +239,7 @@ def remove_nonsub_from_select(id):
 
 def create_select_request(requested_fields_name, table_name,
                           id_name=None, id_value=None, include_nonsub=None, include=None, exclude=None,
-                          bounds=None, sort_column=None, sort_direction=None, user_id=None):
+                          bounds=None, sort_column=None, sort_direction=None, login=None):
     request = f'SELECT {requested_fields_name} FROM {table_name}'
 
     if id_value or include or exclude or bounds or not include_nonsub:
@@ -246,7 +253,7 @@ def create_select_request(requested_fields_name, table_name,
         if bounds:
             request += add_bounds_select_part(bounds) + ' AND '
         if include_nonsub is not None and not include_nonsub:
-            request += remove_nonsub_from_select(user_id) + ' AND '
+            request += remove_nonsub_from_select(login) + ' AND '
         request = request[:-5]
     if sort_column and sort_direction:
         request += ' ' + add_sort(sort_column, sort_direction)
@@ -256,7 +263,7 @@ def create_select_request(requested_fields_name, table_name,
 @log.timer(config.log_db_api)
 def get_entry_data(db, table_name, fields_name,
                    id_name=None, id_value=None, include=None, exclude=None,
-                   include_nonsub=None, bounds=None, sort_column=None, sort_direction=None, user_id=None):
+                   include_nonsub=None, bounds=None, sort_column=None, sort_direction=None, login=None):
     connection = sqlite3.connect(db)
     cursor = connection.cursor()
 
@@ -279,7 +286,7 @@ def get_entry_data(db, table_name, fields_name,
                                    bounds,
                                    sort_column,
                                    sort_direction,
-                                   user_id)
+                                   login)
     select = cursor.execute(select)
     select = select.fetchall()
     connection.close()
