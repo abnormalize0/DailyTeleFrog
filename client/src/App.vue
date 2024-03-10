@@ -1,7 +1,7 @@
 <template>
-  <div class="background-main-color">
+  <v-app class="background-main-color">
     <HeaderComponent/>
-  </div>
+  </v-app>
 </template>
 
 <style>
