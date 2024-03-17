@@ -1,5 +1,5 @@
-.main-post {
-    width: 40rem;
+.post-item {
+    width: 37rem;
     height: 30rem;
     border-radius: 2rem;
 }
@@ -7,8 +7,15 @@
 .text-container {
     display: flex;
     padding: 1rem;
+    height: 35%;
     padding-top: 0;
     justify-content: left;
+    text-align: left;
+}
+
+p {
+    padding: 0;
+    font-size: smaller;
 }
 
 .header-container {
