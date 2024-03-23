@@ -44,7 +44,7 @@ def change_password(password, login):
 def get_unblocked_articles(login, include_nonsub, sort_column, sort_direction, include, exclude, bounds):
     status = None
     data = {}
-    if login == 0:
+    if login == '0':
         status = request_status.Status(request_status.StatusType.OK)
     else:
         status, data = worker.get_entry_data(config.db_user.path,

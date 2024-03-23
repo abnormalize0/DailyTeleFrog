@@ -29,7 +29,7 @@ class TestAPI(base_test.BaseTest):
                 os.kill(int(pid), signal.SIGKILL)
             except Exception:
                 pass
-            #shutil.rmtree(self.workdir, ignore_errors=True)
+            shutil.rmtree(self.workdir, ignore_errors=True)
 
         self.server = subprocess.Popen(['python3', '../start.py', '-i',
                                         '--working-directory', self.workdir
@@ -49,7 +49,7 @@ class TestAPI(base_test.BaseTest):
         # print all server output
         for line in self.server.stderr:
             print(line.decode('utf8'))
-        #shutil.rmtree(self.workdir, ignore_errors=True)
+        shutil.rmtree(self.workdir, ignore_errors=True)
 
     def set_list_value(self, structure):
         result = '~'
@@ -679,13 +679,14 @@ class TestAPI(base_test.BaseTest):
 
         tags = ['t1', 't2', 't3']
         communities = ['c1', 'c2', 'c3']
-        authors = ['1', '2', '3']
+        authors = ['tester_login_0', 'tester_login_1', 'tester_login_2']
         for author in authors:
             for community in communities:
                 for tag in tags:
                     article_tags = tags[:]
                     article_tags.remove(tag)
                     str_tags = '~' + article_tags[0] + '~' + article_tags[1] + '~'
+
                     post_article(author, community, str_tags)
 
         # happy path

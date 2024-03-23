@@ -46,7 +46,7 @@ def api_article_post():
     if status.is_error:
         return json.dumps({'status': dict(status)})
 
-    if headers['login'] == 0:
+    if headers['login'] == '0':
         return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
                                           error_type=request_status.ErrorType.ValueError,
                                           msg='Unlogged user cannot use this method'))})
@@ -91,7 +91,7 @@ def api_article_data_post():
     if status.is_error:
         return json.dumps({'status': dict(status)})
 
-    if headers['login'] == 0:
+    if headers['login'] == '0':
         return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
                                           error_type=request_status.ErrorType.ValueError,
                                           msg='Unlogged user cannot use this method'))})
@@ -294,7 +294,7 @@ def api_users_data_get():
     if status.is_error:
         return json.dumps({'status': dict(status)})
 
-    if headers['login'] == 0:
+    if headers['login'] == '0':
         return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
                                           error_type=request_status.ErrorType.ValueError,
                                           msg='Unlogged user cannot use this method'))})
@@ -333,7 +333,7 @@ def api_users_data_post():
         return json.dumps({'status': dict(status)})
     login = login['login']
 
-    if login == 0:
+    if login == '0':
         return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
                                           error_type=request_status.ErrorType.ValueError,
                                           msg='Unlogged user cannot use this method'))})
@@ -380,7 +380,7 @@ def api_users_password_post():
     if status.is_error:
         return json.dumps({'status': dict(status)})
 
-    if headers['login'] == 0:
+    if headers['login'] == '0':
         return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
                                           error_type=request_status.ErrorType.ValueError,
                                           msg='Unlogged user cannot use this method'))})
@@ -414,7 +414,7 @@ def api_login_get():
                                           error_type=request_status.ErrorType.ValueError,
                                           msg='User can login via login OR via email.'))})
 
-    if 'login' in login and login['login'] == 0:
+    if 'login' in login and login['login'] == '0':
         return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
                                           error_type=request_status.ErrorType.ValueError,
                                           msg='Unlogged user cannot use this method'))})

@@ -52,9 +52,7 @@ def update_entry(db, table_name, id_name, id_value, field_name, field_value):
         for value in field_value:
             string_value += str(value) + config.delimiter
         field_value = string_value
-    update = f"UPDATE {table_name} SET {field_name} = '{field_value}' WHERE {id_name} = {id_value}"
-    import sys
-    print(update, file=sys.stderr)
+    update = f"UPDATE {table_name} SET {field_name} = '{field_value}' WHERE {id_name} = '{id_value}'"
     cursor.execute(update)
     connection.commit()
     connection.close()
@@ -149,11 +147,6 @@ def add_entry(db, table_name, data):
                                         ), None
     connection.commit()
     id = cursor.lastrowid
-    if db==config.db_user.path:
-        import sys
-        select = "SELECT * FROM users"
-        answer = cursor.execute(select).fetchall()
-        print(answer, file=sys.stderr)
     connection.close()
     return request_status.Status(request_status.StatusType.OK), id
 
@@ -213,7 +206,7 @@ def remove_nonsub_from_select(login):
     connection = sqlite3.connect(config.db_user.path)
     cursor = connection.cursor()
 
-    _ = f'SELECT sub_tags, sub_users, sub_communities from {config.user_table_name} WHERE {config.user_id_name} = {login}'
+    _ = f'SELECT sub_tags, sub_users, sub_communities from {config.user_table_name} WHERE {config.user_id_name} = "{login}"'
     select = cursor.execute(_)
     select = select.fetchall()
     connection.close()
