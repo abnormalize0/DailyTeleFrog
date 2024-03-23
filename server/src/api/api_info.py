@@ -15,8 +15,8 @@ info = Blueprint('info', __name__)
 def article_info():
     request_post = [
         {
-            'name': 'user-id',
-            'type': 'int',
+            'name': 'login',
+            'type': 'str',
             'is_required': True,
             'container': 'header'
         },
@@ -64,8 +64,8 @@ def article_info():
 def article_data_info():
     request_post = [
         {
-            'name': 'user-id',
-            'type': 'int',
+            'name': 'login',
+            'type': 'str',
             'is_required': True,
             'container': 'header'
         },
@@ -197,8 +197,8 @@ def pages_info():
 
     request_get = [
         {
-            'name': 'user-id',
-            'type': 'int',
+            'name': 'login',
+            'type': 'str',
             'is_required': True,
             'container': 'header'
         },
@@ -301,7 +301,13 @@ def pages_info():
 def users_info():
     request_post = [
         {
-            'name': 'name',
+            'name': 'login',
+            'type': 'str',
+            'is_required': True,
+            'container': 'body',
+        },
+        {
+            'name': 'nickname',
             'type': 'str',
             'is_required': True,
             'container': 'body',
@@ -383,13 +389,13 @@ def users_info():
 def users_data_info():
     request_post = [
         {
-            'name': 'user-id',
-            'type': 'int',
+            'name': 'login',
+            'type': 'str',
             'is_required': True,
             'container': 'header'
         },
         {
-            'name': 'name',
+            'name': 'nickname',
             'type': 'str',
             'is_required': False,
             'container': 'body',
@@ -458,8 +464,8 @@ def users_data_info():
 
     request_get = [
         {
-            'name': 'user-id',
-            'type': 'int',
+            'name': 'login',
+            'type': 'str',
             'is_required': True,
             'container': 'header'
         },
@@ -470,7 +476,7 @@ def users_data_info():
             'container': 'header',
             'structure': [
                 {
-                    'name': 'name',
+                    'name': 'nickname',
                     'type': 'field',
                     'is_required': False,
                 },
@@ -552,8 +558,8 @@ def users_data_info():
 def users_password_info():
     request_post = [
         {
-            'name': 'user-id',
-            'type': 'int',
+            'name': 'login',
+            'type': 'str',
             'is_required': True,
             'container': 'header'
         },
@@ -582,8 +588,8 @@ def login_info():
 
     request_get = [
         {
-            'name': 'user-id',
-            'type': 'int',
+            'name': 'login',
+            'type': 'str',
             'is_required': False,
             'container': 'header',
         },
