@@ -1,7 +1,7 @@
 <template>
   <v-container class="header">
     <v-row class="justify-center align-center">
-      <v-col cols="3">
+      <v-col cols="3" class="d-flex align-center">
         <img src="../../assets/Logo.png" alt="Logo" />
       </v-col>
       <v-col cols="6" class="d-flex justify-center align-center">
