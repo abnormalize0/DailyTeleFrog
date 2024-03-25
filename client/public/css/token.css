@@ -1,3 +1,24 @@
 :root {
   --family-name: "Suisse Intl Regular";
+
+  /* Colors */
+  --background-main-color: #0C0D22;
+  --background-secondary-color: #101131;
+  --background-secondary-color-hover: #1F214D;
+  --text-color: #DDE5F7;
+  --text-secondary-color: #979EA4;
+  --text-secondary-color-hover: #C6CDD3;
+  --primary-first-color: #254DF7;
+  --primary-first-color-hover: #717FDD;
+  --primary-second-color: #91D0FB;
+  --on-background-secondary-color: #2F2F6A;
+  --on-background-secondary-color-hover: #64648D;
+  --success-color: #1CC900;
+  --mistake-color: #C90C00;
+}
+
+input {
+  font-size: 14px !important;
+  font-family: var(--family-name) !important;
+  letter-spacing: 0;
 }

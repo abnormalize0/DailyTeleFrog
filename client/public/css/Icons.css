@@ -1,0 +1,7 @@
+.search-text-secondary-color-icon {
+  background: url('../icons/search-text-secondary-color.svg');
+  height: 24px;
+  width: 24px;
+  display: block;
+  cursor: pointer;
+}
