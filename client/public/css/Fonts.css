@@ -9,6 +9,12 @@
   letter-spacing: 0 !important;
 }
 
+.p2 {
+  font-family: var(--family-name) !important;
+  font-size: 14px !important;
+  letter-spacing: 0 !important;
+}
+
 .p4 {
   font-family: var(--family-name) !important;
   font-size: 10px !important;

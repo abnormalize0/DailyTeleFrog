@@ -1,51 +1,51 @@
 .background-main-color {
-  background-color: #0C0D22 !important;
+  background-color: var(--background-main-color) !important;
 }
 
 .background-secondary-color {
-  background-color: #101131 !important;
+  background-color: var(--background-secondary-color) !important;
 }
 
 .background-secondary-color:hover {
-  background-color: #1F214D !important;
+  background-color: var(--background-secondary-color-hover) !important;
 }
 
 .text-color {
-  color: #DDE5F7 !important;
+  color: var(--text-color) !important;
 }
 
 .text-secondary-color {
-  color: #979EA4 !important;
+  color: var(--text-secondary-color) !important;
 }
 
 .text-secondary-color:hover {
-  color: C6CDD3 !important;
+  color: var(--text-secondary-color-hover) !important;
 }
 
 .primary-first-color {
-  background-color: #254DF7 !important;
+  background-color: var(--primary-first-color) !important;
 }
 
 .primary-first-color:hover {
-  background-color: #717FDD !important;
+  background-color: var(--primary-first-color-hover) !important;
 }
 
 .primary-second-color {
-  color: #91D0FB !important;
+  color: var(--primary-second-color) !important;
 }
 
 .on-background-secondary-color {
-  background-color: #2F2F6A !important;
+  background-color: var(--on-background-secondary-color) !important;
 }
 
 .on-background-secondary-color:hover {
-  background-color: #64648D !important;
+  background-color: var(--on-background-secondary-color-hover) !important;
 }
 
 .success-color {
-  color: #1CC900 !important;
+  color: var(--success-color) !important;
 }
 
 .mistake-color {
-  color: #C90C00 !important;
+  color: var(--mistake-color) !important;
 }
