@@ -1,8 +1,8 @@
 <template>
   <div class="d-flex align-center search-bar primary-border primary-rounded">
-    <input class="search" placeholder="Search" type="text" onfocus="this.placeholder = ''"
+    <input class="input-search" placeholder="Search" type="text" onfocus="this.placeholder = ''"
       onblur="this.placeholder = 'Search'">
-    <button class="container-icon">
+    <button class="container-button-icon">
       <i class="search-text-secondary-color-icon"></i>
     </button>
   </div>
@@ -20,31 +20,19 @@
   .search-bar:active {
     background-color: var(--text-color);
   }
-  .container-icon {
+  .container-button-icon {
     all: unset;
     cursor: pointer;
   }
-  .search {
+  .input-search {
     width: 100%;
     outline: 0;
     color: var(--text-secondary-color);
   }
-  .search::-webkit-input-placeholder {
-    font-family: var(--family-name);
-    font-size: 14px !important;
-    letter-spacing: 0 !important;  
-  }
-  .search:-ms-input-placeholder {
-    font-family: var(--family-name);
-    font-size: 14px !important;
-    letter-spacing: 0 !important;  
-  }
-  .search:-moz-placeholder {
-    font-family: var(--family-name);
-    font-size: 14px !important;
-    letter-spacing: 0 !important;  
-  }
-  .search::-moz-placeholder {
+  .input-search::-webkit-input-placeholder,
+  .input-search:-ms-input-placeholder,
+  .input-search:-moz-placeholder,
+  .input-search::-moz-placeholder {
     font-family: var(--family-name);
     font-size: 14px !important;
     letter-spacing: 0 !important;  
