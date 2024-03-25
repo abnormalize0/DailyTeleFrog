@@ -1,8 +1,8 @@
-'''
+"""
 Этот файл служит для хранения логики выполнения запросов, не связанной с изменениями в базах данных.
-Также в этом файле производится постобработка выполненых запросов к базам данных.
+Также в этом файле производится постобработка выполненных запросов к базам данных.
 Постобработка включает в себя приведение типов данных к нужным.
-'''
+"""
 
 import json
 import os
@@ -12,25 +12,27 @@ from . import worker
 from .. import config
 from .. import request_status
 
+
 def check_password(password, user_id=None, email=None):
     status = None
     data = None
     if user_id:
         status, data = worker.get_entry_data(config.db_user.path,
-                                            config.user_table_name,
-                                            ['password'],
-                                            id_name=config.user_id_name,
-                                            id_value=user_id)
+                                             config.user_table_name,
+                                             ['password'],
+                                             id_name=config.user_id_name,
+                                             id_value=user_id)
     else:
         status, data = worker.get_entry_data(config.db_user.path,
-                                            config.user_table_name,
-                                            ['password'],
-                                            id_name='email',
-                                            id_value=email)
+                                             config.user_table_name,
+                                             ['password'],
+                                             id_name='email',
+                                             id_value=email)
     if status.is_error:
         return status, False
     stored_password = data['password']
     return status, password == stored_password
+
 
 def change_password(password, user_id):
     status = worker.update_entry(config.db_user.path,
@@ -41,6 +43,7 @@ def change_password(password, user_id):
                                  password)
     return status
 
+
 def get_unblocked_articles(user_id, include_nonsub, sort_column, sort_direction, include, exclude, bounds):
     status = None
     data = {}
@@ -48,10 +51,10 @@ def get_unblocked_articles(user_id, include_nonsub, sort_column, sort_direction,
         status = request_status.Status(request_status.StatusType.OK)
     else:
         status, data = worker.get_entry_data(config.db_user.path,
-                                            config.user_table_name,
-                                            ['blocked_tags', 'blocked_users', 'blocked_communities'],
-                                            id_name=config.user_id_name,
-                                            id_value=user_id)
+                                             config.user_table_name,
+                                             ['blocked_tags', 'blocked_users', 'blocked_communities'],
+                                             id_name=config.user_id_name,
+                                             id_value=user_id)
     if status.is_error:
         return status, None
 
@@ -86,7 +89,7 @@ def get_unblocked_articles(user_id, include_nonsub, sort_column, sort_direction,
     status, articles_id = worker.get_entry_data(config.db_article.path,
                                                 config.article_table_name,
                                                 [config.article_id_name],
-                                                include_nonsub = include_nonsub,
+                                                include_nonsub=include_nonsub,
                                                 include=include,
                                                 exclude=exclude_data,
                                                 bounds=bounds,
@@ -100,6 +103,7 @@ def get_unblocked_articles(user_id, include_nonsub, sort_column, sort_direction,
     if type(articles_id[config.article_id_name]) is not list:
         articles_id[config.article_id_name] = [articles_id[config.article_id_name]]
     return status, articles_id[config.article_id_name]
+
 
 def create_comment(article_id, user_id):
     comment = {'author_id': user_id,
@@ -117,6 +121,7 @@ def create_comment(article_id, user_id):
         return status, None, None
     return status, comment_id, comment['creation_date']
 
+
 def append_answer_to_comment(root, comment, root_id):
     for index, child_root in enumerate(root['answers']):
         if child_root['id'] == root_id:
@@ -126,6 +131,7 @@ def append_answer_to_comment(root, comment, root_id):
         if is_changed:
             return True, changed_coments
     return False, None
+
 
 def add_comment(article_id, root_id, comment_text, user_id):
     status, comment_id, creation_date = create_comment(article_id, user_id)
@@ -155,6 +161,7 @@ def add_comment(article_id, root_id, comment_text, user_id):
 
     return status, comment_id
 
+
 def find_comment(root_comment, vote_count, vote_type, id):
     if root_comment['id'] == int(id):
         root_comment[vote_type] = vote_count
@@ -165,6 +172,7 @@ def find_comment(root_comment, vote_count, vote_type, id):
             root_comment['answers'][index] = changed_comments
             return True, root_comment
     return False, None
+
 
 def set_vote_on_comment(file_name, id, vote_count, vote_type):
     article = None
@@ -178,6 +186,7 @@ def set_vote_on_comment(file_name, id, vote_count, vote_type):
     with open(file_name, 'w', encoding="utf-8") as file:
         json.dump(article, file, ensure_ascii=False, indent=4)
 
+
 def set_vote_on_article(id, vote_count, vote_type):
     article = None
     with open(os.path.join(config.db_article_directory.path, f'{id}.json'), encoding="utf-8") as file:
@@ -185,6 +194,7 @@ def set_vote_on_article(id, vote_count, vote_type):
     article[vote_type] = vote_count
     with open(os.path.join(config.db_article_directory.path, f'{id}.json'), 'w', encoding="utf-8") as file:
         json.dump(article, file, ensure_ascii=False, indent=4)
+
 
 def vote(db, table_name, id_name, id, user_id, vote_type):
     status, data = worker.get_entry_data(db,
@@ -320,17 +330,20 @@ def vote(db, table_name, id_name, id, user_id, vote_type):
 
     return status
 
+
 def post_article_to_db(article):
     status, article_id = worker.add_entry(config.db_article.path,
                                           config.article_table_name,
                                           article)
     return status, article_id
 
+
 def add_user(info):
     status, user_id = worker.add_entry(config.db_user.path,
                                        config.user_table_name,
                                        info)
     return status, user_id
+
 
 def user_update_info(field_name, field_value, user_id):
     status = worker.update_entry(config.db_user.path,
@@ -341,6 +354,7 @@ def user_update_info(field_name, field_value, user_id):
                                  field_value)
     return status
 
+
 def article_get_data(article_id, requested_data):
     status, data = worker.get_entry_data(config.db_article.path,
                                          config.article_table_name,
@@ -348,6 +362,7 @@ def article_get_data(article_id, requested_data):
                                          config.article_id_name,
                                          article_id)
     return status, data
+
 
 def user_get_data(user_id, requested_data):
     status, data = worker.get_entry_data(config.db_user.path,

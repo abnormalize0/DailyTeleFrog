@@ -14,6 +14,7 @@ from datetime import datetime
 from src.api import api
 from src import config
 
+
 def backup():
     if not os.path.exists(config.backup_directory.path):
         os.mkdir(config.backup_directory.path)
@@ -29,8 +30,9 @@ def backup():
         shutil.copytree(config.log_directory.path, tmp_dir, dirs_exist_ok=True)
 
     if os.path.exists(tmp_dir):
-        shutil.make_archive(tmp_dir, 'zip', root_dir=tmp_dir,)
+        shutil.make_archive(tmp_dir, 'zip', root_dir=tmp_dir, )
         shutil.rmtree(tmp_dir)
+
 
 def standart_configuration(log_name):
     logger = logging.getLogger(log_name)
@@ -40,11 +42,13 @@ def standart_configuration(log_name):
     handler.setFormatter(formatter)
     logger.addHandler(handler)
 
+
 def set_up_loggers():
     if not os.path.exists(config.log_directory.path):
         os.mkdir(config.log_directory.path)
     standart_configuration(config.log_server_api.path)
     standart_configuration(config.log_db_api.path)
+
 
 def init_users():
     shutil.rmtree(config.db_user_directory.path, ignore_errors=True)
@@ -70,6 +74,7 @@ def init_users():
     connection.commit()
     connection.close()
 
+
 def init_articles():
     shutil.rmtree(config.db_article_directory.path, ignore_errors=True)
     os.makedirs(config.db_article_directory.path)
@@ -93,6 +98,7 @@ def init_articles():
     connection.commit()
     connection.close()
 
+
 def init_comments():
     shutil.rmtree(config.db_comment_directory.path, ignore_errors=True)
     os.makedirs(config.db_comment_directory.path)
@@ -110,6 +116,70 @@ def init_comments():
                     author_id INTEGER NOT NULL)''')
     connection.commit()
     connection.close()
+
+
+def init_article_views():
+    shutil.rmtree(config.db_article_directory.path, ignore_errors=True)
+    os.makedirs(config.db_article_directory.path)
+    connection = sqlite3.connect(config.db_article.path)
+    cursor = connection.cursor()
+    # в таске не было поля date, но подумал что в ближайшем будущем оно понадобится для смежных задач
+    cursor.execute(f'''
+                    CREATE TABLE {config.article_views_table_name} (
+                    {config.user_id_name} INTEGER PRIMARY KEY,
+                    article_id INTEGER NOT NULL,
+                    date DATETIME 
+                    )
+                    ''')
+    connection.commit()
+    connection.close()
+
+
+# вариант с контекстным менеджером. Противоречит общему стилю, но короче
+# def init_article_views():
+#     shutil.rmtree(config.db_article_directory.path, ignore_errors=True)
+#     os.makedirs(config.db_article_directory.path)
+#     with sqlite3.connect(config.db_article.path) as conn:
+#         cursor = conn.cursor()
+#         cursor.execute(f'''
+#                         CREATE TABLE {config.article_views_table_name} (
+#                         {config.user_id_name} INTEGER PRIMARY KEY,
+#                         article_id INTEGER NOT NULL,
+#                         date DATETIME
+#                         )
+#                         ''')
+
+def init_article_open():
+    shutil.rmtree(config.db_article_directory.path, ignore_errors=True)
+    os.makedirs(config.db_article_directory.path)
+    connection = sqlite3.connect(config.db_article.path)
+    cursor = connection.cursor()
+    # та же история с date
+    cursor.execute(f'''
+                    CREATE TABLE {config.article_open_table_name} (
+                    {config.user_id_name} INTEGER PRIMARY KEY,
+                    article_id INTEGER NOT NULL,
+                    date DATETIME 
+                    )
+                    ''')
+    connection.commit()
+    connection.close()
+
+
+# та же история с контекстным
+# def init_article_views():
+#     shutil.rmtree(config.db_article_directory.path, ignore_errors=True)
+#     os.makedirs(config.db_article_directory.path)
+#     with sqlite3.connect(config.db_article.path) as conn:
+#         cursor = conn.cursor()
+#         cursor.execute(f'''
+#                         CREATE TABLE {config.article_open_table_name} (
+#                         {config.user_id_name} INTEGER PRIMARY KEY,
+#                         article_id INTEGER NOT NULL,
+#                         date DATETIME
+#                         )
+#                         ''')
+
 
 # RawTextHelpFormatter support multistring comments
 parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
@@ -139,6 +209,8 @@ if flags['init']:
     init_users()
     init_articles()
     init_comments()
+    init_article_views()
+    init_article_open()
 else:
     if flags['init_users']:
         backup()
