@@ -9,9 +9,21 @@
   letter-spacing: 0 !important;
 }
 
+.p1 {
+  font-family: var(--family-name) !important;
+  font-size: 18px !important;
+  letter-spacing: 0 !important;
+}
+
 .p2 {
   font-family: var(--family-name) !important;
   font-size: 14px !important;
+  letter-spacing: 0 !important;
+}
+
+.p3 {
+  font-family: var(--family-name) !important;
+  font-size: 12px !important;
   letter-spacing: 0 !important;
 }
 
@@ -19,4 +31,10 @@
   font-family: var(--family-name) !important;
   font-size: 10px !important;
   letter-spacing: 0 !important;
+}
+
+.h2 {
+  font-family: var(--family-name) !important;
+  font-size: 23px;
+  letter-spacing: 0em;
 }
