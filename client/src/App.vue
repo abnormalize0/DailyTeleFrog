@@ -12,15 +12,18 @@
 <script>
   import HeaderComponent from "@/components/common/HeaderComponent.vue";
   
-  import MainPost from "./components/post/MainPost/MainPost.vue";
-  const hashtags = ["bebra", "booba", "chipi"]; 
-  const avatarImg = "https://cdn4.iconfinder.com/data/icons/expressive-emoticons/64/down_reverse_smile_fake_smile_hate_upside_down_emoji_expression_face_emoticon_smile_happy_fun_big_smile_cheerful_cute_joy_laugh_happiness-512.png";
-  const placeholder = "https://media.istockphoto.com/id/1147544807/vector/thumbnail-image-vector-graphic.jpg?s=612x612&w=0&k=20&c=rnCKVbdxqkjlcs3xH87-9gocETqpspHFXu5dIGB4wuM="
+  import MainPost from "@/components/feed/post/MainPost.vue";
   export default {
     name: "MVP",
     components: {
-      HeaderComponent
-    }
+      HeaderComponent,
+      MainPost
+    },
+    data: () => ({
+      hashtags: ["bebra", "booba", "chipi"],
+      avatarImg: "https://cdn4.iconfinder.com/data/icons/expressive-emoticons/64/down_reverse_smile_fake_smile_hate_upside_down_emoji_expression_face_emoticon_smile_happy_fun_big_smile_cheerful_cute_joy_laugh_happiness-512.png",
+      placeholder: "https://media.istockphoto.com/id/1147544807/vector/thumbnail-image-vector-graphic.jpg?s=612x612&w=0&k=20&c=rnCKVbdxqkjlcs3xH87-9gocETqpspHFXu5dIGB4wuM="
+    })
     
   }
 </script>

@@ -7,7 +7,7 @@
     <div class="list">
       <div id="feed">
         <div v-for="post in posts" :key="post.article_id" >
-          <PostPreview :post="post" />
+          
         </div>
       </div>
     </div>
@@ -15,7 +15,7 @@
 </template>
 
 <script>
-  import PostPreview from '../components/feed/PostPreview.vue';
+ 
 
   export default {
     data() {
@@ -92,7 +92,6 @@
       window.removeEventListener('scroll', this.handleScroll);
     },
     components: {
-      PostPreview
     }
   };
   
