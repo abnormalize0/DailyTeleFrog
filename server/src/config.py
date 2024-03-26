@@ -1,8 +1,9 @@
 '''
-Этот файл служит для хранения кофигурации сервера. Например, путей к базам данных.
+Этот файл служит для хранения конфигурации сервера. Например, путей к базам данных.
 '''
 
 import os
+
 
 class DynamicPath():
     def __init__(self, *args):
@@ -11,6 +12,7 @@ class DynamicPath():
     @property
     def path(self):
         return os.path.join(os.getcwd(), *self.endpont)
+
 
 current_directory = os.getcwd()
 backup_directory = DynamicPath('backup')
@@ -21,6 +23,10 @@ db_article_directory = DynamicPath('db', 'articles')
 db_article = DynamicPath('db', 'articles', 'articles.db')
 db_comment_directory = DynamicPath('db', 'comments')
 db_comment = DynamicPath('db', 'comments', 'comments.db')
+db_article_views_directory = DynamicPath('db', 'article_views')
+db_article_views = DynamicPath('db', 'article_views', 'article_views.db')
+db_article_open_directory = DynamicPath('db', 'article_open')
+db_article_open = DynamicPath('db', 'article_open', 'article_views.db')
 
 log_directory = DynamicPath('log')
 log_server_api = DynamicPath('log', 'server_api.log')
@@ -37,3 +43,8 @@ article_table_name = 'articles'
 
 comment_id_name = 'comment_id'
 comment_table_name = 'comments'
+
+article_views_table_name = 'article_views'
+article_open_table_name = 'article_open'
+
+
