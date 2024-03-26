@@ -94,6 +94,7 @@ def init_articles():
                     preview_content JSON NOT NULL,
                     author_preview JSON NOT NULL,
                     author_id INTEGER NOT NULL,
+                    open_status BOOLEAN DEFAULT FALSE 
                     tags TEXT)''')
     connection.commit()
     connection.close()
@@ -119,9 +120,9 @@ def init_comments():
 
 
 def init_article_views():
-    shutil.rmtree(config.db_article_directory.path, ignore_errors=True)
-    os.makedirs(config.db_article_directory.path)
-    connection = sqlite3.connect(config.db_article.path)
+    shutil.rmtree(config.db_article_views_directory.path, ignore_errors=True)
+    os.makedirs(config.db_article_views_directory.path)
+    connection = sqlite3.connect(config.db_article_views.path)
     cursor = connection.cursor()
     # в таске не было поля date, но подумал что в ближайшем будущем оно понадобится для смежных задач
     cursor.execute(f'''
@@ -137,9 +138,9 @@ def init_article_views():
 
 # вариант с контекстным менеджером. Противоречит общему стилю, но короче
 # def init_article_views():
-#     shutil.rmtree(config.db_article_directory.path, ignore_errors=True)
-#     os.makedirs(config.db_article_directory.path)
-#     with sqlite3.connect(config.db_article.path) as conn:
+#       shutil.rmtree(config.db_article_views_directory.path, ignore_errors=True)
+#       os.makedirs(config.db_article_views_directory.path)
+#       with sqlite3.connect(config.db_article_views_directory.path) as conn:
 #         cursor = conn.cursor()
 #         cursor.execute(f'''
 #                         CREATE TABLE {config.article_views_table_name} (
@@ -150,9 +151,9 @@ def init_article_views():
 #                         ''')
 
 def init_article_open():
-    shutil.rmtree(config.db_article_directory.path, ignore_errors=True)
-    os.makedirs(config.db_article_directory.path)
-    connection = sqlite3.connect(config.db_article.path)
+    shutil.rmtree(config.db_article_open_directory.path, ignore_errors=True)
+    os.makedirs(config.db_article_open_directory.path)
+    connection = sqlite3.connect(config.db_article_open.path)
     cursor = connection.cursor()
     # та же история с date
     cursor.execute(f'''
@@ -168,11 +169,11 @@ def init_article_open():
 
 # та же история с контекстным
 # def init_article_views():
-#     shutil.rmtree(config.db_article_directory.path, ignore_errors=True)
-#     os.makedirs(config.db_article_directory.path)
-#     with sqlite3.connect(config.db_article.path) as conn:
-#         cursor = conn.cursor()
-#         cursor.execute(f'''
+#         shutil.rmtree(config.db_article_open_directory.path, ignore_errors=True)
+#         os.makedirs(config.db_article_open_directory.path)
+#         with sqlite3.connect(config.db_article_open.path) as conn:
+#           cursor = conn.cursor()
+#           cursor.execute(f'''
 #                         CREATE TABLE {config.article_open_table_name} (
 #                         {config.user_id_name} INTEGER PRIMARY KEY,
 #                         article_id INTEGER NOT NULL,

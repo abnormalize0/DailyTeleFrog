@@ -3,9 +3,10 @@
 Также в этом файле производится постобработка выполненных запросов к базам данных.
 Постобработка включает в себя приведение типов данных к нужным.
 """
-
+from datetime import datetime
 import json
 import os
+import sqlite3
 import time
 
 from . import worker
@@ -355,12 +356,33 @@ def user_update_info(field_name, field_value, user_id):
     return status
 
 
-def article_get_data(article_id, requested_data):
+def article_get_data(article_id, requested_data, user_id):
     status, data = worker.get_entry_data(config.db_article.path,
                                          config.article_table_name,
                                          requested_data,
                                          config.article_id_name,
                                          article_id)
+
+    with sqlite3.connect(config.db_article_open.path) as conn:
+        cursor = conn.cursor()
+        # запрос к БД для получения статуса статьи
+        cursor.execute(f'SELECT open_status FROM {config.article_table_name} WHERE article_id = ?',
+                       (article_id,))
+        check_status = cursor.fetchone()
+
+        if not check_status[1]:
+            cursor.execute(
+                f'UPDATE {config.article_table_name} SET open_status = TRUE WHERE article_id = ?',
+                (article_id,))
+
+        # запрос к БД с открытыми статьями для получения авторизованного юзера
+        cursor.execute(f'SELECT user_id FROM {config.article_open_table_name} WHERE user_id = ?', (user_id,))
+        existing_user = cursor.fetchone()
+
+        if not existing_user:
+            cursor.execute(f'INSERT INTO {config.article_open_table_name} (user_id, article_id, date) VALUES (?, ?, ?)',
+                           (user_id, article_id, datetime.now()))
+
     return status, data
 
 
