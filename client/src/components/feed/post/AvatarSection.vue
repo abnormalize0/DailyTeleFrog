@@ -54,53 +54,105 @@
           <div>{{ commentsNumber }}</div>
         </div>
         <div class="justifyCenter">
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 16 16"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              d="M4.66666 6.66667L7.99999 10"
-              stroke="#DDE5F7"
-              stroke-width="1.5"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-            <path
-              d="M8 10L11.3333 6.66667"
-              stroke="#DDE5F7"
-              stroke-width="1.5"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-          </svg>
+          <div class="dislikeCountParent">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 16 16"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              class="dislikeCountInactive"
+            >
+              <path
+                d="M4.66666 6.66667L7.99999 10"
+                stroke="#DDE5F7"
+                stroke-width="1.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+              <path
+                d="M8 10L11.3333 6.66667"
+                stroke="#DDE5F7"
+                stroke-width="1.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 16 16"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              class="dislikeCountActive"
+            >
+              <path
+                d="M4.66666 6.66667L7.99999 10"
+                stroke="#C90C00"
+                stroke-width="1.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+              <path
+                d="M8 10L11.3333 6.66667"
+                stroke="#C90C00"
+                stroke-width="1.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </div>
           <div>
             {{ likesCount }}
           </div>
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 16 16"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              d="M11.3333 9.33333L8.00001 6"
-              stroke="#DDE5F7"
-              stroke-width="1.5"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-            <path
-              d="M8 6L4.66667 9.33333"
-              stroke="#DDE5F7"
-              stroke-width="1.5"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-          </svg>
+          <div class="likeCountParent">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 16 16"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              class="likeCountInactive"
+            >
+              <path
+                d="M11.3333 9.33333L8.00001 6"
+                stroke="#DDE5F7"
+                stroke-width="1.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+              <path
+                d="M8 6L4.66667 9.33333"
+                stroke="#DDE5F7"
+                stroke-width="1.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 16 16"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              class="likeCountActive"
+            >
+              <path
+                d="M11.3333 9.33333L8.00001 6"
+                stroke="#1CC900"
+                stroke-width="1.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+              <path
+                d="M8 6L4.66667 9.33333"
+                stroke="#1CC900"
+                stroke-width="1.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </div>
         </div>
       </div>
     </div>
@@ -189,6 +241,30 @@ export default {
   justify-content: center;
   align-items: center;
   gap: 5px;
+}
+
+.dislikeCountActive {
+  display: none;
+}
+
+.dislikeCountParent:hover > .dislikeCountInactive {
+  display: none;
+}
+
+.dislikeCountParent:hover > .dislikeCountActive {
+  display: block;
+}
+
+.likeCountActive {
+  display: none;
+}
+
+.likeCountParent:hover > .likeCountInactive {
+  display: none;
+}
+
+.likeCountParent:hover > .likeCountActive {
+  display: block;
 }
 
 img {
