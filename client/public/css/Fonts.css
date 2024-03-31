@@ -36,5 +36,5 @@
 .h2 {
   font-family: var(--family-name) !important;
   font-size: 23px;
-  letter-spacing: 0em;
+  letter-spacing: 0 !important;
 }
