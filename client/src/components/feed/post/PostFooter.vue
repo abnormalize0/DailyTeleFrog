@@ -10,6 +10,11 @@
         :accountTag="profileTag"
         :profileName="profileName"
         :avatarImg="avatarImgSrc"
+        :commentsNumber="commentsNumber"
+        :likesCount="likesCount"
+        :clickCount="clickCount"
+        :watchCount="watchCount"
+        :spotlightCount="spotlightCount"
       ></avatar-section>
     </div>
   </section>
@@ -28,6 +33,11 @@ export default {
     avatarImgSrc: String,
     profileName: String,
     profileTag: String,
+    commentsNumber: Number,
+    likesCount: Number,
+    clickCount: Number,
+    watchCount: Number,
+    spotlightCount: Number
   },
   data() {
     return {};

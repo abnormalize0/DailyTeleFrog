@@ -18,6 +18,11 @@
       :profileName="profileName"
       :avatarImgSrc="avatarImg"
       :hashtags="hashtags"
+      :commentsNumber="commentsNumber"
+      :likesCount="likesCount"
+      :clickCount="clickCount"
+      :watchCount="watchCount"
+      :spotlightCount="spotlightCount"
     ></post-footer>
   </section>
 </template>
@@ -67,6 +72,11 @@ export default {
     avatarImg: String,
     profileName: String,
     accountTag: String,
+    commentsNumber: Number,
+    likesCount: Number,
+    clickCount: Number,
+    watchCount: Number,
+    spotlightCount: Number
   },
   data() {
     return {};
