@@ -1,7 +1,53 @@
+/* SPECIFIC */
 .search-text-secondary-color-icon {
   background: url('../icons/search-text-secondary-color.svg');
+}
+
+.bookmark-text-color-icon {
+  background: url('../icons/bookmark-text-color.svg');
+}
+
+.comment-text-color {
+  background: url('../icons/comment-text-color.svg');
+}
+
+.arrow-down-text-color {
+  background: url('../icons/arrow-down-text-color.svg');
+}
+
+.arrow-down-text-color:hover {
+  background: url('../icons/arrow-down-text-color-hover.svg');
+}
+
+.arrow-up-text-color {
+  background: url('../icons/arrow-up-text-color.svg');
+}
+
+.arrow-up-text-color:hover {
+  background: url('../icons/arrow-down-text-color-hover.svg');
+}
+
+/* SIZE */
+.search-text-secondary-color-icon {
   height: 24px;
   width: 24px;
+}
+
+.bookmark-text-color-icon,
+.comment-text-color,
+.arrow-down-text-color,
+.arrow-up-text-color {
+  height: 16px;
+  width: 16px;
+}
+
+/* COMMON */
+
+.search-text-secondary-color-icon,
+.bookmark-text-color-icon,
+.comment-text-color,
+.arrow-down-text-color,
+.arrow-up-text-color {
   display: block;
   cursor: pointer;
 }
