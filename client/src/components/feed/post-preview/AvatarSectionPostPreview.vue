@@ -74,7 +74,7 @@
 
 <script>
 export default {
-  name: "avatar-section",
+  name: "AvatarSectionPostPreview",
   components: {},
   props: {
     avatarImg: String,

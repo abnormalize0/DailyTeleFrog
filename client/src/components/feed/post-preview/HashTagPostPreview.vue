@@ -18,7 +18,7 @@
 
 <script>
 export default {
-  name: "post-hashtag",
+  name: "HashTagPostPreview",
   props: {
     content: String,
   },
