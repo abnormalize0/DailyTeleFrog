@@ -3,35 +3,24 @@
     <p class="p4">#{{ content }}</p>
   </section>
 </template>
+
+<style scoped>
+  .post-hashtag {
+    height: 24px;
+    border-radius: 900px;
+    padding: 6px 10px;
+  }
+
+  .post-hashtag:hover {
+    cursor: pointer;
+  }
+</style>
+
 <script>
 export default {
   name: "post-hashtag",
-  components: {},
   props: {
     content: String,
   },
-  data() {
-    return {};
-  },
-  computed: {},
-  mounted() {},
-  methods: {},
 };
 </script>
-<style scoped>
-.post-hashtag {
-  height: 28px;
-  border-radius: 15px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.p4 {
-  padding: 8px;
-}
-
-.post-hashtag:hover {
-  cursor: pointer;
-}
-</style>

@@ -1,7 +1,3 @@
-<style>
-  @import '../../public/css/PreviewStyle.css';
-</style>
-
 <template id="post_template">
   <section class="posts-list">
     <div class="list">

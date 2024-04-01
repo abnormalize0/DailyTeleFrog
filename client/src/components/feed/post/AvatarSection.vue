@@ -1,40 +1,37 @@
 <template>
   <section class="avatar-section">
-    <div class="leftBlock">
+    <div class="left-block">
       <img :src="avatarImg" />
       <div>
-        <div class="justifyLeft p1">
+        <div class="d-flex justify-start p1 text-color">
           {{ profileName }}
         </div>
-        <div class="justifyLeft p4">
-          <p>{{ accountTag }}</p>
+        <div class="d-flex justify-start additional-info">
+          <div class="p4 text-secondary-color">{{ accountTag }}</div>
+          <div class="p4 text-secondary-color">{{ registrationDate }}</div>
         </div>
       </div>
     </div>
-    <div>
-      <div class="p4 justifyRight rightBlockHeader">
-        <div>{{ displayClickString }} открытий</div>
-        <div>{{ displayWatchString }} просмотров</div>
+    <div class="justify-space-between">
+      <div class="d-flex justify-end additional-info rightBlockHeader">
+        <div class="p4 text-color">{{ displayClickString }} открытий</div>
+        <div class="p4 text-color">{{ displayWatchString }} просмотров</div>
       </div>
-      <div class="rightBlockFooter p2">
-        <div class="justifyCenter">
+      <div class="d-flex justify-end additional-info">
+        <div class="d-flex align-center icon-prepend-button">
           <i class="bookmark-text-color-icon"></i>
-          <div>{{ spotlightCount }}</div>
+          <div class="p3 text-color">{{ spotlightCount }}</div>
         </div>
-        <div class="justifyCenter">
-          <i class="comment-text-color"></i>
-          <div>{{ commentsNumber }}</div>
+        <div class="d-flex align-center icon-prepend-button">
+          <i class="comment-text-color-icon"></i>
+          <div class="p3 text-color">{{ commentsNumber }}</div>
         </div>
-        <div class="justifyCenter">
-          <div>
-            <i class="arrow-down-text-color"></i>
-          </div>
-          <div>
+        <div class="d-flex align-center rating">
+          <i class="arrow-down-text-color-icon"></i>
+          <div class="p3 text-color">
             {{ likesCount }}
           </div>
-          <div>
-            <i class="arrow-up-text-color"></i>
-          </div>
+          <i class="arrow-up-text-color-icon"></i>
         </div>
       </div>
     </div>
@@ -43,49 +40,35 @@
 
 <style scoped>
   .avatar-section {
-    padding-left: 1rem;
-    padding-right: 1rem;
+    padding: 0px 26px 15px;
     display: flex;
     align-items: center;
     justify-content: space-between;
   }
 
-  .rightBlockHeader {
-    width: 100%;
-  }
-
-  .leftBlock {
+  .left-block {
     display: flex;
-    gap: 5px;
+    gap: 15px;
     align-items: center;
   }
 
-  .justifyRight {
-    display: flex;
-    justify-content: right;
-    gap: 2rem;
+  .additional-info {
+    gap: 10px;
   }
 
-  .rightBlockFooter {
-    display: flex;
-    gap: 3rem;
-    align-items: center;
+  .icon-prepend-button {
+    padding: 2px 12px;
+    gap: 8px;
   }
 
-  .justifyLeft {
-    display: flex;
-    justify-content: left;
-  }
-
-  .justifyCenter {
-    display: flex;
-    justify-content: center;
-    align-items: center;
+  .rating {
+    padding: 2px 6px;
     gap: 5px;
   }
 
   img {
-    height: 60px;
+    height: 45px;
+    width: 45px;
   }
 </style>
 
@@ -97,6 +80,7 @@ export default {
     avatarImg: String,
     profileName: String,
     accountTag: String,
+    registrationDate: String,
     commentsNumber: Number,
     likesCount: Number,
     clickCount: Number,

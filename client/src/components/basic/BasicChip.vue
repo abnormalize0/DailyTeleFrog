@@ -5,13 +5,13 @@
 </template>
 
 <script>
-  export default {
-    name: "BasicChip",
-    props: {
-      content: {
-        type: String,
-        default: "",
-      }
+export default {
+  name: "BasicChip",
+  props: {
+    content: {
+      type: String,
+      default: "",
     }
   }
+}
 </script>

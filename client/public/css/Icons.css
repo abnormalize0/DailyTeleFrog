@@ -7,36 +7,41 @@
   background: url('../icons/bookmark-text-color.svg');
 }
 
-.comment-text-color {
+.comment-text-color-icon {
   background: url('../icons/comment-text-color.svg');
 }
 
-.arrow-down-text-color {
+.arrow-down-text-color-icon {
   background: url('../icons/arrow-down-text-color.svg');
 }
 
-.arrow-down-text-color:hover {
+.arrow-down-text-color-icon:hover {
   background: url('../icons/arrow-down-text-color-hover.svg');
 }
 
-.arrow-up-text-color {
+.arrow-up-text-color-icon {
   background: url('../icons/arrow-up-text-color.svg');
 }
 
-.arrow-up-text-color:hover {
-  background: url('../icons/arrow-down-text-color-hover.svg');
+.arrow-up-text-color-icon:hover {
+  background: url('../icons/arrow-up-text-color-hover.svg');
+}
+
+.menu-kebab-text-color-icon {
+  background: url('../icons/menu-kebab-text-color.svg');
 }
 
 /* SIZE */
-.search-text-secondary-color-icon {
+.search-text-secondary-color-icon,
+.menu-kebab-text-color-icon {
   height: 24px;
   width: 24px;
 }
 
 .bookmark-text-color-icon,
-.comment-text-color,
-.arrow-down-text-color,
-.arrow-up-text-color {
+.comment-text-color-icon,
+.arrow-down-text-color-icon,
+.arrow-up-text-color-icon {
   height: 16px;
   width: 16px;
 }
@@ -45,9 +50,10 @@
 
 .search-text-secondary-color-icon,
 .bookmark-text-color-icon,
-.comment-text-color,
-.arrow-down-text-color,
-.arrow-up-text-color {
+.comment-text-color-icon,
+.arrow-down-text-color-icon,
+.arrow-up-text-color-icon,
+.menu-kebab-text-color-icon {
   display: block;
   cursor: pointer;
 }

@@ -1,7 +1,8 @@
 <template>
   <v-app class="background-main-color">
     <HeaderComponent />
-    <MainPost
+    <div class="d-flex justify-center">
+      <MainPost
       watchCount="42323"
       clickCount="1000000"
       spotlightCount="49"
@@ -10,11 +11,15 @@
       accountTag="@Nintendo"
       profileName="Tsugi"
       :avatarImg="avatarImg"
-      :img="placeholder"
+      :img="require(`./assets/img-placeholder.png`)"
       :hashtags="hashtags"
-      header="Lorem ipsum"
-      body="Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
+      header='Ответ на пост "А вот это интересная точка зрения"'
+      body="Сама по себе религия - это хорошо. По идее, во всех священных писаниях просто начертались условия выживания. Знаете, зачем нужен вот этот сорокадневный пост? Да чтобы вы последнюю скотину перед летом не сожрали. Сожрете скотину - будет голодный год, Бог вас так карает.
+      А знаете, почему беспорядочный секс - это грех? Да потому что не знал никто раньше про сифилис и гонорею. Вот и думали, вот эти язвы - это их Бог наказывает.
+      Или вот дни без еды, да? По средам и пятницам. Про интервальное голодание они тоже что-то знали."
+      registrationDate="25 августа 2023 г"
     ></MainPost>
+    </div>
   </v-app>
 </template>
 

@@ -1,68 +1,64 @@
 <template>
-  <section class="post-item" style="color: white">
-    <div class="header-container">
-      <div>
-        <h2 class="h2">{{ header }}</h2>
-      </div>
+  <section class="post-item primary-rounded background-secondary-color" style="color: white">
+    <div class="d-flex justify-space-between header-container">
+      <p class="h2 text-color">{{ header }}</p>
+      <i class="menu-kebab-text-color-icon"></i>
     </div>
-    <div class="text-container">
-      <div>
-        <p class="post-content p3">{{ body }}</p>
-      </div>
+    <div class="d-flex text-container">
+      <p class="p3 text-color">{{ body }}</p>
     </div>
     <div class="d-flex justify-center">
       <img :src="img" />
     </div>
-    <post-footer
-      :profileTag="accountTag"
+    <div class="hashtag-footer d-flex">
+      <div v-for="hashtag in hashtags" :key="hashtag">
+        <post-hashtag :content="hashtag"></post-hashtag>
+      </div>
+    </div>
+    <avatar-section
+      :accountTag="accountTag"
       :profileName="profileName"
-      :avatarImgSrc="avatarImg"
-      :hashtags="hashtags"
+      :avatarImg="avatarImg"
       :commentsNumber="commentsNumber"
       :likesCount="likesCount"
       :clickCount="clickCount"
       :watchCount="watchCount"
+      :registrationDate="registrationDate"
       :spotlightCount="spotlightCount"
-    ></post-footer>
+    ></avatar-section>
   </section>
 </template>
+
 <style scoped>
-.post-item {
-  width: 37rem;
-  height: 31rem;
-  border-radius: 2rem;
-}
+  .post-item {
+    width: 558px;
+    height: auto;
+  }
 
-.text-container {
-  display: flex;
-  padding: 1rem;
-  height: 30%;
-  padding-top: 0;
-  justify-content: left;
-  text-align: left;
-}
+  .header-container {
+    padding: 20px 26px 10px 26px;
+    justify-content: left;
+  }  
 
-p {
-  padding: 0;
-  font-size: smaller;
-}
+  .text-container {
+    padding: 0px 26px 10px;
+  }
 
-.header-container {
-  padding: 1rem;
-  display: flex;
-  justify-content: left;
-}
-
-img {
-  height: 10rem;
-}
+  .hashtag-footer {
+    padding: 10px 26px;
+    gap: 10px;
+  }  
 </style>
+
 <script>
-import PostFooter from "./PostFooter.vue";
+import PostHashtag from "@/components/feed/post/PostHashtag.vue";
+import AvatarSection from "@/components/feed/post/AvatarSection.vue";
+
 export default {
   name: "MainPost",
   components: {
-    PostFooter,
+    PostHashtag,
+    AvatarSection
   },
   props: {
     header: String,
@@ -76,13 +72,8 @@ export default {
     likesCount: Number,
     clickCount: Number,
     watchCount: Number,
-    spotlightCount: Number
+    spotlightCount: Number,
+    registrationDate: String
   },
-  data() {
-    return {};
-  },
-  computed: {},
-  mounted() {},
-  methods: {},
 };
 </script>
