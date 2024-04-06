@@ -6,6 +6,8 @@
 
 <style scoped>
   .post-hashtag {
+    display: flex;
+    align-items: center;
     height: 24px;
     border-radius: 900px;
     padding: 6px 10px;
