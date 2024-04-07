@@ -36,7 +36,7 @@
   }
 
   .header-container {
-    padding: 20px 26px 10px 26px;
+    padding: 15px 26px 10px 26px;
     justify-content: left;
   }  
 

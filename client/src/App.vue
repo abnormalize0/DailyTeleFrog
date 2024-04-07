@@ -30,7 +30,7 @@ export default {
       likesCount: "-40",
       accountTag: "@Nintendo",
       profileName: "Tsugi",
-      avatarImg: "https://cdn4.iconfinder.com/data/icons/expressive-emoticons/64/down_reverse_smile_fake_smile_hate_upside_down_emoji_expression_face_emoticon_smile_happy_fun_big_smile_cheerful_cute_joy_laugh_happiness-512.png",
+      avatarImg: "../../../assets/Avatar.png",
       img: "../../../assets/img-placeholder.png",
       hashtags: ["bebra", "booba", "chipi"],
       header: 'Ответ на пост "А вот это интересная точка зрения"',
