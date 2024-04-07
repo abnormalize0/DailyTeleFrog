@@ -2,6 +2,7 @@
   <section class="avatar-section">
     <div class="left-block">
       <img src="../../../assets/Avatar.png" />
+      <img class="community" src="../../../assets/Community.png"/>
       <div style="margin-top: 13px;">
         <div class="d-flex justify-start p1 text-color">
           {{ profileName }}
@@ -50,6 +51,14 @@
     display: flex;
     gap: 15px;
     align-items: center;
+  }
+
+  .community {
+    height: 22px;
+    width: 22px;
+    position: absolute;
+    margin-top: 27px;
+    margin-left: 29px;
   }
 
   .additional-info {
