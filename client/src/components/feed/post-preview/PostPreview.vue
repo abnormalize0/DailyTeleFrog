@@ -2,7 +2,7 @@
   <section class="post-item primary-rounded background-secondary-color" style="color: white">
     <div class="d-flex justify-space-between header-container">
       <p class="h2 text-color">{{ post.header }}</p>
-      <div>
+      <div style="margin-left: 15px;">
         <i class="menu-kebab-text-color-icon"></i>
       </div>
     </div>
