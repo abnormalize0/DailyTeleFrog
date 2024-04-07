@@ -12,7 +12,7 @@
         </div>
       </div>
     </div>
-    <div class="justify-space-between">
+    <div>
       <div class="d-flex justify-end additional-info rightBlockHeader">
         <div class="p4 text-color">{{ displayClickString }} открытий</div>
         <div class="p4 text-color">{{ displayWatchString }} просмотров</div>
