@@ -10,7 +10,7 @@
 
 <style scoped>
   .search-bar {
-    width: 600px;
+    width: 558px;
     height: 44px;
     padding: 10px 30px;
     background-color: transparent;
@@ -40,16 +40,7 @@
 </style>
 
 <script>
-  export default {
-    name: "SearchBar",
-    data () {
-      return {
-        text: '',
-      }
-    },
-    methods: {
-      appendIconCallback () {},
-      prependIconCallback () {},
-    },
-  }
+export default {
+  name: "SearchBar",
+}
 </script>

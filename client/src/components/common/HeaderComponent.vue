@@ -21,8 +21,8 @@
 </style>
 
 <script>
-import BasicPrimaryButton from '../basic/BasicPrimaryButton.vue';
-import SearchBar from '../basic/SearchBar.vue';
+import BasicPrimaryButton from "@/components/basic/BasicPrimaryButton.vue";
+import SearchBar from "@/components/basic/SearchBar.vue";
 
 export default {
   name: "HeaderComponent",

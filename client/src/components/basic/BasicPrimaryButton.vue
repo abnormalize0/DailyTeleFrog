@@ -8,13 +8,13 @@
 </template>
 
 <script>
-  export default {
-    name: "BasicPrimaryButton",
-    props: {
-      content: {
-        type: String,
-        default: "",
-      }
+export default {
+  name: "BasicPrimaryButton",
+  props: {
+    content: {
+      type: String,
+      default: "",
     }
   }
+}
 </script>
