@@ -2,7 +2,7 @@
   <section class="avatar-section">
     <div class="left-block">
       <img src="../../../assets/Avatar.png" />
-      <div>
+      <div style="margin-top: 13px;">
         <div class="d-flex justify-start p1 text-color">
           {{ profileName }}
         </div>
