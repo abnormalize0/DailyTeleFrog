@@ -1,7 +1,7 @@
 <template>
   <section class="avatar-section">
     <div class="left-block">
-      <img :src="avatarImg" />
+      <img src="../../../assets/Avatar.png" />
       <div>
         <div class="d-flex justify-start p1 text-color">
           {{ profileName }}
@@ -56,6 +56,9 @@
     gap: 10px;
   }
 
+  .rightBlockHeader {
+    margin-bottom: 13px;
+  }
   .icon-prepend-button {
     padding: 2px 12px;
     gap: 8px;
