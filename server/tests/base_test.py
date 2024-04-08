@@ -37,15 +37,17 @@ class BaseTest(unittest.TestCase):
         return
 
     def add_user(self, **kwargs):
-        name = f'tester_{self.user_count}'
+        username = f'tester_username_{self.user_count}'
+        nickname = f'tester_nickname_{self.user_count}'
         password = 'qwerty'
         email = f'test_{self.user_count}@test.test'
-        answer = requests.post(self.localhost+'/users', json={'name': name,
+        answer = requests.post(self.localhost+'/users', json={'username': username,
+                                                              'nickname': nickname,
                                                               'password': password,
                                                               'email': email})
         self.assertEqual(answer.json()['status']['type'], 'OK', msg=answer.json()['status'])
         self.user_count += 1
-        return (self.user_count, password, name, email)
+        return (username, password, nickname, email)
 
     def add_arcticle(self, **kwargs):
         article = {'name': 'test_name',

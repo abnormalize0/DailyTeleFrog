@@ -37,3 +37,5 @@ article_table_name = 'articles'
 
 comment_id_name = 'comment_id'
 comment_table_name = 'comments'
+
+db_url = "mysql://server:4321@127.0.0.1/db"

@@ -13,8 +13,11 @@ import signal
 import json
 import re
 from datetime import datetime
+from sqlalchemy import create_engine
 
-import base_test
+from server.tests import base_test
+from server.src import config
+from server.src.db import scheme
 
 class TestAPI(base_test.BaseTest):
 
@@ -29,11 +32,16 @@ class TestAPI(base_test.BaseTest):
                 os.kill(int(pid), signal.SIGKILL)
             except Exception:
                 pass
-            shutil.rmtree(self.workdir, ignore_errors=True)
+            #shutil.rmtree(self.workdir, ignore_errors=True)
 
         self.server = subprocess.Popen(['python3', '../start.py', '-i',
                                         '--working-directory', self.workdir
                                         ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+        self.db = create_engine(config.db_url)
+        scheme.Base.metadata.drop_all(self.db)
+        scheme.Base.metadata.create_all(self.db)
+
 
         # wait until server startup
         while True:
@@ -49,7 +57,7 @@ class TestAPI(base_test.BaseTest):
         # print all server output
         for line in self.server.stderr:
             print(line.decode('utf8'))
-        shutil.rmtree(self.workdir, ignore_errors=True)
+        #shutil.rmtree(self.workdir, ignore_errors=True)
 
     def set_list_value(self, structure):
         result = '~'
@@ -784,31 +792,29 @@ class TestAPI(base_test.BaseTest):
                              method=method,
                              structure=answer.json()[method])
 
-        name = 'test_name_1'
+        username = 'test_name_1'
+        nickname = 'test_name_1'
         email = 'test@,test.test'
         password = 'password'
         avatar = 'avatar'
-        blocked_tags = '~tag1~tag2~tag3~'
 
         # happy path
-        answer = requests.post(self.localhost + endpoint, json={'name': name,
+        answer = requests.post(self.localhost + endpoint, json={'username': username,
+                                                                'nickname': nickname,
                                                                 'email': email,
                                                                 'password': password,
-                                                                'avatar': avatar,
-                                                                'blocked-tags': blocked_tags})
+                                                                'avatar': avatar
+                                                                })
         self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
-        self.assertIn('user_id', answer.json())
 
-        user_id = answer.json()['user_id']
-        requested_data = '~name~email~name_history~avatar~blocked_tags~creation_date~rating~'
-        answer = requests.get(self.localhost + '/users/data', headers={'user-id': str(user_id),
+        requested_data = '~nickname~email~name_history~avatar~creation_date~rating~'
+        answer = requests.get(self.localhost + '/users/data', headers={'user-id': username,
                                                                        'requested-data': requested_data})
         self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
-        self.assertEqual(name, answer.json()['name'])
+        self.assertEqual(nickname, answer.json()['nickname'])
         self.assertEqual(email, answer.json()['email'])
-        self.assertEqual('~' + name + '~', answer.json()['name_history'])
+        self.assertEqual([nickname], answer.json()['name_history'])
         self.assertEqual(avatar, answer.json()['avatar'])
-        self.assertEqual(blocked_tags, answer.json()['blocked_tags'])
         self.assertEqual(0, answer.json()['rating'])
         self.assertIn('creation_date', answer.json())
 
@@ -824,15 +830,14 @@ class TestAPI(base_test.BaseTest):
         user_id = user_info[0]
 
         # happy path
-        requested_data = '~name~email~name_history~avatar~blocked_tags~creation_date~rating~'
+        requested_data = '~nickname~email~name_history~avatar~blocked_tags~creation_date~rating~'
         answer = requests.get(self.localhost + endpoint, headers={'user-id': str(user_id),
                                                                   'requested-data': requested_data})
         self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
-        self.assertIn('name', answer.json())
+        self.assertIn('nickname', answer.json())
         self.assertIn('email', answer.json())
         self.assertIn('name_history', answer.json())
         self.assertIn('avatar', answer.json())
-        self.assertIn('blocked_tags', answer.json())
         self.assertIn('creation_date', answer.json())
         self.assertIn('rating', answer.json())
 
@@ -855,33 +860,31 @@ class TestAPI(base_test.BaseTest):
         user_name = user_info[2]
 
         # happy path
-        name = 'new_name'
+        nickname = 'new_name'
         email = 'new_email@email.email'
         avatar = 'avatar_link'
-        blocked_tags = '~tag1~tag2~'
         answer = requests.post(self.localhost + endpoint,
                                headers={'user-id': str(user_id)},
-                               json={'name': name,
+                               json={'nickname': nickname,
                                      'avatar': avatar,
                                      'email': email,
-                                     'blocked-tags': blocked_tags})
+                                    })
         self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
 
-        requested_data = '~name~email~name_history~avatar~blocked_tags~'
+        requested_data = '~nickname~email~name_history~avatar~'
         answer = requests.get(self.localhost + endpoint, headers={'user-id': str(user_id),
                                                                   'requested-data': requested_data})
         self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
-        self.assertEqual(answer.json()['name'], name)
-        self.assertEqual(answer.json()['name_history'], '~' + user_name + '~' + name + '~')
+        self.assertEqual(answer.json()['nickname'], nickname)
+        self.assertEqual(answer.json()['name_history'], [nickname, user_name])
         self.assertEqual(answer.json()['avatar'], avatar)
-        self.assertEqual(answer.json()['blocked_tags'], blocked_tags)
 
         # test unlogged users
         answer = requests.post(self.localhost + endpoint,
                                headers={'user-id': str(0)},
-                               json={'name': name,
+                               json={'nickname': nickname,
                                      'avatar': avatar,
-                                     'blocked-tags': blocked_tags})
+                                    })
         self.assertEqual(answer.json()['status']['type'], 'ERROR', msg=str(answer.json()['status']))
         self.assertEqual(answer.json()['status']['error_type'], 'ValueError', msg=str(answer.json()['status']))
 
@@ -937,9 +940,9 @@ class TestAPI(base_test.BaseTest):
         self.assertEqual(answer.json()['is-correct'], True, msg=str(answer.json()['status']))
 
         # special rule: incorrect id return is-correct = False
-        answer = requests.get(self.localhost + endpoint, headers={'user-id': str(user_id+1),
+        answer = requests.get(self.localhost + endpoint, headers={'user-id': str(user_id) + '1',
                                                                   'password': password})
-        self.assertEqual(answer.json()['status']['type'], 'ERROR', msg=str(answer.json()['status']))
+        self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
         self.assertEqual(answer.json()['is-correct'], False, msg=str(answer.json()['is-correct']))
 
     def test_number_of_tests(self):

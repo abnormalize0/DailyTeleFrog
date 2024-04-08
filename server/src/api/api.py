@@ -252,7 +252,8 @@ def api_pages_get():
 @log.timer(config.log_server_api)
 def api_users_post():
     status, user_info = api_types.parse_structure(request.json, 
-                                                  [api_types.Parameter('name', 'str', True),
+                                                  [api_types.Parameter('username', 'str', True),
+                                                   api_types.Parameter('nickname', 'str', True),
                                                    api_types.Parameter('email', 'str', True),
                                                    api_types.Parameter('password', 'str', True),
                                                    api_types.Parameter('avatar', 'str', False),
@@ -280,20 +281,20 @@ def api_users_post():
     if 'blocked-communities' in user_info.keys():
         user_info['blocked_communities'] = user_info.pop('blocked-communities')
 
-    status, user_id = backend.add_user(user_info)
-    return json.dumps({'status': dict(status), 'user_id': user_id})
+    backend.add_user(user_info)
+    return json.dumps({'status': dict(request_status.Status(request_status.StatusType.OK))})
 
 @app.route('/users/data', methods=['GET'])
 @log.safe_api
 @log.log_request
 @log.timer(config.log_server_api)
 def api_users_data_get():
-    status, headers = api_types.parse_structure(request.headers, [api_types.Parameter('user-id', 'int', True),
+    status, headers = api_types.parse_structure(request.headers, [api_types.Parameter('user-id', 'str', True),
                                                                   api_types.Parameter('requested-data', 'list', True)])
     if status.is_error:
         return json.dumps({'status': dict(status)})
 
-    if headers['user-id'] == 0:
+    if headers['user-id'] == '0':
         return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
                                           error_type=request_status.ErrorType.ValueError,
                                           msg='Unlogged user cannot use this method'))})
@@ -307,13 +308,13 @@ def api_users_data_get():
                                                      api_types.Parameter('blocked_users', 'list', False),
                                                      api_types.Parameter('sub_communities', 'list', False),
                                                      api_types.Parameter('blocked_communities', 'list', False),
-                                                     api_types.Parameter('name', 'str', False),
+                                                     api_types.Parameter('nickname', 'str', False),
                                                      api_types.Parameter('email', 'str', False),
                                                      api_types.Parameter('description', 'str', False),
                                                      api_types.Parameter('creation_date', 'str', False),
                                                      api_types.Parameter('rating', 'str', False)])
 
-    status, data = backend.get_user_data(headers['user-id'], requested_data)
+    data = backend.get_user_data(headers['user-id'], requested_data)
 
     if status.is_error:
         return json.dumps({'status': dict(status)})
@@ -327,12 +328,12 @@ def api_users_data_get():
 @log.log_request
 @log.timer(config.log_server_api)
 def api_users_data_post():
-    status, user_id = api_types.parse_structure(request.headers, [api_types.Parameter('user-id', 'int', True)])
+    status, user_id = api_types.parse_structure(request.headers, [api_types.Parameter('user-id', 'str', True)])
     if status.is_error:
         return json.dumps({'status': dict(status)})
     user_id = user_id['user-id']
 
-    if user_id == 0:
+    if user_id == '0':
         return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
                                           error_type=request_status.ErrorType.ValueError,
                                           msg='Unlogged user cannot use this method'))})
@@ -344,7 +345,7 @@ def api_users_data_post():
                                                               api_types.Parameter('blocked-users', 'str', False),
                                                               api_types.Parameter('sub-communities', 'str', False),
                                                               api_types.Parameter('blocked-communities', 'str', False),
-                                                              api_types.Parameter('name', 'str', False),
+                                                              api_types.Parameter('nickname', 'str', False),
                                                               api_types.Parameter('email', 'str', False),
                                                               api_types.Parameter('description', 'str', False)])
     if status.is_error:
@@ -364,9 +365,8 @@ def api_users_data_post():
     if 'blocked-communities' in fields.keys():
         fields['blocked_communities'] = fields.pop('blocked-communities')
 
-    status = backend.update_user_info(fields,
-                                      user_id)
-    return json.dumps({'status': dict(status)})
+    backend.update_user_info(fields, user_id)
+    return json.dumps({'status': dict(request_status.Status(request_status.StatusType.OK))})
 
 @app.route('/users/password', methods=['POST'])
 @log.safe_api
@@ -374,7 +374,7 @@ def api_users_data_post():
 @log.timer(config.log_server_api)
 def api_users_password_post():
     status, headers = api_types.parse_structure(request.headers,
-                                                [api_types.Parameter('user-id', 'int', True),
+                                                [api_types.Parameter('user-id', 'str', True),
                                                  api_types.Parameter('previous-password', 'str', True)])
     if status.is_error:
         return json.dumps({'status': dict(status)})
@@ -404,24 +404,24 @@ def api_login_get():
     password = password['password']
 
     status, login = api_types.parse_structure(request.headers, [api_types.Parameter('email', 'str', False),
-                                                                api_types.Parameter('user-id', 'int', False),])
+                                                                api_types.Parameter('user-id', 'str', False),])
     if status.is_error:
         return json.dumps({'status': dict(status)})
 
-    if 'user-id' in login and 'email' in login:
+    if login['user-id'] and login['email']:
         return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
                                           error_type=request_status.ErrorType.ValueError,
                                           msg='User can login via user-id OR via email.'))})
 
-    if 'user-id' in login and login['user-id'] == 0:
+    if login['user-id'] == '0':
         return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
                                           error_type=request_status.ErrorType.ValueError,
                                           msg='Unlogged user cannot use this method'))})
 
-    if 'user-id' in login:
-        status, is_password_correct = backend.login(password, user_id=login['user-id'])
+    if login['user-id']:
+        is_password_correct = backend.login(password, user_id=login['user-id'])
     else:
-        status, is_password_correct = backend.login(password, email=login['email'])
+        is_password_correct = backend.login(password, email=login['email'])
     return json.dumps({'status': dict(status), 'is-correct': is_password_correct})
 
 def run_server():

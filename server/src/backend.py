@@ -6,7 +6,7 @@ import json
 import os
 import time
 
-from .db import api
+from .db import api, user
 from . import config
 from . import request_status
 
@@ -103,41 +103,47 @@ def post_article(article, user_id):
     return status, article_id
 
 def add_user(user_info):
-    user_info['name_history'] = config.delimiter + user_info['name'] + config.delimiter
-    user_info['creation_date'] = round(time.time() * 1000)
-    user_info['rating'] = 0
-    return api.add_user(user_info)
+    user.add_user(
+        username=user_info["username"],
+        nickname=user_info["nickname"],
+        password=user_info["password"],
+        creation_date=round(time.time() * 1000),
+        email=user_info["email"],
+        avatar=user_info["avatar"],
+        description=user_info["description"]
+    )
 
-def update_user_info(user_info, user_id):
-    exluded_fields = ['user-id', 'password']
-    for field in user_info.keys():
-        if field not in exluded_fields:
-            status = api.user_update_info(field, user_info[field], user_id)
-        else:
-            return request_status.Status(request_status.StatusType.ERROR,
-                                         error_type=request_status.ErrorType.OptionError,
-                                         msg=f'Wrong user parameter {field}.\
-                                         You can not update this parameter by this method')
-        if field == 'name' and not status.is_error:
-            status, data = api.user_get_data(user_id, ['name_history'])
-            name_history = data['name_history']
-            name_history += user_info[field] + config.delimiter
-            _ = api.user_update_info('name_history', name_history, user_id)
-    return status
+def update_user_info(user_info, username):
+    for key in user_info:
+        match key:
+            case "avatar":
+                user.update_avatar(username, user_info[key])
+            case "sub-tags":
+                user.sub_tag(username, user_info[key])
+            case "blocked-tags":
+                user.block_tag(username, user_info[key])
+            case "sub-users":
+                user.sub_user(username, user_info[key])
+            case "blocked-users":
+                user.block_user(username, user_info[key])
+            case "nickname":
+                user.update_nickname(username, user_info[key])
+            case "email":
+                user.update_email(username, user_info[key])
+            case "description":
+                user.update_description(username, user_info[key])
 
 def login(password, email=None, user_id=None):
-    return api.check_password(password, user_id=user_id, email=email)
+    return user.check_password(password=password, username=user_id, email=email)
 
-def change_password(previous_password, new_password, user_id):
-    status, is_same = api.check_password(previous_password, user_id)
-    if status.is_error:
-        return status
+def change_password(previous_password, new_password, login):
+    is_same = user.check_password(previous_password, username=login)
     if not is_same:
         return request_status.Status(request_status.StatusType.ERROR,
                                      error_type=request_status.ErrorType.ValueError,
                                      msg='Incorrect password. Password check failed!')
-    status = api.change_password(new_password, user_id)
-    return status
+    user.change_password(new_password, login)
+    return request_status.Status(request_status.StatusType.OK)
 
 def dislike_article(article_id, user_id):
     status = api.vote(config.db_article.path,
@@ -175,12 +181,37 @@ def like_comment(comment_id, user_id):
                       'likes')
     return status
 
-def add_comment(article_id, root, cooment_text, user_id):
-    status, id = api.add_comment(article_id, root, cooment_text, user_id)
+def add_comment(article_id, root, comment_text, user_id):
+    status, id = api.add_comment(article_id, root, comment_text, user_id)
     return status, id
 
 def get_article_data(article_id, requested_data):
     return api.article_get_data(article_id, requested_data)
 
-def get_user_data(user_id, requested_data):
-    return api.user_get_data(user_id, requested_data)
+def get_user_data(username, requested_data):
+    data: dict = {}
+    for key in requested_data:
+        match key:
+            case "avatar":
+                data[key] = user.get_avatar(username)
+            case "name_history":
+                data[key] = user.get_name_history(username)
+            case "sub_tags":
+                data[key] = user.get_sub_tag(username)
+            case "blocked_tags":
+                data[key] = user.get_blacklist_tag(username)
+            case "sub_users":
+                data[key] = user.get_sub_user(username)
+            case "blocked_users":
+                data[key] = user.get_blacklist_user(username)
+            case "nickname":
+                data[key] = user.get_nickname(username)
+            case "email":
+                data[key] = user.get_email(username)
+            case "description":
+                data[key] = user.get_description(username)
+            case "creation_date":
+                data[key] = user.get_creation_date(username)
+            case "rating":
+                data[key] = user.get_rating(username)
+    return data

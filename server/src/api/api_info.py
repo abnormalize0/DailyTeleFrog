@@ -301,7 +301,13 @@ def pages_info():
 def users_info():
     request_post = [
         {
-            'name': 'name',
+            'name': 'username',
+            'type': 'str',
+            'is_required': True,
+            'container': 'body',
+        },
+        {
+            'name': 'nickname',
             'type': 'str',
             'is_required': True,
             'container': 'body',
@@ -384,12 +390,12 @@ def users_data_info():
     request_post = [
         {
             'name': 'user-id',
-            'type': 'int',
+            'type': 'str',
             'is_required': True,
             'container': 'header'
         },
         {
-            'name': 'name',
+            'name': 'nickname',
             'type': 'str',
             'is_required': False,
             'container': 'body',
@@ -421,14 +427,14 @@ def users_data_info():
             'structure': [],
         },
         {
-            'name': 'sub-authors',
+            'name': 'sub-users',
             'type': 'list',
             'is_required': False,
             'container': 'body',
             'structure': [],
         },
         {
-            'name': 'blocked-authors',
+            'name': 'blocked-users',
             'type': 'list',
             'is_required': False,
             'container': 'body',
@@ -459,7 +465,7 @@ def users_data_info():
     request_get = [
         {
             'name': 'user-id',
-            'type': 'int',
+            'type': 'str',
             'is_required': True,
             'container': 'header'
         },
@@ -470,7 +476,7 @@ def users_data_info():
             'container': 'header',
             'structure': [
                 {
-                    'name': 'name',
+                    'name': 'nickname',
                     'type': 'field',
                     'is_required': False,
                 },
@@ -583,7 +589,7 @@ def login_info():
     request_get = [
         {
             'name': 'user-id',
-            'type': 'int',
+            'type': 'str',
             'is_required': False,
             'container': 'header',
         },

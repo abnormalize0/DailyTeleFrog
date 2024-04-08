@@ -112,6 +112,7 @@ def parse_structure(request_part:dict, structure:list):
                                          request_status.ErrorType.OptionError,
                                          msg = f'Missed required key {parameter.name}'), None
         if parameter.name not in request_part:
+            result[parameter.name] = None
             requested_headers += parameter.name + ', '
             continue
         status:request_status.Status
