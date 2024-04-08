@@ -10,8 +10,8 @@ from .db import api
 from . import config
 from . import request_status
 
-def get_page_articles(index, user_id, include_nonsub, sort_column, sort_direction, include, exclude, bounds):
-    status, articles = api.get_unblocked_articles(user_id, include_nonsub, sort_column, sort_direction,
+def get_page_articles(index, login, include_nonsub, sort_column, sort_direction, include, exclude, bounds):
+    status, articles = api.get_unblocked_articles(login, include_nonsub, sort_column, sort_direction,
                                                   include, exclude, bounds)
     if status.is_error:
         return status, None
@@ -36,8 +36,8 @@ def select_preview(article):
     preview['comments_count'] = article['comments_count']
     return preview
 
-def get_page(index, user_id, include_nonsub, sort_column, sort_direction, include, exclude, bounds):
-    status, page_articles = get_page_articles(index, user_id, include_nonsub, sort_column, sort_direction,
+def get_page(index, login, include_nonsub, sort_column, sort_direction, include, exclude, bounds):
+    status, page_articles = get_page_articles(index, login, include_nonsub, sort_column, sort_direction,
                                               include, exclude, bounds)
     if status.is_error:
         return status, None
@@ -52,10 +52,10 @@ def get_page(index, user_id, include_nonsub, sort_column, sort_direction, includ
             previews.append(preview)
     return status, previews
 
-def get_pages(indexes, user_id, include_nonsub, sort_column, sort_direction, include, exclude, bounds):
+def get_pages(indexes, login, include_nonsub, sort_column, sort_direction, include, exclude, bounds):
     pages = {}
     for index in indexes:
-        status, page = get_page(index, user_id, include_nonsub, sort_column, sort_direction, include, exclude, bounds)
+        status, page = get_page(index, login, include_nonsub, sort_column, sort_direction, include, exclude, bounds)
         if status.is_error:
             return status, None
         pages[index] = page
@@ -76,12 +76,12 @@ def create_article_file(article_id, article):
                            f'{article_id}.json'), 'w+', encoding='utf-8') as file:
         json.dump(article, file, ensure_ascii=False, indent=4)
 
-def post_article(article, user_id):
-    status, author_preview = api.user_get_data(user_id, ['name', 'avatar'])
+def post_article(article, login):
+    status, author_preview = api.user_get_data(login, ['nickname', 'avatar'])
     if status.is_error:
         return status, None
     article['author_preview'] = author_preview
-    article['author_id'] = user_id
+    article['author_id'] = login
     article['creation_date'] = round(time.time() * 1000)
     article['answers'] = []
     article['rating'] = 0
@@ -103,84 +103,84 @@ def post_article(article, user_id):
     return status, article_id
 
 def add_user(user_info):
-    user_info['name_history'] = config.delimiter + user_info['name'] + config.delimiter
+    user_info['name_history'] = config.delimiter + user_info['nickname'] + config.delimiter
     user_info['creation_date'] = round(time.time() * 1000)
     user_info['rating'] = 0
     return api.add_user(user_info)
 
-def update_user_info(user_info, user_id):
+def update_user_info(user_info, login):
     exluded_fields = ['user-id', 'password']
     for field in user_info.keys():
         if field not in exluded_fields:
-            status = api.user_update_info(field, user_info[field], user_id)
+            status = api.user_update_info(field, user_info[field], login)
         else:
             return request_status.Status(request_status.StatusType.ERROR,
                                          error_type=request_status.ErrorType.OptionError,
                                          msg=f'Wrong user parameter {field}.\
                                          You can not update this parameter by this method')
-        if field == 'name' and not status.is_error:
-            status, data = api.user_get_data(user_id, ['name_history'])
+        if field == 'nickname' and not status.is_error:
+            status, data = api.user_get_data(login, ['name_history'])
             name_history = data['name_history']
             name_history += user_info[field] + config.delimiter
-            _ = api.user_update_info('name_history', name_history, user_id)
+            _ = api.user_update_info('name_history', name_history, login)
     return status
 
-def login(password, email=None, user_id=None):
-    return api.check_password(password, user_id=user_id, email=email)
+def login(password, email=None, login=None):
+    return api.check_password(password, login=login, email=email)
 
-def change_password(previous_password, new_password, user_id):
-    status, is_same = api.check_password(previous_password, user_id)
+def change_password(previous_password, new_password, login):
+    status, is_same = api.check_password(previous_password, login)
     if status.is_error:
         return status
     if not is_same:
         return request_status.Status(request_status.StatusType.ERROR,
                                      error_type=request_status.ErrorType.ValueError,
                                      msg='Incorrect password. Password check failed!')
-    status = api.change_password(new_password, user_id)
+    status = api.change_password(new_password, login)
     return status
 
-def dislike_article(article_id, user_id):
+def dislike_article(article_id, login):
     status = api.vote(config.db_article.path,
                       config.article_table_name,
                       config.article_id_name,
                       article_id,
-                      user_id,
+                      login,
                       'dislikes')
     return status
 
-def like_article(article_id, user_id):
+def like_article(article_id, login):
     status = api.vote(config.db_article.path,
                       config.article_table_name,
                       config.article_id_name,
                       article_id,
-                      user_id,
+                      login,
                       'likes')
     return status
 
-def dislike_comment(comment_id, user_id):
+def dislike_comment(comment_id, login):
     status = api.vote(config.db_comment.path,
                       config.comment_table_name,
                       config.comment_id_name,
                       comment_id,
-                      user_id,
+                      login,
                       'dislikes')
     return status
 
-def like_comment(comment_id, user_id):
+def like_comment(comment_id, login):
     status = api.vote(config.db_comment.path,
                       config.comment_table_name,
                       config.comment_id_name,
                       comment_id,
-                      user_id,
+                      login,
                       'likes')
     return status
 
-def add_comment(article_id, root, cooment_text, user_id):
-    status, id = api.add_comment(article_id, root, cooment_text, user_id)
+def add_comment(article_id, root, cooment_text, login):
+    status, id = api.add_comment(article_id, root, cooment_text, login)
     return status, id
 
 def get_article_data(article_id, requested_data):
     return api.article_get_data(article_id, requested_data)
 
-def get_user_data(user_id, requested_data):
-    return api.user_get_data(user_id, requested_data)
+def get_user_data(login, requested_data):
+    return api.user_get_data(login, requested_data)
