@@ -17,7 +17,7 @@
     "vue": "^3.2.13",
     "vue-quill": "^1.5.1",
     "vue-router": "^4.0.3",
-    "vuedraggable": "^2.24.3",
+    "vuedraggable": "^4.1.0",
     "vueperslides": "^3.5.1",
     "vuetify": "^3.5.6"
   },

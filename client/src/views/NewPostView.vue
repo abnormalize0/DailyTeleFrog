@@ -3,7 +3,7 @@
 </style>
 
 <template>
-
+<div>
   <div>че</div>
 
 
@@ -38,7 +38,7 @@
   <div class="worksheet" id="worksheet" @scroll="scroll_worker()">
     <div v-for="(block, index) in blocks" v-bind:key="index" :id="'block_element' + block.id" class="element">
       <div class="single_block">
-        <QuillEditor placeholder="Вставить текст" v-if="block.type == 'text'" v-model:content="myContent[block.id]" theme="bubble" @update:content="() => on_update(block.id)" :options="options" />
+        <QuillEditor placeholder="Вставить текст" v-if="block.type == 'text'" :content="myContent[block.id]" theme="bubble" @update:content="() => on_update(block.id)" :options="options" />
         <vueper-slides v-if="block.type == 'carousel'" fade :touchable="false" arrows-outside bullets-outside :slide-ratio="1080 / 1920">
           <vueper-slide
             v-for="(slide, i) in slidesarray[block.id]"
@@ -69,7 +69,7 @@
       </template>
     </draggable>
   </div>
-  
+</div>
 </template>
 
 <script>
@@ -80,7 +80,6 @@
 
   import '@vueup/vue-quill/dist/vue-quill.snow.css';
   import '@vueup/vue-quill/dist/vue-quill.bubble.css';
-
   import { VueperSlides, VueperSlide } from 'vueperslides'
   import 'vueperslides/dist/vueperslides.css'
 
