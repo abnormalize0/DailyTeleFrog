@@ -1,106 +1,156 @@
-.post_button {
-    height: 50px;
-    width: 200px;
-    position: fixed;
-    bottom: 0px;
-    left: 0px;
-    border-radius: 25px;
-    background-color: red;
-    text-align: center;
-    vertical-align: middle;
-    line-height: 50px;       /* The same as your div height */
-}
-.post_button:hover{
-    background-color: lightcoral;
-}
-.image_loader {
-    opacity: 0;
-    position: fixed;
-}
-.content_header {
-    background-color: lightgray;
-    font-size: 36px;
-    font-weight: bold;
-}
-.content_text {
-    background-color: lightgray;
-    font-size: 18px;
-}
-.worksheet {
-    right: 300px;
-    left: 300px;
+.insert_button {
+    visibility: hidden;
+    position: absolute;
+    z-index: 100;
+    height: 20px;
+    width: 150px;
+    background-color: black;
+  }
+  
+  .miniature {
+    outline-style: solid;
+    outline-color: black;
+    width: 150px;
+    background-color: blue;
+  }
+  
+  .worksheet {
+    position: absolute;
+    width: 100%;
     height: 80%;
     position: fixed;
     overflow-y: scroll;
-}
-.insert_menu {
-    z-index: 110;
-    height: 80px;
-    width: 200px;
-    position: fixed;
-    top: 0px;
-    left: 0px;
-    background-color: lightpink;
-}
-.insert_menu_element{
-    height: 25px;
-    margin-bottom: 3px;
-    background-color: red;
-    text-align: center;
-    vertical-align: middle;
-    line-height: 25px;       /* The same as your div height */
-    border-radius: 25px;
-}
-.insert_menu_element:hover{
-    background-color: lightcoral;
-}
-.right_menu {
-    height: 100%;
+  }
+  
+  .right_menu {
+    height: 80%;
     width: 150px;
+    background-color: white;
     position: fixed;
     right: 0;
     overflow-y: scroll;
-}
-.add {
-    width: 100%;
-    height: 20px;
-    background-color: turquoise;
-    position: relative;
-}
-.element {
-    width: 100%;
-    height: 50px;
-    background-color: darkcyan;
-    position: relative;
-
-    text-align: center;
-    font-family: "Times New Roman", Times, serif;
-}
-.element_hidden {
-    width: 100%;
-    height: 50px;
+  }
+  
+  .miniature_item {
+    display: block;
     background-color: transparent;
-    color: transparent;
-    position: relative;
-}
-.element_float {
-    z-index: 110;
-    width: 150px;
-    height: 50px;
-    background-color: darkcyan;
+  }
+  
+  .sortable-ghost {
+    overflow: hidden;
+  }
+  
+  .drag-preview {
     position: absolute;
-
-    text-align: center;
-    font-family: "Times New Roman", Times, serif;
-}
-* {
-  -webkit-user-select: none; /* Safari */
-  -ms-user-select: none; /* IE 10 and IE 11 */
-  user-select: none; /* Standard syntax */
-  -ms-overflow-style: none;  /* IE and Edge */
-  scrollbar-width: none;  /* Firefox */
-}
-
-*::-webkit-scrollbar {
-  display: none;
-}
+    transform: translateX(-50%) translateY(-50%) translateY(55%);
+  }
+  
+  .element {
+    transition: background-color 0.5s
+  }
+  
+  .element.blink {
+    background-color: white;
+    transition: background-color 0.5s
+  }
+  
+  .position {
+    width: 140px;
+    height: 0px;
+    background-color: rgba(251, 255, 255, 0.4);
+    outline-style: solid;
+    outline-color: black;
+    position: absolute;
+    opacity: 0;
+    transition: opacity 0.2s ease-in-out;
+    visibility: hidden;
+  }
+  
+  .position.fade {
+    opacity: 1;
+  }
+  
+  .single_block {
+    width: 50%;
+    margin-left: auto;
+    margin-right: auto;
+    transition: background-color 0.5s
+  }
+  
+  .modal_image_insert {
+    display: none;
+    position: fixed;
+    z-index: 1;
+    
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgb(0,0,0);
+    background-color: rgba(0,0,0,0.9);
+    z-index: 100;
+  }
+  
+  .close {
+    position: absolute;
+    top: 15px;
+    right: 35px;
+    color: #f1f1f1;
+    font-size: 40px;
+    font-weight: bold;
+    transition: 0.3s;
+  }
+  
+  .vueperslide__title {
+    font-size: 1.2em;
+    opacity: 1;
+    background: rgba(0,0,0,.6);
+    backdrop-filter: grayscale(1) contrast(3) blur(1px);
+  }
+  
+  .vueperslide__content-wrapper {
+    justify-content: flex-end !important;
+    align-items: flex-end !important;
+  }
+  
+  .modal_back {
+    height: 90vh;
+    width: 50vw;
+    background-color: white;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    -webkit-transform: translate(-50%, -50%);
+    transform: translate(-50%, -50%);
+  }
+  
+  .modal_grid {
+    display: grid;
+    grid-template-columns: 22vw 22vw 4vw;
+    padding: 5px 0 0 2vw;
+  }
+  
+  .close {
+    position: absolute;
+    top: 15px;
+    right: 35px;
+    color: #f1f1f1;
+    font-size: 40px;
+    font-weight: bold;
+    transition: 0.3s;
+  }
+  
+  .modal_menu {
+    display: none;
+    position: fixed;
+    z-index: 100;
+  
+    height: 100px;
+    width: 150px;
+    background-color: black;
+  }
+  
+  .ql-editor.ql-blank:before {
+    color: white;
+  }

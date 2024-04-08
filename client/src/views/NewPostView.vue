@@ -2,275 +2,238 @@
   @import '../../public/css/NewPostStyle.css';
 </style>
 
-<script setup>
-  import { nextTick, ref } from 'vue';
-  import { useMousePressed } from '@vueuse/core';
-  import router from '../router';
-  import axios from 'axios';
-
-  const config = require('../config.json');
-
-  const insert_menu_ref = ref(false);
-  const { pressed } = useMousePressed();
-
-  let counter = 0;
-
-  let blocks = ref([]);
-  let content = [];
-  let block_type = [];
-
-  let types_list = ["Подзаголовок", "Текст", "Изображение"];
-
-  const sleep = (ms) => {
-    return new Promise(resolve => setTimeout(resolve, ms));
-  }
-
-  let current_index = 0;
-
-  async function open_insert_menu(e, index) {
-    current_index = index;
-    insert_menu_ref.value = true;
-    await nextTick();
-
-    let insert_menu = document.getElementById("insert_menu");
-    insert_menu.style.top = e.clientY - 40 + "px";
-    insert_menu.style.left = e.clientX - 190 + "px";
-    insert_menu.onmouseleave = function() { insert_menu_ref.value = false; };
-  }
-
-  function add_element(index) {
-    blocks.value.splice(current_index, 0, counter);
-    content.push(types_list[index] + counter);
-    block_type.push(index);
-    counter++;
-    insert_menu_ref.value = false;
-  }
-
-  function block_shift(index, new_index) {
-    let temp = blocks.value[index];
-    blocks.value[index] = blocks.value[new_index];
-    blocks.value[new_index] = temp;
-    
-    let elem = document.getElementById("elem" + blocks.value[index]);
-    for(let i = 0; i < counter; i++) {
-      let tmp_elem = document.getElementById("elem" + i);
-      if(tmp_elem.classList.contains("element_hidden")) {
-        tmp_elem.classList.remove("element_hidden");
-        tmp_elem.classList.add("element");
-      }
-    }
-    elem.classList.remove("element");
-    elem.classList.add("element_hidden");
-  }
-
-  let posx = -1;
-  let posy = -1;
-
-  function hold_begin(e, index) {
-    let elem = document.getElementById("elem" + blocks.value[index]);
-    elem.classList.remove("element");
-    elem.classList.add("element_hidden");
-    document.onmousemove = (e) => position(e, index);
-    
-    let float_element = document.createElement('div');
-    float_element.className = "element_float";
-    float_element.id = "float_element";
-    float_element.innerHTML = elem.innerHTML;
-    document.body.append(float_element);
-
-    float_element.style.top = elem.getBoundingClientRect().top + "px";
-    float_element.style.left = elem.getBoundingClientRect().left + "px";
-
-    posx = e.clientX;
-    posy = e.clientY;
-  }
-
-  async function position(e, index) {
-    document.onmousemove = null;
-    let float_element = document.getElementById("float_element");
-    float_element.style.top = float_element.getBoundingClientRect().top + (e.clientY - posy) + "px";
-    float_element.style.left = float_element.getBoundingClientRect().left + (e.clientX - posx) + "px";
-    posx = e.clientX;
-    posy = e.clientY;
-
-    let event_setter = 0;
-    
-    if(index > 0) {
-      let upstairs_neighbor = document.getElementById("elem" + blocks.value[index - 1]);
-      if(float_element.getBoundingClientRect().top < upstairs_neighbor.getBoundingClientRect().top + 25) { //захардкодил размеры блоков пока что
-        await block_shift(index, index - 1);
-        document.onmousemove = (e) => position(e, index - 1);
-        event_setter = 1;
-      }
-    }
-
-    if(index < blocks.value.length - 1) {
-      let downstairs_neighbor = document.getElementById("elem" + blocks.value[index + 1]);
-      if(float_element.getBoundingClientRect().top > downstairs_neighbor.getBoundingClientRect().top - 25) {
-        await block_shift(index, index + 1);
-        document.onmousemove = (e) => position(e, index + 1);
-        event_setter = 1;
-      }
-    }
-
-    if(!event_setter) {
-      document.onmousemove = (e) => position(e, index);
-    }
-      
-    if(!pressed.value) {
-      document.onmousemove = null;
-      let elem = document.getElementById("elem" + blocks.value[index]);
-      smooth_transition(elem, float_element);
-      posx = -1;
-      posy = -1;
-    }
-  }
-
-  async function smooth_transition(elem, float_element) {
-    let gapx = (elem.getBoundingClientRect().top - float_element.getBoundingClientRect().top) / 30;
-    let gapy = (elem.getBoundingClientRect().left - float_element.getBoundingClientRect().left) / 30;
-    for(let i = 0; i < 30; i++) {
-      float_element.style.top = float_element.getBoundingClientRect().top + gapx + "px";
-      float_element.style.left = float_element.getBoundingClientRect().left + gapy + "px";
-      await sleep(1);
-    }
-    document.getElementById("float_element").remove();
-    elem.classList.add("element");
-    elem.classList.remove("element_hidden");
-  }
-
-  let allow_edit = 1;
-
-  async function edit_content(index) {
-    if(!allow_edit) {
-      return;
-    }
-    allow_edit = 0;
-    let target = document.getElementById("content" + index);
-    let local_content = target.innerHTML;
-    target.innerHTML = "<form><input id='active_input' value=" + local_content + "></form>";
-    let input = document.getElementById("active_input");
-    input.focus();
-    input.addEventListener("focusout", () => {
-      content[index] = input.value;
-      target.innerHTML = input.value;
-      allow_edit = 1;
-    })
-  }
-
-  async function edit_image(index) {
-    if(!allow_edit) {
-      return;
-    }
-    allow_edit = 0;
-    let target = document.getElementById("content" + index);
-    target.innerHTML = "<img id='img" + index + "' width='600' src='" + content[index] + "'><input class='image_loader' id='active_input' type='file'>";
-    let input = document.getElementById("active_input");
-    input.click();
-    input.addEventListener("change", async () => {
-      console.log(input.files[0])
-      target.innerHTML = "<img id='img" + index + "' width='100'>";
-      document.querySelector("#img" + index).src = "https://i.giphy.com/media/sSgvbe1m3n93G/giphy.webp";
-      allow_edit = 1;
-        
-      // let myHeaders = new Headers();
-      // let formdata = new FormData();
-      // myHeaders.append("Authorization", "Bearer " + config.keys.imgur);
-      // formdata.append("image", input.files[0]);
-      // let requestOptions = {
-      //   method: 'POST',
-      //   headers: myHeaders,
-      //   body: formdata,
-      //   redirect: 'follow'
-      // };
-
-      // const request = await fetch("https://api.imgur.com/3/upload", requestOptions);
-      // let response = await request.json();
-      // target.innerHTML = "<img id='img" + index + "' width='600'>";
-      // document.querySelector("#img" + index).src = response.data.link;
-      // content[index] = response.data.link;
-        
-
-      var reader = new FileReader();
-      reader.readAsDataURL(input.files[0]);
-      reader.onload = async function () {
-        const myForm = new FormData();
-        myForm.append("image", reader.result.substring(reader.result.indexOf(",") + 1));
-
-        await axios.post("https://api.imgbb.com/1/upload?key=" + config.keys.imgbb, myForm, {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        }).then((response) => {
-          console.log(response);
-          target.innerHTML = "<img id='img" + index + "' width='600'>";
-          document.querySelector("#img" + index).src = response.data.data.url;
-          content[index] = response.data.data.url;
-        }).catch((err) => {
-          console.log(err);
-        });
-      };
-    })
-  }
-
-  async function post_request() {
-    let article = [];
-    for(let i = 0; i < counter; i++) {
-      article.push({
-        type: block_type[blocks.value[i]], 
-        content: encodeURIComponent(content[blocks.value[i]]),
-      });
-    }
-    let post = {
-      'article-body': JSON.stringify(article), 
-      'preview-content': JSON.stringify(article), 
-      name: encodeURIComponent("test"), 
-      tags: encodeURIComponent("~abc~bca~cab~"), 
-    };
-    console.log(JSON.stringify(post));
-    const request = await fetch("http://127.0.0.1:5000/article", {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'user-id': localStorage.id
-      },
-      body: JSON.stringify(post)
-    });
-    let status = await request.json();
-    console.log(status);
-    if(status.status) {
-      router.push({ name: 'post', params: { id: status.article_id } });
-    } else {
-      alert("Ошибка добавления поста.");
-    }
-  }
-    
-</script>
-
 <template>
-  <div class="worksheet" id="worksheet">
-    <div v-for="(block, index) in blocks" v-bind:key="index">
-      <div v-if="block_type[block] == 0" @click="edit_content(block)" class="content_header" :id="`content` + block">{{ content[block]}}</div>
-      <div v-if="block_type[block] == 1" @click="edit_content(block)" class="content_text" :id="`content` + block">{{ content[block]}}</div>
-      <div v-if="block_type[block] == 2" @click="edit_image(block)" class="content_text" :id="`content` + block"><img :id="`img` + block" width='600' :src="content[block]"></div>
-      <br>
-    </div>
+
+  <div>че</div>
+
+
+  <div class="modal_menu" id="modal_menu" @focusout="handle_focus_out" tabindex="0">
+    <div @click="add_element('text')" class="block_type" >Текстовый блок</div>
+    <div @click="add_element('carousel')" class="block_type">Карусель изображений</div>
   </div>
-  <div class="right_menu" id="right_menu">
-    <div @click="open_insert_menu($event, 0)" class="add"></div>
-    <div v-for="(block, index) in blocks" v-bind:key="index">
-      <div @mousedown="hold_begin($event, index)" :class="`element`" :id="`elem` + blocks[index]">{{block}}</div>
-      <div @click="open_insert_menu($event, index + 1)" :class="`add`"></div>
-    </div>
-  </div>
-  <div class="insert_menu" id="insert_menu" v-if="insert_menu_ref">
-    <div v-for="(type, index) in types_list" v-bind:key="index">
-      <div class="insert_menu_element" @click="add_element(index)"> {{ type }}</div>
+
+  <div>че</div>
+
+  <div id="modal_image_insert" class="modal_image_insert">
+    <span class="close" @click="collapse()">&times;</span>
+    <div class="modal_back">
+      <draggable v-model="slidesarray[current_image]"  handle=".handle" @dragstart="drag_start_handler">
+        <template #item="{ element: block, index }">
+          <div class="modal_grid">
+            <img class="handle" :src=block.image style="max-height: 8vh;">
+            <input :id="`img_title` + index" @input="image_title(index)" size="10" :value=block.title />
+            <div style="font-size: 40px; color:black;" @click="delete_img(index)">&times;</div>
+          </div>
+        </template>
+      </draggable>
+      <div class="addition" v-if="current_image != -1 && slidesarray[current_image].length < 10">
+        <div class="modal_grid">
+          <input id="new_img" size="10" placeholder="Укажите URL" />
+          <div style="font-size: 40px; color:black;" @click="add_img()">&or;</div>
+        </div>
+      </div>
     </div>
   </div>
 
-  <div class="post_button" @click="post_request()">
-    Запостить
+  <div class="worksheet" id="worksheet" @scroll="scroll_worker()">
+    <div v-for="(block, index) in blocks" v-bind:key="index" :id="'block_element' + block.id" class="element">
+      <div class="single_block">
+        <QuillEditor placeholder="Вставить текст" v-if="block.type == 'text'" v-model:content="myContent[block.id]" theme="bubble" @update:content="() => on_update(block.id)" :options="options" />
+        <vueper-slides v-if="block.type == 'carousel'" fade :touchable="false" arrows-outside bullets-outside :slide-ratio="1080 / 1920">
+          <vueper-slide
+            v-for="(slide, i) in slidesarray[block.id]"
+            :key="i"
+            :image="slide.image"
+            :title="slide.title"
+            @click="expand(block.id)" />
+        </vueper-slides>
+      </div>
+    </div>
   </div>
 
+  <div class="right_menu">
+    <div class="position" id="position"></div>
+    <draggable v-model="blocks" animation="150" :options="{forceFallback: true}">
+      <template #item="{ element: block }">
+        <div 
+          @mouseover="show_menu_buttons(block.id)" @mouseleave="hide_menu_buttons(block.id)" 
+          class="miniature_item"
+          @dragstart="drag_start_handler"
+          @dragend="drag_end_handler"
+          :id="`miniature_item` + block.id"
+        >
+          <div class="insert_button" :id="`top_insert` + block.id" @click="open_add_menu($event, block.id); block_place = 0"></div>
+          <div class="miniature" @click="scroll_to(block.id)" :id="`miniature` + block.id">{{ block.name }}</div>
+          <div class="insert_button" :id="`bot_insert` + block.id" @click="open_add_menu($event, block.id); block_place = 1"></div>
+        </div>
+      </template>
+    </draggable>
+  </div>
+  
 </template>
+
+<script>
+  import draggable from 'vuedraggable';
+  import { QuillEditor } from '@vueup/vue-quill'
+  import 'quill-paste-smart';
+  import { toRaw } from 'vue';
+
+  import '@vueup/vue-quill/dist/vue-quill.snow.css';
+  import '@vueup/vue-quill/dist/vue-quill.bubble.css';
+
+  import { VueperSlides, VueperSlide } from 'vueperslides'
+  import 'vueperslides/dist/vueperslides.css'
+
+  export default {
+    components: {
+        draggable,
+        QuillEditor,
+        VueperSlides, 
+        VueperSlide
+    },
+    data() {
+      return {
+        blocks: [
+          {name:'Element 0', id: 0, type: "text"},
+        ],
+        options: {
+          modules: {
+            toolbar: ['bold', 'italic', 'underline', 'strike', { 'list': 'ordered'}, { 'list': 'bullet' }, 'link', 'clean' ],
+          },
+        },
+        last_id: 1,
+        scale: 0.5,
+        timer: 0,
+        current_image: -1,
+        after_block: 0,
+        block_place: 0,
+        allow_menu: 1,
+        myContent: [],
+        slides: [
+          {
+            title: 'Заглушка для картинки',
+            image: 'https://images.unsplash.com/photo-1431440869543-efaf3388c585?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'
+          }
+        ],
+        slidesarray: []
+      }
+    },
+    updated() {
+      this.blocks.forEach((block) => {
+        let content = document.getElementById("block_element" + block.id)
+        let element = document.getElementById("miniature" + block.id)
+        let item = document.getElementById("miniature_item" + block.id)
+        item.style.height = content.clientHeight * this.scale + "px";
+        element.style.height = content.clientHeight * this.scale + "px";
+      })
+      document.getElementById("position").style.height = document.getElementById("worksheet").clientHeight * this.scale + "px"
+    },
+    methods: {
+      add_element(type) {
+        this.blocks.splice(this.blocks.map(function (img) { return img.id; }).indexOf(this.after_block) + this.block_place, 0, {name:'Element ' + this.last_id, id: this.last_id, type: type})
+        if(type == 'carousel') {
+          this.slidesarray[this.last_id] = structuredClone(this.slides);
+        }
+        this.last_id++
+        document.getElementById("modal_menu").style.display = "none";
+      },
+      drag_start_handler(e) {
+        this.allow_menu = 0;
+        e.dataTransfer.setDragImage(new Image(), 0, 0);
+        this.blocks.forEach((block) => {
+          this.hide_menu_buttons(block.id);
+        })
+      },
+      drag_end_handler() {
+        this.allow_menu = 1;
+      },
+      on_update(id) {
+        console.log(toRaw(this.myContent[id]))
+      },
+      scroll_to(id) {
+        let content = document.getElementById("block_element" + id)
+        content.scrollIntoView({ behavior: 'smooth' })
+        setTimeout(function() { content.classList.toggle("blink"); }, 300)
+        setTimeout(function() { content.classList.toggle("blink"); }, 800)
+      },
+      scroll_worker() {
+        let pos = document.getElementById("position")
+        pos.style.top = document.getElementById("worksheet").scrollTop * this.scale + "px"
+       
+        pos.style.visibility = "visible"
+        if (this.timer == 0) {
+          pos.classList.toggle("fade")
+          this.timer = 4
+          this.recursive_shutdown()
+        } else {
+          this.timer = 4
+        }
+
+      },
+      recursive_shutdown() {
+        let that = this;
+        if (this.timer > 0) {
+          this.timer--
+          setTimeout(function() { that.recursive_shutdown() }, 50);
+          console.log(this.timer)
+          return
+        }
+        let pos = document.getElementById("position")
+        pos.classList.toggle("fade")
+        setTimeout(function() { pos.style.visibility = "hidden"; }, 200)
+      },
+      expand(index) {
+        console.log(index)
+        let modal = document.getElementById("modal_image_insert");
+        modal.style.display = "block";
+        this.current_image = index;
+      },
+      collapse() {
+        document.getElementById("modal_image_insert").style.display = "none";
+      },
+      image_title(index) {
+        this.slidesarray[this.current_image][index].title = document.getElementById("img_title" + index).value;
+      },
+      delete_img(index) {
+        if(this.slidesarray[this.current_image].length == 1) {
+          alert("Должна быть хотя бы одна картинка");
+          return;
+        }
+        this.slidesarray[this.current_image].splice(index, 1);
+      },
+      add_img() {
+        this.slidesarray[this.current_image].push({
+          title: '',
+          image: document.getElementById("new_img").value
+        })
+        document.getElementById("new_img").value = "";
+      },
+      open_add_menu(e, after_id) {
+        this.after_block = after_id;
+        console.log(this.after_block)
+        let modal = document.getElementById("modal_menu");
+        modal.style.display = "block";
+        modal.style.left = e.clientX + 'px';
+        modal.style.top = e.clientY + 'px';
+        console.log(e.pageX)
+        modal.focus()
+      },
+      handle_focus_out() {
+        let modal = document.getElementById("modal_menu");
+        modal.style.display = "none";
+      },
+      show_menu_buttons(id) {
+        if(!this.allow_menu){
+          return;
+        }
+        document.getElementById("top_insert" + id).style.visibility = "visible";
+        document.getElementById("bot_insert" + id).style.visibility = "visible";
+      },
+      hide_menu_buttons(id) {
+        document.getElementById("top_insert" + id).style.visibility = "hidden";
+        document.getElementById("bot_insert" + id).style.visibility = "hidden";
+      }
+    }
+  }
+  
+</script>
