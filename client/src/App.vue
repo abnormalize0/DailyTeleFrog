@@ -1,7 +1,6 @@
 <template>
   <v-app class="background-main-color">
     <HeaderComponent />
-    <router-view/>
   </v-app>
 </template>
 
