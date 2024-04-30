@@ -14,7 +14,8 @@ class BaseTest(unittest.TestCase):
     default_values = {
         'int': 1,
         'str': 'qwerty',
-        'json': {'key': 'value'},
+        'dict': {'key': 'value'},
+        'list': ['tag1', 'tag2'],
         'list_of_int': '~1~2~3~',
         'bool': 'true',
         'date': '1-1-2024'
@@ -22,12 +23,12 @@ class BaseTest(unittest.TestCase):
 
     wrong_values = {
         'int': 'f',
-        'str': '',
-        'json': '{["str"}]',
-        'list_of_int': '',
-        'list': '',
+        'str': 1,
+        'dict': [],
+        'list_of_int': 2,
+        'list': {},
         'bool': 'hehe',
-        'date': '1.1.2024'
+        'date': {},
     }
 
     def setUp(self):
@@ -49,14 +50,18 @@ class BaseTest(unittest.TestCase):
         self.user_count += 1
         return (username, password, nickname, email)
 
-    def add_arcticle(self, **kwargs):
-        article = {'name': 'test_name',
-                   'preview-content': {'type': 'image', 'data': 'ref'},
-                   'tags': '~tag1~tag2~',
-                   'article-body': {'block1': 'text'}
+    def add_article(self, username):
+        article = {'title': 'test_name',
+                   'preview': {'type': 'image', 'data': 'ref'},
+                   'tags': ['tag1', 'tag2'],
+                   'body': {'block1': 'text'}
         }
         response = requests.post(self.localhost+'/article',
-                                 headers={'user-id': str(kwargs['user_id'])},
-                                 json=article)
+                                 json={'username': username,
+                                        'title': 'test_name',
+                                        'preview': {'type': 'image', 'data': 'ref'},
+                                        'tags': ['tag1', 'tag2'],
+                                        'body': {'block1': 'text'}
+                                        })
         self.assertEqual(response.json()['status']['type'], 'OK', msg=response.json()['status'])
         return response.json()['article_id']

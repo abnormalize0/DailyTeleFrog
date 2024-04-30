@@ -113,16 +113,8 @@ def init_comments():
 
 # RawTextHelpFormatter support multistring comments
 parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
-parser.add_argument('-i', '--init', action='store_true',
-                    help='Create all server databases. Existing databases will be deleted')
-parser.add_argument('--init-users', action='store_true',
-                    help='Create all users databases. Existing database will be deleted')
-parser.add_argument('--init-articles', action='store_true',
-                    help='Create all articles databases. Existing database will be deleted')
-parser.add_argument('--init-comments', action='store_true',
-                    help='Create all comments databases. Existing database will be deleted')
-parser.add_argument('--dont-start-server', action='store_true', default=False,
-                    help="Don't start the server")
+parser.add_argument('-t', '--test', action='store_true',
+                    help='Run server in test mode')
 parser.add_argument('--working-directory',
                     help='Set work directory for server')
 
@@ -134,24 +126,8 @@ if path:
         os.mkdir(path)
     os.chdir(path)
 
-if flags['init']:
-    backup()
-    init_users()
-    init_articles()
-    init_comments()
+set_up_loggers()
+if flags['test']:
+    api.run_server(server_mode="test")
 else:
-    if flags['init_users']:
-        backup()
-        init_users()
-
-    if flags['init_articles']:
-        backup()
-        init_articles()
-
-    if flags['init_comments']:
-        backup()
-        init_comments()
-
-if not flags['dont_start_server']:
-    set_up_loggers()
     api.run_server()

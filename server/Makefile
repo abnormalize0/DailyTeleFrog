@@ -1,7 +1,14 @@
+# Автоматический сборщик подсказки, который подсмотрен тут:
+# https://marmelab.com/blog/2016/02/29/auto-documented-makefile.html
+.PHONY: help
+.DEFAULT_GOAL := help
+help:
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
+
 .PHONY: build
-build:
+build: ## Собрать образ базы данных PostgreSQL с параметрами из .env конфигурации.
 	docker build -t server\:1.0 -f Dockerfile .
 
-.PHONY: start
-start:
-	docker run -dp 127.0.0.1:3306:3306 server\:1.0
+.PHONY: run
+run: ## Запустить контейнер с образом нашей базы данных.
+	docker run --env-file .env -dp 127.0.0.1:3306:3306 server\:1.0

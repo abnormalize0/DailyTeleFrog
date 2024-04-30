@@ -51,7 +51,7 @@ class Article(Base):
     __tablename__ = "articles"
     id: Mapped[int] = mapped_column(primary_key=True)
     title: Mapped[str] = mapped_column(String(512))
-    creation_date: Mapped[int]
+    creation_date: Mapped[int] = mapped_column(BigInteger)
     body: Mapped[str] = mapped_column(String(512))
     author_username: Mapped[int] = mapped_column(ForeignKey("users.username"))
 
