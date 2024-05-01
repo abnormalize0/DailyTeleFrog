@@ -77,8 +77,8 @@ def article_info():
 
 article_data_post = [
         {
-            'name': 'user-id',
-            'type': 'int',
+            'name': 'username',
+            'type': 'str',
             'is_required': True,
             'container': 'header'
         },
@@ -222,8 +222,8 @@ pages_post = []
 
 pages_get = [
         {
-            'name': 'user-id',
-            'type': 'int',
+            'name': 'username',
+            'type': 'str',
             'is_required': True,
             'container': 'header'
         },

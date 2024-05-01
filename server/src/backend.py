@@ -10,8 +10,8 @@ from .db import api, user, article
 from . import config
 from . import request_status
 
-def get_page_articles(index, user_id, include_nonsub, sort_column, sort_direction, include, exclude, bounds):
-    status, articles = api.get_unblocked_articles(user_id, include_nonsub, sort_column, sort_direction,
+def get_page_articles(index, username, include_nonsub, sort_column, sort_direction, include, exclude, bounds):
+    status, articles = api.get_unblocked_articles(username, include_nonsub, sort_column, sort_direction,
                                                   include, exclude, bounds)
     if status.is_error:
         return status, None
@@ -36,8 +36,8 @@ def select_preview(article):
     preview['comments_count'] = article['comments_count']
     return preview
 
-def get_page(index, user_id, include_nonsub, sort_column, sort_direction, include, exclude, bounds):
-    status, page_articles = get_page_articles(index, user_id, include_nonsub, sort_column, sort_direction,
+def get_page(index, username, include_nonsub, sort_column, sort_direction, include, exclude, bounds):
+    status, page_articles = get_page_articles(index, username, include_nonsub, sort_column, sort_direction,
                                               include, exclude, bounds)
     if status.is_error:
         return status, None
@@ -52,10 +52,10 @@ def get_page(index, user_id, include_nonsub, sort_column, sort_direction, includ
             previews.append(preview)
     return status, previews
 
-def get_pages(indexes, user_id, include_nonsub, sort_column, sort_direction, include, exclude, bounds):
+def get_pages(indexes, username, include_nonsub, sort_column, sort_direction, include, exclude, bounds):
     pages = {}
     for index in indexes:
-        status, page = get_page(index, user_id, include_nonsub, sort_column, sort_direction, include, exclude, bounds)
+        status, page = get_page(index, username, include_nonsub, sort_column, sort_direction, include, exclude, bounds)
         if status.is_error:
             return status, None
         pages[index] = page
@@ -183,44 +183,44 @@ def change_password(session, previous_password, new_password, username):
     user.change_password(session, new_password, username)
     return request_status.Status(request_status.StatusType.OK)
 
-def dislike_article(article_id, user_id):
+def dislike_article(article_id, username):
     status = api.vote(config.db_article.path,
                       config.article_table_name,
                       config.article_id_name,
                       article_id,
-                      user_id,
+                      username,
                       'dislikes')
     return status
 
-def like_article(article_id, user_id):
+def like_article(article_id, username):
     status = api.vote(config.db_article.path,
                       config.article_table_name,
                       config.article_id_name,
                       article_id,
-                      user_id,
+                      username,
                       'likes')
     return status
 
-def dislike_comment(comment_id, user_id):
+def dislike_comment(comment_id, username):
     status = api.vote(config.db_comment.path,
                       config.comment_table_name,
                       config.comment_id_name,
                       comment_id,
-                      user_id,
+                      username,
                       'dislikes')
     return status
 
-def like_comment(comment_id, user_id):
+def like_comment(comment_id, username):
     status = api.vote(config.db_comment.path,
                       config.comment_table_name,
                       config.comment_id_name,
                       comment_id,
-                      user_id,
+                      username,
                       'likes')
     return status
 
-def add_comment(article_id, root, comment_text, user_id):
-    status, id = api.add_comment(article_id, root, comment_text, user_id)
+def add_comment(article_id, root, comment_text, username):
+    status, id = api.add_comment(article_id, root, comment_text, username)
     return status, id
 
 def get_article_data(session, article_id, username, requested_data):

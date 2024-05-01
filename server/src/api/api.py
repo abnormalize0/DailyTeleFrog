@@ -9,7 +9,7 @@
 Остальная часть названия метода позволяет избежать дублирования названий функций.
 2. Для каждого метода должен присутствовать тест в файле /server/test/test_api.py
 и ответ на запрос OPTIONS в файле /server/src/api_info.py
-3. Каждый запрос должен принимать на вход user-id заголовок.
+3. Каждый запрос должен принимать на вход username заголовок.
 По договоренности считаем, что в этом заголвке указан автор запроса.
 Значение -1 характеризует неавторизванного пользователя.
 4. Каждый API метод обязан возвращать статус операции.
@@ -93,7 +93,7 @@ def api_article_post():
         return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
                                           error_type=error,
                                           msg='Wrong request parameters structure.'))})
-    if request.json['username'] == '0':
+    if request.json['username'] == 'unlogged_user':
         return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
                                           error_type=request_status.ErrorType.ValueError,
                                           msg='Unlogged user cannot use this method'))})
@@ -136,12 +136,12 @@ def api_article_get():
 @log.log_request
 @log.timer(config.log_server_api)
 def api_article_data_post():
-    status, headers = api_types.parse_structure(request.headers, [api_types.Parameter('user-id', 'int', True),
+    status, headers = api_types.parse_structure(request.headers, [api_types.Parameter('username', 'str', True),
                                                                   api_types.Parameter('article-id', 'int', True)])
     if status.is_error:
         return json.dumps({'status': dict(status)})
 
-    if headers['user-id'] == 0:
+    if headers['username'] == 'unlogged_user':
         return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
                                           error_type=request_status.ErrorType.ValueError,
                                           msg='Unlogged user cannot use this method'))})
@@ -172,26 +172,26 @@ def api_article_data_post():
             return json.dumps({'status': dict(status)})
 
     if 'like-article' in command:
-        status = backend.like_article(headers['article-id'], headers['user-id'])
+        status = backend.like_article(headers['article-id'], headers['username'])
         return json.dumps({'status': dict(status)})
 
     if 'dislike-article' in command:
-        status = backend.dislike_article(headers['article-id'], headers['user-id'])
+        status = backend.dislike_article(headers['article-id'], headers['username'])
         return json.dumps({'status': dict(status)})
 
     if 'like-comment' in command:
-        status = backend.like_comment(command['like-comment']['comment_id'], headers['user-id'])
+        status = backend.like_comment(command['like-comment']['comment_id'], headers['username'])
         return json.dumps({'status': dict(status)})
 
     if 'dislike-comment' in command:
-        status = backend.dislike_comment(command['dislike-comment']['comment_id'], headers['user-id'])
+        status = backend.dislike_comment(command['dislike-comment']['comment_id'], headers['username'])
         return json.dumps({'status': dict(status)})
 
     if 'add-comment' in command:
         status, comment_id = backend.add_comment(headers['article-id'],
                                                  command['add-comment']['root'],
                                                  command['add-comment']['text'],
-                                                 headers['user-id'])
+                                                 headers['username'])
         return json.dumps({'status': dict(status), 'comment_id': comment_id})
 
 @app.route('/article/data', methods=['GET'])
@@ -224,7 +224,7 @@ def api_article_data_get():
 @log.timer(config.log_server_api)
 def api_pages_get():
     status, headers = api_types.parse_structure(request.headers,
-                                                [api_types.Parameter('user-id', 'int', True),
+                                                [api_types.Parameter('username', 'str', True),
                                                  api_types.Parameter('indexes', 'list_of_int', True),
                                                  api_types.Parameter('include-nonsub', 'bool', True),
                                                  api_types.Parameter('sort-column', 'str', True),
@@ -281,7 +281,7 @@ def api_pages_get():
             exclude['community'] = exclude.pop('exclude-community')
 
     status, pages = backend.get_pages(headers['indexes'],
-                                      headers['user-id'],
+                                      headers['username'],
                                       headers['include-nonsub'],
                                       headers['sort-column'],
                                       headers['sort-direction'],
@@ -323,7 +323,7 @@ def api_users_data_get():
         return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
                                           error_type=error,
                                           msg='Wrong request parameters structure.'))})
-    if request.json['username'] == '0':
+    if request.json['username'] == 'unlogged_user':
         return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
                                           error_type=request_status.ErrorType.ValueError,
                                           msg='Unlogged user cannot use this method'))})
@@ -351,7 +351,7 @@ def api_users_data_post():
         return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
                                           error_type=error,
                                           msg='Wrong request parameters structure.'))})
-    if request.json['username'] == '0':
+    if request.json['username'] == 'unlogged_user':
         return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
                                           error_type=request_status.ErrorType.ValueError,
                                           msg='Unlogged user cannot use this method'))})
@@ -378,7 +378,7 @@ def api_users_password_post():
         return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
                                           error_type=error,
                                           msg='Wrong request parameters structure.'))})
-    if request.json['username'] == '0':
+    if request.json['username'] == 'unlogged_user':
         return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
                                           error_type=request_status.ErrorType.ValueError,
                                           msg='Unlogged user cannot use this method'))})
@@ -412,7 +412,7 @@ def api_login_get():
         return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
                                           error_type=request_status.ErrorType.ValueError,
                                           msg='User cant login via username and email.'))})
-    if request.json['username'] == '0':
+    if request.json['username'] == 'unlogged_user':
         return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
                                           error_type=request_status.ErrorType.ValueError,
                                           msg='Unlogged user cannot use this method'))})

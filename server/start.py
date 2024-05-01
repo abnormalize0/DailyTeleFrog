@@ -52,8 +52,8 @@ def init_users():
     connection = sqlite3.connect(config.db_user.path)
     cursor = connection.cursor()
     cursor.execute(f'''CREATE TABLE {config.user_table_name} (
-                    {config.user_id_name} INTEGER PRIMARY KEY,
-                    name TEXT UNIQUE NOT NULL,
+                    {config.user_id_name} TEXT PRIMARY KEY,
+                    nickname TEXT UNIQUE NOT NULL,
                     email TEXT UNIQUE NOT NULL,
                     password TEXT NOT NULL,
                     name_history TEXT,
@@ -65,7 +65,7 @@ def init_users():
                     sub_communities TEXT,
                     blocked_communities TEXT,
                     description TEXT,
-                    creation_date INT NOT NULL,
+                    creation_date INTEGER NOT NULL,
                     rating INTEGER)''')
     connection.commit()
     connection.close()
@@ -78,7 +78,7 @@ def init_articles():
     cursor.execute(f'''CREATE TABLE {config.article_table_name} (
                     {config.article_id_name} INTEGER PRIMARY KEY,
                     name TEXT NOT NULL,
-                    creation_date INT NOT NULL,
+                    creation_date INTEGER NOT NULL,
                     community TEXT,
                     rating INTEGER,
                     likes_count INTEGER,
@@ -100,7 +100,7 @@ def init_comments():
     cursor = connection.cursor()
     cursor.execute(f'''CREATE TABLE {config.comment_table_name} (
                     {config.comment_id_name} INTEGER PRIMARY KEY,
-                    creation_date INT NOT NULL,
+                    creation_date INTEGER NOT NULL,
                     rating INTEGER,
                     likes_count INTEGER,
                     likes_id TEXT,

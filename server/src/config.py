@@ -29,7 +29,7 @@ log_db_api = DynamicPath('log', 'db_api.log')
 delimiter = '~'
 articles_per_page = 5
 
-user_id_name = 'user_id'
+user_id_name = 'username'
 user_table_name = 'users'
 
 article_id_name = 'article_id'

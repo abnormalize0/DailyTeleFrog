@@ -23,29 +23,29 @@ class User(Base):
 
 class UserNameHistory(Base):
     __tablename__ = "user_name_history"
-    username: Mapped[int] = mapped_column(ForeignKey("users.username"), primary_key=True)
+    username: Mapped[str] = mapped_column(ForeignKey("users.username"), primary_key=True)
     old_name: Mapped[str] = mapped_column(String(512), primary_key=True)
 
 
 class TagSubscription(Base):
     __tablename__ = "tag_subscriptions"
     tag_name: Mapped[str] = mapped_column(String(512), primary_key=True)
-    username: Mapped[int] = mapped_column(ForeignKey("users.username"), primary_key=True)
+    username: Mapped[str] = mapped_column(ForeignKey("users.username"), primary_key=True)
 
 class TagBlacklist(Base):
     __tablename__ = "tag_blacklist"
     tag_name: Mapped[str] = mapped_column(String(512), primary_key=True)
-    username: Mapped[int] = mapped_column(ForeignKey("users.username"), primary_key=True)
+    username: Mapped[str] = mapped_column(ForeignKey("users.username"), primary_key=True)
 
 class UserSubscription(Base):
     __tablename__ = "user_subscriptions"
-    username: Mapped[int] = mapped_column(ForeignKey("users.username"), primary_key=True)
-    subscribed_user: Mapped[int] = mapped_column(ForeignKey("users.username"), primary_key=True)
+    username: Mapped[str] = mapped_column(ForeignKey("users.username"), primary_key=True)
+    subscribed_user: Mapped[str] = mapped_column(ForeignKey("users.username"), primary_key=True)
 
 class UserBlacklist(Base):
     __tablename__ = "user_blacklist"
-    username: Mapped[int] = mapped_column(ForeignKey("users.username"), primary_key=True)
-    blocked_user: Mapped[int] = mapped_column(ForeignKey("users.username"), primary_key=True)
+    username: Mapped[str] = mapped_column(ForeignKey("users.username"), primary_key=True)
+    blocked_user: Mapped[str] = mapped_column(ForeignKey("users.username"), primary_key=True)
 
 class Article(Base):
     __tablename__ = "articles"
