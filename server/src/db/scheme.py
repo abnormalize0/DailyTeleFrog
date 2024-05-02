@@ -122,8 +122,7 @@ class ArticleViewCounter(Base):
     __tablename__ = "article_view_counter"
 
     article_id: Mapped[int] = mapped_column(ForeignKey("articles.id"), primary_key=True)
-    viewers: Mapped[List[str]] = mapped_column(ARRAY(String))
-    view_count: Mapped[int] = mapped_column(Integer, default=0)
+    author_username: Mapped[int] = mapped_column(ForeignKey("users.username"), primary_key=True)
 
 
 class ArticleOpenCounter(Base):
@@ -131,6 +130,6 @@ class ArticleOpenCounter(Base):
     __tablename__ = "article_open_counter"
 
     article_id: Mapped[int] = mapped_column(ForeignKey("articles.id"), primary_key=True)
-    viewers: Mapped[List[str]] = mapped_column(ARRAY(String))
-    open_count: Mapped[int] = mapped_column(Integer, default=0)
+    author_username: Mapped[int] = mapped_column(ForeignKey("users.username"), primary_key=True)
+
 
