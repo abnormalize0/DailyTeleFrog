@@ -1,11 +1,11 @@
-from sqlalchemy import ForeignKey
+from sqlalchemy import ForeignKey, ARRAY
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
 from sqlalchemy.orm import Session
 from sqlalchemy import create_engine
 from sqlalchemy import String, Text, BigInteger, Integer
-from typing import Optional
+from typing import Optional, List
 
 
 class Base(DeclarativeBase):
@@ -116,10 +116,21 @@ class CommentDislike(Base):
 #    creation_date: Mapped[int]
 #    creator: Mapped[int] = mapped_column(ForeignKey("users.username"))
 
+
 class ArticleViewCounter(Base):
-    """Модель-счетчик просмотра статей """
+    """Модель-счетчик просмотра статьи"""
     __tablename__ = "article_view_counter"
 
-    view_counter_id: Mapped[int] = mapped_column(ForeignKey("articles.id"), primary_key=True)
+    article_id: Mapped[int] = mapped_column(ForeignKey("articles.id"), primary_key=True)
+    viewers: Mapped[List[str]] = mapped_column(ARRAY(String))
     view_count: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class ArticleOpenCounter(Base):
+    """Модель-счетчик открытия статьи"""
+    __tablename__ = "article_open_counter"
+
+    article_id: Mapped[int] = mapped_column(ForeignKey("articles.id"), primary_key=True)
+    viewers: Mapped[List[str]] = mapped_column(ARRAY(String))
+    open_count: Mapped[int] = mapped_column(Integer, default=0)
 
