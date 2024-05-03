@@ -2,7 +2,7 @@ from . import scheme
 from .. import config
 from .. import request_status
 import time
-from typing import Optional
+from typing import Optional, List, Tuple
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from sqlalchemy import select, update, delete
@@ -10,9 +10,10 @@ from sqlalchemy import select, update, delete
 from sqlalchemy import create_engine
 
 
-def is_article_not_exist(session:Session, article_id):
+def is_article_not_exist(session: Session, article_id):
     article = session.query(scheme.Article).where(scheme.Article.id == article_id).scalar()
     return article is None
+
 
 def add_article(session, title, body, author, preview):
     article = scheme.Article(
@@ -39,20 +40,21 @@ def add_tags(session, tags, article_id):
     session.commit()
 
 
-def is_liked(session:Session, article_id, username):
+def is_liked(session: Session, article_id, username):
     if is_article_not_exist(session, article_id):
         return request_status.Status(request_status.StatusType.OK), False
-    return request_status.Status(request_status.StatusType.OK), not session.query(scheme.ArticleLike).where(scheme.ArticleLike.article_id == article_id and scheme.ArticleLike.author_username == username).scalar() is None
+    return request_status.Status(request_status.StatusType.OK), not session.query(scheme.ArticleLike).where(
+        scheme.ArticleLike.article_id == article_id and scheme.ArticleLike.author_username == username).scalar() is None
 
 
-def is_disliked(session:Session, article_id, username):
+def is_disliked(session: Session, article_id, username):
     if is_article_not_exist(session, article_id):
         return request_status.Status(request_status.StatusType.OK), False
-    return request_status.Status(request_status.StatusType.OK), not session.query(scheme.ArticleDislike).where(scheme.ArticleDislike.article_id == article_id and scheme.ArticleDislike.author_username == username).scalar() is None
+    return request_status.Status(request_status.StatusType.OK), not session.query(scheme.ArticleDislike).where(
+        scheme.ArticleDislike.article_id == article_id and scheme.ArticleDislike.author_username == username).scalar() is None
 
 
-
-def get_likes(session:Session, article_id):
+def get_likes(session: Session, article_id):
     if is_article_not_exist(session, article_id):
         return request_status.Status(request_status.StatusType.ERROR,
                                      error_type=request_status.ErrorType.ValueError,
@@ -64,7 +66,8 @@ def get_likes(session:Session, article_id):
     )
     return request_status.Status(request_status.StatusType.OK), likes
 
-def get_dislikes(session:Session, article_id):
+
+def get_dislikes(session: Session, article_id):
     if is_article_not_exist(session, article_id):
         return request_status.Status(request_status.StatusType.ERROR,
                                      error_type=request_status.ErrorType.ValueError,
@@ -76,7 +79,8 @@ def get_dislikes(session:Session, article_id):
     )
     return request_status.Status(request_status.StatusType.OK), dislikes
 
-def get_rating(session:Session, article_id):
+
+def get_rating(session: Session, article_id):
     if is_article_not_exist(session, article_id):
         return request_status.Status(request_status.StatusType.ERROR,
                                      error_type=request_status.ErrorType.ValueError,
@@ -94,7 +98,7 @@ def get_rating(session:Session, article_id):
     return request_status.Status(request_status.StatusType.OK), likes - dislikes
 
 
-def get_comments_count(session:Session, article_id):
+def get_comments_count(session: Session, article_id):
     if is_article_not_exist(session, article_id):
         return request_status.Status(request_status.StatusType.ERROR,
                                      error_type=request_status.ErrorType.ValueError,
@@ -107,7 +111,7 @@ def get_comments_count(session:Session, article_id):
     return request_status.Status(request_status.StatusType.OK), comments_count
 
 
-def get_article(session:Session, article_id):
+def get_article(session: Session, article_id):
     if is_article_not_exist(session, article_id):
         return request_status.Status(request_status.StatusType.ERROR,
                                      error_type=request_status.ErrorType.ValueError,
@@ -116,16 +120,17 @@ def get_article(session:Session, article_id):
     return request_status.Status(request_status.StatusType.OK), article
 
 
-def get_preview(session:Session, article_id):
+def get_preview(session: Session, article_id):
     if is_article_not_exist(session, article_id):
         return request_status.Status(request_status.StatusType.ERROR,
                                      error_type=request_status.ErrorType.ValueError,
                                      msg=f'Cannot find article with id: {article_id}'), None
-    preview = session.query(scheme.ArticlePreview.preview_content).where(scheme.ArticlePreview.article_id == article_id).scalar()
+    preview = session.query(scheme.ArticlePreview.preview_content).where(
+        scheme.ArticlePreview.article_id == article_id).scalar()
     return request_status.Status(request_status.StatusType.OK), preview
 
 
-def get_tags(session:Session, article_id):
+def get_tags(session: Session, article_id):
     if is_article_not_exist(session, article_id):
         return request_status.Status(request_status.StatusType.ERROR,
                                      error_type=request_status.ErrorType.ValueError,
@@ -187,4 +192,31 @@ def dislike_article(article_id, username):
             dislike = scheme.ArticleDislike(article_id=article_id, author_username=username)
             session.add(dislike)
         session.delete(existing_like)
+        session.commit()
+
+
+def check_open(article_id, username):
+    """Функция проверяет наличие открытия статьи пользователем"""
+    engine = create_engine(config.db_url)
+
+    with Session(engine) as session:
+        existing_record = session.query(scheme.ArticleOpenCounter).filter_by(article_id=article_id,
+                                                                             author_username=username).first()
+        if not existing_record:
+            new_record = scheme.ArticleOpenCounter(article_id=article_id, author_username=username)
+            session.add(new_record)
+            session.commit()
+
+
+def check_views(articles: List[Tuple[int, str]]):
+    """Функция проверяет наличие просмотра статьи пользователями"""
+    engine = create_engine(config.db_url)
+
+    with Session(engine) as session:
+        for article_id, username in articles:
+            existing_record = session.query(scheme.ArticleViewCounter).filter_by(article_id=article_id,
+                                                                                 author_username=username).first()
+            if not existing_record:
+                new_record = scheme.ArticleViewCounter(article_id=article_id, author_username=username)
+                session.add(new_record)
         session.commit()

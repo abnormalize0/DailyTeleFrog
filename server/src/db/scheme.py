@@ -67,18 +67,15 @@ class ArticleTag(Base):
     tag_name: Mapped[str] = mapped_column(String(512), primary_key=True)
     article_id = mapped_column(ForeignKey("articles.id"), primary_key=True)
 
-
 class ArticlePreview(Base):
     __tablename__ = "article_preview"
     article_id: Mapped[int] = mapped_column(ForeignKey("articles.id"), primary_key=True)
     preview_content: Mapped[str] = mapped_column(String(512))
 
-
 class ArticleLike(Base):
     __tablename__ = "article_likes"
     article_id: Mapped[int] = mapped_column(ForeignKey("articles.id"), primary_key=True)
     author_username: Mapped[int] = mapped_column(ForeignKey("users.username"), primary_key=True)
-
 
 class ArticleDislike(Base):
     __tablename__ = "article_dislikes"

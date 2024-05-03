@@ -36,6 +36,7 @@ from .. import config
 from .. import log
 from . import api_info
 from . import api_types
+from ..db.article import check_open, check_views
 
 app = Flask(__name__)
 app.register_blueprint(api_info.info)
@@ -124,9 +125,12 @@ def api_article_get():
     engine = create_engine(db_url)
     with Session(engine) as session:
         status, article = backend.get_article(session, parameters['article_id'], parameters['username'])
+
         if status.is_error:
             session.rollback()
             return json.dumps({'status': dict(status)})
+
+        check_open(parameters['article_id'], parameters['username'])
 
         session.commit()
         return json.dumps({'status': dict(request_status.Status(request_status.StatusType.OK)), 'article': article})
@@ -288,6 +292,8 @@ def api_pages_get():
                                       include,
                                       exclude,
                                       bound)
+    #check_views(article_id, username)
+
     return json.dumps({'status': dict(status), 'pages': pages})
 
 @app.route('/users', methods=['POST'])

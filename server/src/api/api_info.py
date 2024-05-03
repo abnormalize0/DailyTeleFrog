@@ -209,6 +209,18 @@ article_data_get = [
                     'is_required': True,
                     'container': 'body'
                 },
+                {
+                    'name': 'open_count',
+                    'type': 'field',
+                    'is_required': True,
+                    'container': 'body'
+                },
+                {
+                    'name': 'views_count',
+                    'type': 'field',
+                    'is_required': True,
+                    'container': 'body'
+                },
             ]
         }
     ]
