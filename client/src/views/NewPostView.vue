@@ -1,7 +1,7 @@
 <template>
   <v-dialog v-model="dialog" width="auto">
     <v-card>
-      <draggable v-model="slidesarray[current_image]"  handle=".handle" @dragstart="drag_start_handler">
+      <draggable v-model="slidesarray[current_image]"  handle=".handle" @dragstart="drag_start_handler_image">
         <template #item="{ element: block, index }">
           <div class="modal-grid">
             <img class="handle" :src=block.image style="max-height: 80px;">
@@ -33,9 +33,9 @@
   </v-snackbar>
 
   <div class="worksheet-class" @scroll="scroll_worker()" ref="worksheet">
-    <div v-for="(block, index) in blocks" v-bind:key="index" :ref="el => { if (el) block_element[index] = el }" class="element">
+    <div v-for="(block, index) in blocks" v-bind:key="index" :ref="el => { if (el) block_element[index] = el }" class="element blink">
       <div class="single-block">
-        <QuillEditor placeholder="Вставить текст" v-if="block.type == 'text'" v-model:content="myContent[block.id]" theme="bubble" :options="options" />
+        <QuillEditor placeholder="Вставить текст" v-if="block.type == 'text'" v-model:content="markdown_content[block.id]" theme="bubble" :options="options" />
         <vueper-slides v-if="block.type == 'carousel'" fade :touchable="false" arrows-outside bullets-outside :slide-ratio="1080 / 1920">
           <vueper-slide
             v-for="(slide, i) in slidesarray[block.id]"
@@ -54,7 +54,7 @@
         <div 
           @mouseover="show_menu_buttons(block.id)" @mouseleave="hide_menu_buttons(block.id)" 
           class="miniature-item"
-          @dragstart="drag_start_handler"
+          @dragstart="drag_start_handler(block.id, $event)"
           @dragend="drag_end_handler"
           :style="{ height: block.height + 'px' }"
         >
@@ -76,176 +76,15 @@
         </div>
       </template>
     </draggable>
-    <div class="miniature-position" :class="{'fade': scroll_fade}" :style="{ top: scroll_position + 'px', height: scroll_height + 'px' }" v-if="scroll_visibility"></div>
+    <div class="miniature-position" :class="{'fade': scroll_fade}" :style="{ top: scroll_position + 'px', height: worksheet.clientHeight * scale + 'px' }" v-if="scroll_visibility"></div>
   </div>
 
   <div class="submit" @click="submit()">Опубликовать</div>
 
 </template>
 
-<script>
-  import draggable from 'vuedraggable';
-  import { QuillEditor } from '@vueup/vue-quill'
-  import 'quill-paste-smart';
-  import {ref, onBeforeUpdate} from 'vue';
-  // import { toRaw } from 'vue';
-
-  import '@vueup/vue-quill/dist/vue-quill.snow.css';
-  import '@vueup/vue-quill/dist/vue-quill.bubble.css';
-
-  import { VueperSlides, VueperSlide } from 'vueperslides'
-  import 'vueperslides/dist/vueperslides.css'
-
-  export default {
-    components: {
-        draggable,
-        QuillEditor,
-        VueperSlides, 
-        VueperSlide
-    },
-    setup() {
-      const block_element = ref([])
-      onBeforeUpdate(() => {
-        block_element.value = []
-      })
-      const worksheet = ref(null)
-      return {
-        block_element,
-        worksheet
-      }
-    },
-    data() {
-      return {
-        blocks: [
-          {name:'Element 0', id: 0, type: "text", insert_buttons: false, height: 0},
-        ],
-        options: {
-          modules: {
-            toolbar: ['bold', 'italic', 'underline', 'strike', { 'list': 'ordered'}, { 'list': 'bullet' }, 'link', 'clean' ],
-          },
-        },
-        items: [
-          { title: 'Текстовое поле', type: 'text' },
-          { title: 'Карусель изображений', type: 'carousel' },
-        ],
-        scroll_position: 0,
-        scroll_height: 0,
-        scroll_fade: false,
-        scroll_visibility: false,
-        image_src: "",
-        snackbar: false,
-        dialog: false,
-        last_id: 1,
-        scale: 0.5,
-        timer: 0,
-        current_image: -1,
-        block_place: 0,
-        allow_menu: 1,
-        myContent: [],
-        slides: [
-          {
-            title: 'Заглушка для картинки',
-            image: 'https://images.unsplash.com/photo-1431440869543-efaf3388c585?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'
-          }
-        ],
-        slidesarray: []
-      }
-    },
-    updated() {
-      let cc = 0;
-      this.blocks.forEach((block) => {
-        block.height = this.block_element[cc].clientHeight * this.scale
-        cc++
-      })
-      this.scroll_height = this.worksheet.clientHeight * this.scale
-    },
-    methods: {
-      add_element(type, target_block) {
-        this.blocks.splice(this.blocks.map(function (img) { return img.id; }).indexOf(target_block) + this.block_place, 0, {name:'Element ' + this.last_id, id: this.last_id, type: type, insert_buttons:false, height: 0})
-        if(type == 'carousel') {
-          this.slidesarray[this.last_id] = structuredClone(this.slides);
-        }
-        this.last_id++
-      },
-      drag_start_handler(e) {
-        this.allow_menu = 0;
-        e.dataTransfer.setDragImage(new Image(), 0, 0);
-        this.blocks.forEach((block) => {
-          this.hide_menu_buttons(block.id);
-        })
-      },
-      drag_end_handler() {
-        this.allow_menu = 1;
-      },
-      scroll_to(id) {
-        let target = this.blocks.findIndex((element) => element.id == id)
-        this.block_element[target].scrollIntoView({ behavior: 'smooth' });
-        setTimeout(() => this.block_element[target].classList.toggle("blink"), 300);
-        setTimeout(() => this.block_element[target].classList.toggle("blink"), 800);
-      },
-      scroll_worker() {
-        this.scroll_position = this.worksheet.scrollTop * this.scale
-        this.scroll_visibility = true
-        if (this.timer == 0) {
-          this.scroll_fade = false
-          this.timer = 4
-          this.recursive_shutdown()
-        } else {
-          this.timer = 4
-        }
-
-      },
-      recursive_shutdown() {
-        let that = this;
-        if (this.timer > 0) {
-          this.timer--
-          setTimeout(() => that.recursive_shutdown(), 50);
-          return
-        }
-        this.scroll_fade = true
-        setTimeout(() => this.scroll_visibility = false, 200);
-      },
-      expand(index) {
-        this.dialog = true
-        this.current_image = index;
-      },
-      image_title(index) {
-        this.slidesarray[this.current_image][index].title = this.block[this.current_image].title;
-      },
-      delete_img(index) {
-        if(this.slidesarray[this.current_image].length == 1) {
-          this.snackbar = true;
-          return;
-        }
-        this.slidesarray[this.current_image].splice(index, 1);
-      },
-      add_img() {
-        this.slidesarray[this.current_image].push({
-          title: '',
-          image: this.image_src
-        })
-        this.image_src = "";
-      },
-      show_menu_buttons(id) {
-        if(!this.allow_menu){
-          return;
-        }
-        this.blocks.find((element) => element.id == id).insert_buttons = true;
-      },
-      hide_menu_buttons(id) {
-        this.blocks.find((element) => element.id == id).insert_buttons = false;
-      },
-      submit() {
-
-      }
-    }
-  }
-  
-</script>
-
 <style>
   .insert-button {
-    /* top: 40px; left: 40px; */
     right: 50%;
   }
 
@@ -289,12 +128,27 @@
   }
 
   .element {
-    transition: background-color 0.5s
+    transition: background-color 0.5s;
+
   }
 
   .element.blink {
-    background-color: white;
-    transition: background-color 0.5s
+    animation: mymove 1s;
+  }
+  .element.blink2 {
+    animation: mymove2 1s;
+  }
+
+  @keyframes mymove {
+    0% {background-color: transparent;}
+    50% {background-color: white;}
+    100% {background-color: transparent;}
+  }
+
+  @keyframes mymove2 {
+    0% {background-color: transparent;}
+    50% {background-color: white;}
+    100% {background-color: transparent;}
   }
 
   .miniature-position {
@@ -349,3 +203,165 @@
   }
 
 </style>
+
+<script>
+  import draggable from 'vuedraggable';
+  import { QuillEditor } from '@vueup/vue-quill'
+  import 'quill-paste-smart';
+  import {ref, onBeforeUpdate} from 'vue';
+
+  import '@vueup/vue-quill/dist/vue-quill.snow.css';
+  import '@vueup/vue-quill/dist/vue-quill.bubble.css';
+
+  import { VueperSlides, VueperSlide } from 'vueperslides'
+  import 'vueperslides/dist/vueperslides.css'
+
+  export default {
+    components: {
+        draggable,
+        QuillEditor,
+        VueperSlides, 
+        VueperSlide
+    },
+    setup() {
+      const block_element = ref([])
+      onBeforeUpdate(() => {
+        block_element.value = []
+      })
+      const worksheet = ref(null)
+      return {
+        block_element,
+        worksheet
+      }
+    },
+    data() {
+      return {
+        blocks: [
+          {name:'Element 0', id: 0, type: "text", insert_buttons: false, height: 0},
+        ],
+        options: {
+          modules: {
+            toolbar: ['bold', 'italic', 'underline', 'strike', { 'list': 'ordered'}, { 'list': 'bullet' }, 'link', 'clean' ],
+          },
+        },
+        items: [
+          { title: 'Текстовое поле', type: 'text' },
+          { title: 'Карусель изображений', type: 'carousel' },
+        ],
+        scroll_position: 0,
+        scroll_fade: false,
+        scroll_visibility: false,   //три переменные которые отвечают за позиционирование и видимость указателя позиции в правом меню
+        image_src: "",              //переменная поля ввода адреса для вставки картинки
+        snackbar: false,            //видимость окна уведомления о том что нельзя удалять последнюю картинку
+        dialog: false,              //видимость окна добавления картинок
+        last_id: 1,                 //текущий последний идентификатор чтоб знать какой присваивать новым блокам
+        scale: 0.5,                 //множитель скалирования миниатюр в правом меню
+        timer: 0,                   //хехе рекурсия делает бррр
+        current_image: -1,          //идентификатор чтоб окну добавления картинок знать с каким элментом он работает
+        block_place: 0,             //добавлять новый блок до или после целевого
+        allow_menu: 1,              //позволять или нет поялвяться кнопкам при наведении на миниатюру (запрещаю если прямо сейчас происходит драгндроп)
+        markdown_content: [],       //содержимое текстовых полей маркдаун эдиторов
+        slides: [
+          {
+            title: 'Заглушка для картинки',
+            image: 'https://images.unsplash.com/photo-1431440869543-efaf3388c585?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'
+          }
+        ],
+        slidesarray: []
+      }
+    },
+    //todo: do something with block.height
+    updated() {
+      let cc = 0;
+      this.blocks.forEach((block) => {
+        block.height = this.block_element[cc].clientHeight * this.scale
+        cc++
+      })
+    },
+    methods: {
+      add_element(type, target_block) {
+        this.blocks.splice(this.blocks.findIndex((element) => element.id == target_block) + this.block_place, 0, {name:'Element ' + this.last_id, id: this.last_id, type: type, insert_buttons:false, height: 0})
+        if(type == 'carousel') {
+          this.slidesarray[this.last_id] = structuredClone(this.slides);
+        }
+        this.last_id++
+      },
+      drag_start_handler(id, e) {
+        this.allow_menu = 0;
+        e.dataTransfer.setDragImage(new Image(), 0, 0);
+        this.hide_menu_buttons(id);
+      },
+      drag_start_handler_image(e) {
+        e.dataTransfer.setDragImage(new Image(), 0, 0);
+      },
+      drag_end_handler() {
+        this.allow_menu = 1;
+      },
+      scroll_to(id) {
+        let target = this.blocks.findIndex((element) => element.id == id)
+        this.block_element[target].scrollIntoView({ behavior: 'smooth' });
+        this.block_element[target].classList.toggle("blink")
+        this.block_element[target].classList.toggle("blink2")
+
+      },
+
+      sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+      },
+      //todo: think about scroll_position
+      scroll_worker() {
+        this.scroll_position = this.worksheet.scrollTop * this.scale
+        this.scroll_visibility = true
+        if (this.timer == 0) {
+          this.scroll_fade = false
+          this.timer = 4
+          this.position_shutdown()
+        } else {
+          this.timer = 4
+        }
+      },
+      async position_shutdown() {
+        while(this.timer > 0) {
+          this.timer--;
+          await new Promise(resolve => setTimeout(resolve, 50));
+        }
+        this.scroll_fade = true
+        setTimeout(() => this.scroll_visibility = false, 200);
+      },
+      expand(index) {
+        this.dialog = true
+        this.current_image = index;
+      },
+      image_title(index) {
+        this.slidesarray[this.current_image][index].title = this.block[this.current_image].title;
+      },
+      delete_img(index) {
+        if(this.slidesarray[this.current_image].length == 1) {
+          this.snackbar = true;
+          return;
+        }
+        this.slidesarray[this.current_image].splice(index, 1);
+      },
+      add_img() {
+        this.slidesarray[this.current_image].push({
+          title: '',
+          image: this.image_src
+        })
+        this.image_src = "";
+      },
+      show_menu_buttons(id) {
+        if(!this.allow_menu){
+          return;
+        }
+        this.blocks.find((element) => element.id == id).insert_buttons = true;
+      },
+      hide_menu_buttons(id) {
+        this.blocks.find((element) => element.id == id).insert_buttons = false;
+      },
+      submit() {
+
+      }
+    }
+  }
+  
+</script>
