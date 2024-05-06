@@ -1,11 +1,11 @@
-from sqlalchemy import ForeignKey, ARRAY
+from sqlalchemy import ForeignKey
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
 from sqlalchemy.orm import Session
 from sqlalchemy import create_engine
 from sqlalchemy import String, Text, BigInteger, Integer
-from typing import Optional, List
+from typing import Optional
 
 
 class Base(DeclarativeBase):
@@ -119,7 +119,7 @@ class ArticleViewCounter(Base):
     __tablename__ = "article_view_counter"
 
     article_id: Mapped[int] = mapped_column(ForeignKey("articles.id"), primary_key=True)
-    author_username: Mapped[int] = mapped_column(ForeignKey("users.username"), primary_key=True)
+    username: Mapped[int] = mapped_column(ForeignKey("users.username"), primary_key=True)
 
 
 class ArticleOpenCounter(Base):
@@ -127,6 +127,6 @@ class ArticleOpenCounter(Base):
     __tablename__ = "article_open_counter"
 
     article_id: Mapped[int] = mapped_column(ForeignKey("articles.id"), primary_key=True)
-    author_username: Mapped[int] = mapped_column(ForeignKey("users.username"), primary_key=True)
+    username: Mapped[int] = mapped_column(ForeignKey("users.username"), primary_key=True)
 
 

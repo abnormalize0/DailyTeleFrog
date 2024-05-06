@@ -205,25 +205,25 @@ def check_open(article_id, username):
 
     with Session(engine) as session:
         existing_record = session.query(scheme.ArticleOpenCounter).filter_by(article_id=article_id,
-                                                                             author_username=username).first()
+                                                                             username=username).first()
         if not existing_record:
-            new_record = scheme.ArticleOpenCounter(article_id=article_id, author_username=username)
+            new_record = scheme.ArticleOpenCounter(article_id=article_id, username=username)
             session.add(new_record)
             session.commit()
 
 
-def check_views(articles: List[Tuple[int, str]]):
+def check_views(article_id, username):
     """Функция проверяет, просматривал ли пользователь статью.
 
-    :param articles: Список статей
+    :param article_id: Id статьи
+    :param username: Имя пользователя
     """
     engine = create_engine(config.db_url)
 
     with Session(engine) as session:
-        for article_id, username in articles:
-            existing_record = session.query(scheme.ArticleViewCounter).filter_by(article_id=article_id,
-                                                                                 author_username=username).first()
-            if not existing_record:
-                new_record = scheme.ArticleViewCounter(article_id=article_id, author_username=username)
-                session.add(new_record)
+        existing_record = session.query(scheme.ArticleViewCounter).filter_by(article_id=article_id,
+                                                                             username=username).first()
+        if not existing_record:
+            new_record = scheme.ArticleViewCounter(article_id=article_id, username=username)
+            session.add(new_record)
         session.commit()
