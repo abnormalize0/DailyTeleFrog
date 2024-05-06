@@ -196,7 +196,11 @@ def dislike_article(article_id, username):
 
 
 def check_open(article_id, username):
-    """Функция проверяет наличие открытия статьи пользователем"""
+    """Функция проверяет, открывал ли пользователь статью.
+
+    :param article_id: Id статьи
+    :param username: Имя пользователя
+    """
     engine = create_engine(config.db_url)
 
     with Session(engine) as session:
@@ -209,7 +213,10 @@ def check_open(article_id, username):
 
 
 def check_views(articles: List[Tuple[int, str]]):
-    """Функция проверяет наличие просмотра статьи пользователями"""
+    """Функция проверяет, просматривал ли пользователь статью.
+
+    :param articles: Список статей
+    """
     engine = create_engine(config.db_url)
 
     with Session(engine) as session:
