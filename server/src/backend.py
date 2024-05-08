@@ -297,6 +297,14 @@ def get_article_data(session, article_id, username, requested_data):
                 status, data[key] = article.is_disliked(session, article_id, username)
                 if status.is_error:
                     return status, None
+            case "views":
+                status, data[key] = article.get_views(session, article_id)
+                if status.is_error:
+                    return status, None
+            case "opens":
+                status, data[key] = article.get_opens(session, article_id)
+                if status.is_error:
+                    return status, None
     return request_status.Status(request_status.StatusType.OK), data
 
 def get_user_data(session, username, requested_data):
