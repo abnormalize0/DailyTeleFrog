@@ -249,7 +249,7 @@ def open_article(article_id, username):
                       'opens')
     return status
 
-def views_article(article_id, username):
+def view_article(article_id, username):
     status = api.vote(config.db_article.path,
                       config.article_table_name,
                       config.article_id_name,
