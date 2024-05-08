@@ -204,6 +204,7 @@ def is_open(session: Session, article_id, username):
     """
     if is_article_not_exist(session, article_id):
         return request_status.Status(request_status.StatusType.OK), False
+
     return request_status.Status(request_status.StatusType.OK), not session.query(scheme.ArticleOpen).where(
         scheme.ArticleOpen.article_id == article_id and scheme.ArticleOpen.username == username).scalar() is None
 
@@ -217,6 +218,7 @@ def is_views(session: Session, article_id, username):
     """
     if is_article_not_exist(session, article_id):
         return request_status.Status(request_status.StatusType.OK), False
+
     return request_status.Status(request_status.StatusType.OK), not session.query(scheme.ArticleView).where(
         scheme.ArticleView.article_id == article_id and scheme.ArticleView.username == username).scalar() is None
 
@@ -236,6 +238,7 @@ def get_views(session: Session, article_id):
         .where(scheme.ArticleView.article_id == article_id)
         .count()
     )
+
     return request_status.Status(request_status.StatusType.OK), views
 
 
@@ -254,6 +257,7 @@ def get_opens(session: Session, article_id):
         .where(scheme.ArticleOpen.article_id == article_id)
         .count()
     )
+
     return request_status.Status(request_status.StatusType.OK), views
 
 

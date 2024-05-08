@@ -118,7 +118,7 @@ class ArticleView(Base):
     """
     Модель просмотра статьи.
     """
-    __tablename__ = "article_view"
+    __tablename__ = "article_views"
 
     article_id: Mapped[int] = mapped_column(ForeignKey("articles.id"), primary_key=True)
     username: Mapped[int] = mapped_column(ForeignKey("users.username"), primary_key=True)
@@ -128,7 +128,7 @@ class ArticleOpen(Base):
     """
     Модель открытия статьи.
     """
-    __tablename__ = "article_open"
+    __tablename__ = "article_opens"
 
     article_id: Mapped[int] = mapped_column(ForeignKey("articles.id"), primary_key=True)
     username: Mapped[int] = mapped_column(ForeignKey("users.username"), primary_key=True)
