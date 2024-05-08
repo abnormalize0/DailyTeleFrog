@@ -195,35 +195,112 @@ def dislike_article(article_id, username):
         session.commit()
 
 
-def check_open(article_id, username):
+def is_open(session: Session, article_id, username):
     """Функция проверяет, открывал ли пользователь статью.
 
+    :param session: Текущая сессия
     :param article_id: Id статьи
     :param username: Имя пользователя
     """
-    engine = create_engine(config.db_url)
-
-    with Session(engine) as session:
-        existing_record = session.query(scheme.ArticleOpenCounter).filter_by(article_id=article_id,
-                                                                             username=username).first()
-        if not existing_record:
-            new_record = scheme.ArticleOpenCounter(article_id=article_id, username=username)
-            session.add(new_record)
-            session.commit()
+    if is_article_not_exist(session, article_id):
+        return request_status.Status(request_status.StatusType.OK), False
+    return request_status.Status(request_status.StatusType.OK), not session.query(scheme.ArticleOpen).where(
+        scheme.ArticleOpen.article_id == article_id and scheme.ArticleOpen.username == username).scalar() is None
 
 
-def check_views(article_id, username):
+def is_views(session: Session, article_id, username):
     """Функция проверяет, просматривал ли пользователь статью.
 
+    :param session: Текущая сессия
+    :param article_id: Id статьи
+    :param username: Имя пользователя
+    """
+    if is_article_not_exist(session, article_id):
+        return request_status.Status(request_status.StatusType.OK), False
+    return request_status.Status(request_status.StatusType.OK), not session.query(scheme.ArticleView).where(
+        scheme.ArticleView.article_id == article_id and scheme.ArticleView.username == username).scalar() is None
+
+
+def get_views(session: Session, article_id):
+    """Функция показывает сколько открытий у конкретной статьи.
+
+    :param session: Текущая сессия
+    :param article_id: Id статьи
+    """
+    if is_article_not_exist(session, article_id):
+        return request_status.Status(request_status.StatusType.ERROR,
+                                     error_type=request_status.ErrorType.ValueError,
+                                     msg=f'Cannot find article with id: {article_id}'), None
+    views = (
+        session.query(scheme.ArticleView)
+        .where(scheme.ArticleView.article_id == article_id)
+        .count()
+    )
+    return request_status.Status(request_status.StatusType.OK), views
+
+
+def get_opens(session: Session, article_id):
+    """Функция показывает сколько просмотров у конкретной статьи.
+
+    :param session: Текущая сессия
+    :param article_id: Id статьи
+    """
+    if is_article_not_exist(session, article_id):
+        return request_status.Status(request_status.StatusType.ERROR,
+                                     error_type=request_status.ErrorType.ValueError,
+                                     msg=f'Cannot find article with id: {article_id}'), None
+    views = (
+        session.query(scheme.ArticleOpen)
+        .where(scheme.ArticleOpen.article_id == article_id)
+        .count()
+    )
+    return request_status.Status(request_status.StatusType.OK), views
+
+
+def view_article(article_id, username):
+    """Функция добавляет просмотр к конкретной статье от конкретного пользователя.
+
     :param article_id: Id статьи
     :param username: Имя пользователя
     """
     engine = create_engine(config.db_url)
-
     with Session(engine) as session:
-        existing_record = session.query(scheme.ArticleViewCounter).filter_by(article_id=article_id,
-                                                                             username=username).first()
-        if not existing_record:
-            new_record = scheme.ArticleViewCounter(article_id=article_id, username=username)
-            session.add(new_record)
+        existing_view = (
+            session.query(scheme.ArticleView)
+            .where(
+                scheme.ArticleView.article_id == article_id
+                and scheme.ArticleView.username == username
+            )
+            .scalar()
+        )
+
+        if existing_view is None:
+            view = scheme.ArticleView(article_id=article_id, username=username)
+            session.add(view)
+
         session.commit()
+
+
+def open_article(article_id, username):
+    """Функция добавляет открытие конкретной статьи от конкретного пользователя.
+
+    :param article_id: Id статьи
+    :param username: Имя пользователя
+    """
+    engine = create_engine(config.db_url)
+    with Session(engine) as session:
+        existing_open = (
+            session.query(scheme.ArticleOpen)
+            .where(
+                scheme.ArticleOpen.article_id == article_id
+                and scheme.ArticleOpen.username == username
+            )
+            .scalar()
+        )
+
+        if existing_open is None:
+            open = scheme.ArticleOpen(article_id=article_id, username=username)
+            session.add(open)
+
+        session.commit()
+

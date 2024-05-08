@@ -19,7 +19,7 @@ def get_page_articles(index, username, include_nonsub, sort_column, sort_directi
     if len(articles) < (index + 1) * config.articles_per_page:
         page_articles = articles[index * config.articles_per_page:]
     else:
-        page_articles = articles[index * config.articles_per_page : (index + 1) * config.articles_per_page]
+        page_articles = articles[index * config.articles_per_page: (index + 1) * config.articles_per_page]
     return status, page_articles
 
 def select_preview(article):
@@ -34,6 +34,8 @@ def select_preview(article):
     preview['dislikes_count'] = article['dislikes_count']
     preview['dislikes_id'] = article['dislikes_id']
     preview['comments_count'] = article['comments_count']
+    preview['views_count'] = article['views_count']
+    preview['opens_count'] = article['opens_count']
     return preview
 
 def get_page(index, username, include_nonsub, sort_column, sort_direction, include, exclude, bounds):
@@ -90,6 +92,19 @@ def get_article(session, article_id, username):
     status, tags = article.get_tags(session, article_id)
     if status.is_error:
         return status, None
+    status, views = article.get_views(session, article_id)
+    if status.is_error:
+        return status, None
+    status, opens = article.get_opens(session, article_id)
+    if status.is_error:
+        return status, None
+    status, is_views = article.is_views(session, article_id, username)
+    if status.is_error:
+        return status, None
+    status, is_opens = article.is_open(session, article_id, username)
+    if status.is_error:
+        return status, None
+
     return request_status.Status(request_status.StatusType.OK), {
         "creation_date": article_info.creation_date,
         "author_preview": "author_preview",
@@ -103,6 +118,10 @@ def get_article(session, article_id, username):
         "is_liked": is_liked,
         "is_disliked": is_disliked,
         "tags": tags,
+        "views": views,
+        "opens": opens,
+        "is_views": is_views,
+        "is_opens": is_opens,
     }
 
 
@@ -217,6 +236,24 @@ def like_comment(comment_id, username):
                       comment_id,
                       username,
                       'likes')
+    return status
+
+def open_article(article_id, username):
+    status = api.vote(config.db_article.path,
+                      config.article_table_name,
+                      config.article_id_name,
+                      article_id,
+                      username,
+                      'opens')
+    return status
+
+def views_article(article_id, username):
+    status = api.vote(config.db_article.path,
+                      config.article_table_name,
+                      config.article_id_name,
+                      article_id,
+                      username,
+                      'views')
     return status
 
 def add_comment(article_id, root, comment_text, username):

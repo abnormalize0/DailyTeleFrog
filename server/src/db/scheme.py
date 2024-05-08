@@ -114,17 +114,21 @@ class CommentDislike(Base):
 #    creator: Mapped[int] = mapped_column(ForeignKey("users.username"))
 
 
-class ArticleViewCounter(Base):
-    """Модель-счетчик просмотра статьи"""
-    __tablename__ = "article_view_counter"
+class ArticleView(Base):
+    """
+    Модель просмотра статьи.
+    """
+    __tablename__ = "article_view"
 
     article_id: Mapped[int] = mapped_column(ForeignKey("articles.id"), primary_key=True)
     username: Mapped[int] = mapped_column(ForeignKey("users.username"), primary_key=True)
 
 
-class ArticleOpenCounter(Base):
-    """Модель-счетчик открытия статьи"""
-    __tablename__ = "article_open_counter"
+class ArticleOpen(Base):
+    """
+    Модель открытия статьи.
+    """
+    __tablename__ = "article_open"
 
     article_id: Mapped[int] = mapped_column(ForeignKey("articles.id"), primary_key=True)
     username: Mapped[int] = mapped_column(ForeignKey("users.username"), primary_key=True)

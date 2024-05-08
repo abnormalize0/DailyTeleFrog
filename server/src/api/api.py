@@ -130,8 +130,6 @@ def api_article_get():
             session.rollback()
             return json.dumps({'status': dict(status)})
 
-        check_open(parameters['article_id'], parameters['username'])
-
         session.commit()
         return json.dumps({'status': dict(request_status.Status(request_status.StatusType.OK)), 'article': article})
 
@@ -292,7 +290,6 @@ def api_pages_get():
                                       include,
                                       exclude,
                                       bound)
-    #check_views(article_id, username)
 
     return json.dumps({'status': dict(status), 'pages': pages})
 
