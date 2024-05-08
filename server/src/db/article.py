@@ -2,7 +2,6 @@ from . import scheme
 from .. import config
 from .. import request_status
 import time
-from typing import Optional, List, Tuple
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from sqlalchemy import select, update, delete
