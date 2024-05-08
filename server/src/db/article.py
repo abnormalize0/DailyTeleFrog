@@ -194,34 +194,6 @@ def dislike_article(article_id, username):
         session.commit()
 
 
-def is_open(session: Session, article_id, username):
-    """Функция проверяет, открывал ли пользователь статью.
-
-    :param session: Текущая сессия
-    :param article_id: Id статьи
-    :param username: Имя пользователя
-    """
-    if is_article_not_exist(session, article_id):
-        return request_status.Status(request_status.StatusType.OK), False
-
-    return request_status.Status(request_status.StatusType.OK), not session.query(scheme.ArticleOpen).where(
-        scheme.ArticleOpen.article_id == article_id and scheme.ArticleOpen.username == username).scalar() is None
-
-
-def is_views(session: Session, article_id, username):
-    """Функция проверяет, просматривал ли пользователь статью.
-
-    :param session: Текущая сессия
-    :param article_id: Id статьи
-    :param username: Имя пользователя
-    """
-    if is_article_not_exist(session, article_id):
-        return request_status.Status(request_status.StatusType.OK), False
-
-    return request_status.Status(request_status.StatusType.OK), not session.query(scheme.ArticleView).where(
-        scheme.ArticleView.article_id == article_id and scheme.ArticleView.username == username).scalar() is None
-
-
 def get_views(session: Session, article_id):
     """Функция показывает сколько открытий у конкретной статьи.
 

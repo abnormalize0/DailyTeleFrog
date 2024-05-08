@@ -100,12 +100,6 @@ def get_article(session, article_id, username):
     status, opens = article.get_opens(session, article_id)
     if status.is_error:
         return status, None
-    status, is_views = article.is_views(session, article_id, username)
-    if status.is_error:
-        return status, None
-    status, is_opens = article.is_open(session, article_id, username)
-    if status.is_error:
-        return status, None
 
     return request_status.Status(request_status.StatusType.OK), {
         "creation_date": article_info.creation_date,
@@ -122,8 +116,6 @@ def get_article(session, article_id, username):
         "tags": tags,
         "views": views,
         "opens": opens,
-        "is_views": is_views,
-        "is_opens": is_opens,
     }
 
 
