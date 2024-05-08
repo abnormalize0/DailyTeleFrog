@@ -2,9 +2,7 @@ from sqlalchemy import ForeignKey
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
-from sqlalchemy.orm import Session
-from sqlalchemy import create_engine
-from sqlalchemy import String, Text, BigInteger, Integer
+from sqlalchemy import String, Text, BigInteger
 from typing import Optional
 
 
