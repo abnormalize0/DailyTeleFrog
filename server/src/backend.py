@@ -35,7 +35,9 @@ def select_preview(article):
     preview['dislikes_id'] = article['dislikes_id']
     preview['comments_count'] = article['comments_count']
     preview['views_count'] = article['views_count']
+    preview['views_id'] = article['views_id']
     preview['opens_count'] = article['opens_count']
+    preview['opens_id'] = article['opens_id']
     return preview
 
 def get_page(index, username, include_nonsub, sort_column, sort_direction, include, exclude, bounds):
