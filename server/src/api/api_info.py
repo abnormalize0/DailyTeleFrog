@@ -170,43 +170,55 @@ article_data_get = [
                 {
                     'name': 'likes',
                     'type': 'field',
-                    'is_required': True,
+                    'is_required': False,
                     'container': 'body'
                 },
                 {
                     'name': 'dislikes',
                     'type': 'field',
-                    'is_required': True,
+                    'is_required': False,
                     'container': 'body'
                 },
                 {
                     'name': 'rating',
                     'type': 'field',
-                    'is_required': True,
+                    'is_required': False,
                     'container': 'body'
                 },
                 {
                     'name': 'comments_count',
                     'type': 'field',
-                    'is_required': True,
+                    'is_required': False,
                     'container': 'body'
                 },
                 {
                     'name': 'creation_date',
                     'type': 'field',
-                    'is_required': True,
+                    'is_required': False,
                     'container': 'body'
                 },
                 {
                     'name': 'is_liked',
                     'type': 'field',
-                    'is_required': True,
+                    'is_required': False,
                     'container': 'body'
                 },
                 {
                     'name': 'is_disliked',
                     'type': 'field',
-                    'is_required': True,
+                    'is_required': False,
+                    'container': 'body'
+                },
+                {
+                    'name': 'open_count',
+                    'type': 'field',
+                    'is_required': False,
+                    'container': 'body'
+                },
+                {
+                    'name': 'views_count',
+                    'type': 'field',
+                    'is_required': False,
                     'container': 'body'
                 },
             ]

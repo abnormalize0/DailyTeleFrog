@@ -124,6 +124,7 @@ def api_article_get():
     engine = create_engine(db_url)
     with Session(engine) as session:
         status, article = backend.get_article(session, parameters['article_id'], parameters['username'])
+
         if status.is_error:
             session.rollback()
             return json.dumps({'status': dict(status)})
@@ -150,7 +151,11 @@ def api_article_data_post():
                                                                api_types.Parameter('dislike-article', 'json', False),
                                                                api_types.Parameter('like-comment', 'json', False),
                                                                api_types.Parameter('dislike-comment', 'json', False),
-                                                               api_types.Parameter('add-comment', 'json', False)])
+                                                               api_types.Parameter('add-comment', 'json', False),
+                                                               api_types.Parameter('view-article', 'json', False),
+                                                               api_types.Parameter('open-article', 'json', False),
+                                                               api_types.Parameter('add-open', 'json', False),
+                                                               api_types.Parameter('add-view', 'json', False)])
     if status.is_error:
         return json.dumps({'status': dict(status)})
 
@@ -193,6 +198,26 @@ def api_article_data_post():
                                                  command['add-comment']['text'],
                                                  headers['username'])
         return json.dumps({'status': dict(status), 'comment_id': comment_id})
+
+    if 'view-article' in command:
+        status, _ = api_types.parse_structure(command['view-article'], [api_types.Parameter('comment_id', 'int', True)])
+        if status.is_error:
+            return json.dumps({'status': dict(status)})
+
+    if 'open-article' in command:
+        status, _ = api_types.parse_structure(command['open-article'], [api_types.Parameter('comment_id', 'int', True)])
+        if status.is_error:
+            return json.dumps({'status': dict(status)})
+
+    if 'add-view' in command:
+        status = backend.view_article(headers['article-id'], headers['username'])
+        return json.dumps({'status': dict(status)})
+
+    if 'add-open' in command:
+        status = backend.open_article(headers['article-id'], headers['username'])
+        return json.dumps({'status': dict(status)})
+
+
 
 @app.route('/article/data', methods=['GET'])
 @log.safe_api
@@ -288,6 +313,7 @@ def api_pages_get():
                                       include,
                                       exclude,
                                       bound)
+
     return json.dumps({'status': dict(status), 'pages': pages})
 
 @app.route('/users', methods=['POST'])
