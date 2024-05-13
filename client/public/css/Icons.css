@@ -31,9 +31,34 @@
   background: url('../icons/menu-kebab-text-color.svg');
 }
 
+.home-icon {
+  background: url('../icons//home.svg');
+}
+
+.popular-icon {
+  background: url("../icons/populag.svg");
+}
+
+.advertisement-icon {
+  background: url("../icons/advertisement.svg");
+}
+
+.rules-icon {
+  background: url("../icons/rules.svg");
+}
+
+.calendar-icon {
+  background: url("../icons/calendar.svg");
+}
+
 /* SIZE */
 .search-text-secondary-color-icon,
-.menu-kebab-text-color-icon {
+.menu-kebab-text-color-icon,
+.advertisement-icon,
+.calendar-icon,
+.rules-icon,
+.home-icon,
+.popular-icon {
   height: 24px;
   width: 24px;
 }
