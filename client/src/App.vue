@@ -1,7 +1,7 @@
 <template>
   <v-app class="background-main-color">
     <HeaderComponent />
-    <div style="display:flex">
+    <div class="d-flex">
       <LeftMenuComponent :groups="groups"/>
       <PostPreview :post="post"></PostPreview>
     </div>
@@ -47,6 +47,21 @@ export default {
           img: "https://cdn2.iconfinder.com/data/icons/people-groups/512/Leader_Avatar-512.png",
         },
       ],
+      post: {
+        header: String,
+      body: String,
+      img: String,
+      hashtags: [],
+      avatarImg: String,
+      profileName: String,
+      accountTag: String,
+      commentsNumber: Number,
+      likesCount: Number,
+      clickCount: Number,
+      watchCount: Number,
+      spotlightCount: Number,
+      registrationDate: String
+      }
     }
   },
 };

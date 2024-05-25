@@ -1,44 +1,44 @@
 <template>
   <div class="parent">
     <div class="child pointer">
-      <i class="home-icon"></i>
+      <i class="home-icon icon"></i>
       <div class="p2 menu-text">Моя лента</div>
     </div>
     <div class="child pointer">
-      <i class="popular-icon"></i>
+      <i class="popular-icon icon"></i>
       <div class="p2 menu-text">Популярное</div>
     </div>
     <div class="child pointer">
-      <i class="calendar-icon"></i>
+      <i class="calendar-icon icon"></i>
       <div class="p2 menu-text">Свежее</div>
     </div>
     <div>
       <div class="p1" style="margin-bottom: 24px">Мои сообщества</div>
       <div v-for="group in filteredGroups" :key="group" class="child pointer">
-        <img class="img" :src="group.img" />
+        <img class="img icon" :src="group.img" />
         <div class="p2 menu-text">{{ group.name }}</div>
       </div>
       <div
-        class="p3 pointer"
+        class="p3 pointer child"
         style="
           margin-bottom: 24px;
-          display: flex;
           justify-content: space-between;
+          display: flex;
         "
         v-if="showMoreGroups"
       >
-        БОЛЬШЕ СООБЩЕСТВ
-        <div style="margin-right: 4rem">></div>
+        <div class="icon">БОЛЬШЕ СООБЩЕСТВ</div>
+        <div style="margin-right: 3rem">></div>
       </div>
     </div>
     <div>
       <div class="p1" style="margin-bottom: 24px">Полезная информация</div>
       <div class="child pointer">
-        <i class="rules-icon"></i>
+        <i class="rules-icon icon"></i>
         <div class="p2 menu-text">Правила</div>
       </div>
       <div class="child pointer">
-        <i class="advertisement-icon"></i>
+        <i class="advertisement-icon icon"></i>
         <div class="p2 menu-text">Заказать рекламу</div>
       </div>
     </div>
@@ -55,13 +55,21 @@
   display: flex;
   justify-content: left;
   align-items: center;
-  margin-bottom: 24px;
+  height: 48px;
+  margin-bottom: 12px;
+  border-radius: 12px;
 }
 .pointer {
   cursor: pointer;
 }
+.pointer:hover {
+  background-color: #64648D;
+}
 .menu-text {
   padding-left: 8px;
+}
+.icon {
+  margin-left: 14px;
 }
 .img {
   width: 24px;
@@ -71,11 +79,9 @@
 <script>
 export default {
   name: "LeftMenuComponent",
-  components: {
-    
-  },
+  components: {},
   props: {
-    groups: []
+    groups: [],
   },
   data() {
     return {
