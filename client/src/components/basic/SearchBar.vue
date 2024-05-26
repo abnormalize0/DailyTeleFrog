@@ -14,11 +14,13 @@
     height: 44px;
     padding: 10px 30px;
     background-color: transparent;
+    caret-color: var(--text-secondary-color);
+    transition: 600ms;
   }
   .search-bar:hover,
   .search-bar:focus-within,
   .search-bar:active {
-    background-color: var(--text-color);
+    background-color: var(--background-secondary-color);
   }
   .container-button-icon {
     all: unset;
