@@ -19,10 +19,12 @@
         <div class="p4 text-color">{{ displayWatchString }} просмотров</div>
       </div>
       <div class="d-flex justify-end additional-info">
-        <div class="d-flex align-center icon-prepend-button">
+        <!-- 
+          TODO: uncomment it when the functionality will be ready
+          <div class="d-flex align-center icon-prepend-button">
           <i class="bookmark-text-color-icon"></i>
           <div class="p3 text-color">{{ spotlightCount }}</div>
-        </div>
+        </div> -->
         <div class="d-flex align-center icon-prepend-button">
           <i class="comment-text-color-icon"></i>
           <div class="p3 text-color">{{ commentsNumber }}</div>
