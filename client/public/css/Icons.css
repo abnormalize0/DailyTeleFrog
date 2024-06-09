@@ -50,6 +50,12 @@
 .calendar-icon {
   background: url("../icons/calendar.svg");
 }
+.exit-icon {
+  background: url("../icons/exit.svg");
+}
+.settings-icon {
+  background: url("../icons/settings.svg");
+}
 
 /* SIZE */
 .search-text-secondary-color-icon,
@@ -66,7 +72,9 @@
 .bookmark-text-color-icon,
 .comment-text-color-icon,
 .arrow-down-text-color-icon,
-.arrow-up-text-color-icon {
+.arrow-up-text-color-icon,
+.exit-icon,
+.settings-icon {
   height: 16px;
   width: 16px;
 }
@@ -78,7 +86,9 @@
 .comment-text-color-icon,
 .arrow-down-text-color-icon,
 .arrow-up-text-color-icon,
-.menu-kebab-text-color-icon {
+.menu-kebab-text-color-icon,
+.exit-icon,
+.settings-icon {
   display: block;
   cursor: pointer;
 }

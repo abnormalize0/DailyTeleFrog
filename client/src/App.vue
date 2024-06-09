@@ -10,7 +10,7 @@
         <PostPreview :post="post"></PostPreview>
       </div>
       <div style="grid-column: 3;" class="justify-center d-flex">
-        <div style=" color: white;">rightmenu placeholder</div>
+        <RightMenuComponent></RightMenuComponent>
       </div>
     </div>
 
@@ -25,14 +25,16 @@
 import HeaderComponent from "@/components/common/HeaderComponent.vue";
 import LeftMenuComponent from "@/components/common/LeftMenuComponent.vue";
 import PostPreview from "./components/feed/post-preview/PostPreview.vue";
+import RightMenuComponent from "./components/common/right-menu/RightMenuComponent.vue";
 
 export default {
   name: "MVP",
   components: {
     HeaderComponent,
     LeftMenuComponent,
-    PostPreview
-  },
+    PostPreview,
+    RightMenuComponent
+},
   data() {
     return {
       groups: [
