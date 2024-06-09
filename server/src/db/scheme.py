@@ -1,10 +1,13 @@
+import datetime
+
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
 from sqlalchemy.orm import Session
 from sqlalchemy import create_engine
-from sqlalchemy import String, Text, BigInteger
+from sqlalchemy import String, Text, BigInteger, DateTime
+from sqlalchemy.sql import func
 from typing import Optional
 
 class Base(DeclarativeBase):
@@ -17,7 +20,7 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(32), primary_key=True, unique=True)
     nickname: Mapped[str] = mapped_column(String(32))
     password: Mapped[str] = mapped_column(String(23), deferred=True)
-    creation_date: Mapped[int] = mapped_column(BigInteger)
+    creation_date: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     avatar: Mapped[Optional[str]] = mapped_column(String(32))
     description: Mapped[Optional[str]] = mapped_column(Text)
 
