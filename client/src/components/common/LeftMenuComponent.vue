@@ -28,7 +28,7 @@
         v-if="showMoreGroups"
       >
         <div class="icon">БОЛЬШЕ СООБЩЕСТВ</div>
-        <div style="margin-right: 3rem">></div>
+        <i class="arrow-next-icon icon" style="margin-right: 3rem"></i>
       </div>
     </div>
     <div>
@@ -63,7 +63,7 @@
   cursor: pointer;
 }
 .pointer:hover {
-  background-color: #64648D;
+  background-color: #64648d;
 }
 .menu-text {
   padding-left: 8px;

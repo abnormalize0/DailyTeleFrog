@@ -7,6 +7,10 @@
   background: url('../icons/bookmark-text-color.svg');
 }
 
+.arrow-next-icon {
+  background: url('../icons/arrow-next.svg');
+}
+
 .comment-text-color-icon {
   background: url('../icons/comment-text-color.svg');
 }
@@ -74,7 +78,8 @@
 .arrow-down-text-color-icon,
 .arrow-up-text-color-icon,
 .exit-icon,
-.settings-icon {
+.settings-icon,
+.arrow-next-icon {
   height: 16px;
   width: 16px;
 }
@@ -88,7 +93,8 @@
 .arrow-up-text-color-icon,
 .menu-kebab-text-color-icon,
 .exit-icon,
-.settings-icon {
+.settings-icon,
+.arrow-next-icon {
   display: block;
   cursor: pointer;
 }

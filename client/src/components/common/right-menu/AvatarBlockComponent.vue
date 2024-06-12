@@ -16,13 +16,13 @@
 		</div>
 	</div>
 	<div class="stats-section">
-		<div v-if="avatarBlock.rating">
+		<div v-if="avatarBlock.rating" class="stats">
 		{{getRating(avatarBlock.rating)}}
 		</div>
-		<div v-if="avatarBlock.subscribers">
+		<div v-if="avatarBlock.subscribers" class="stats">
 		{{getSubs(avatarBlock.subscribers)}}
 		</div>
-		<div v-if="avatarBlock.patrons">
+		<div v-if="avatarBlock.patrons" class="stats">
 		{{getPatrons(avatarBlock.patrons)}}
 		</div>
 	</div>
@@ -34,6 +34,10 @@
     height: 187px;
     width: 235px;
     margin-top: 20px;
+  }
+  .stats {
+	display: flex;
+	justify-content: left;
   }
   .avatar-header {
     display: flex;
