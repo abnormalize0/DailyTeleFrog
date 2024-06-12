@@ -28,7 +28,7 @@
         v-if="showMoreGroups"
       >
         <div class="icon">БОЛЬШЕ СООБЩЕСТВ</div>
-        <i class="arrow-next-icon icon" style="margin-right: 3rem"></i>
+        <i class="arrow-next-icon icon" style="margin-right: 1rem"></i>
       </div>
     </div>
     <div>
@@ -58,6 +58,7 @@
   height: 48px;
   margin-bottom: 12px;
   border-radius: 12px;
+  width: 90%;
 }
 .pointer {
   cursor: pointer;

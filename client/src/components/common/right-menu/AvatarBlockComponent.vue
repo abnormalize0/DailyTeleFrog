@@ -17,13 +17,13 @@
 	</div>
 	<div class="stats-section">
 		<div v-if="avatarBlock.rating" class="stats">
-		{{getRating(avatarBlock.rating)}}
+		{{getStats(avatarBlock.rating, 0)}}
 		</div>
 		<div v-if="avatarBlock.subscribers" class="stats">
-		{{getSubs(avatarBlock.subscribers)}}
+		{{getStats(avatarBlock.subscribers, 1)}}
 		</div>
 		<div v-if="avatarBlock.patrons" class="stats">
-		{{getPatrons(avatarBlock.patrons)}}
+		{{getStats(avatarBlock.patrons, 2)}}
 		</div>
 	</div>
     </div>
@@ -77,14 +77,13 @@
       
     },
     methods: {
-		getRating(amount) {
-			return "+" +  amount.toString(10) + " рейтинг";
-		},
-		getSubs(amount) {
-			return amount.toString(10) + " подписчиков";
-		},
-		getPatrons(amount) {
-			return amount.toString(10) + " патронов";
+		getStats(amount, type) {
+			switch (type) {
+				case 0: return "+" +  amount.toString(10) + " рейтинг";
+				case 1: return amount.toString(10) + " подписчиков";
+				case 2: return amount.toString(10) + " патронов";
+				default: return;
+			}	
 		},
 	},
   };
