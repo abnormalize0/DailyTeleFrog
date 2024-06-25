@@ -1,7 +1,7 @@
 from . import scheme
 from .. import config
 from .. import request_status
-from src.services.utils.article import is_article_not_exist
+from src.services.utils.article import article_exists
 import time
 from sqlalchemy.orm import Session
 
@@ -34,20 +34,20 @@ def add_tags(session, tags, article_id):
 
 
 def is_liked(session:Session, article_id, username):
-    if is_article_not_exist(session, article_id):
+    if article_exists(session, article_id):
         return request_status.Status(request_status.StatusType.OK), False
     return request_status.Status(request_status.StatusType.OK), not session.query(scheme.ArticleLike).where(scheme.ArticleLike.article_id == article_id and scheme.ArticleLike.author_username == username).scalar() is None
 
 
 def is_disliked(session:Session, article_id, username):
-    if is_article_not_exist(session, article_id):
+    if article_exists(session, article_id):
         return request_status.Status(request_status.StatusType.OK), False
     return request_status.Status(request_status.StatusType.OK), not session.query(scheme.ArticleDislike).where(scheme.ArticleDislike.article_id == article_id and scheme.ArticleDislike.author_username == username).scalar() is None
 
 
 
 def get_likes(session:Session, article_id):
-    if is_article_not_exist(session, article_id):
+    if article_exists(session, article_id):
         return request_status.Status(request_status.StatusType.ERROR,
                                      error_type=request_status.ErrorType.ValueError,
                                      msg=f'Cannot find article with id: {article_id}'), None
@@ -59,7 +59,7 @@ def get_likes(session:Session, article_id):
     return request_status.Status(request_status.StatusType.OK), likes
 
 def get_dislikes(session:Session, article_id):
-    if is_article_not_exist(session, article_id):
+    if article_exists(session, article_id):
         return request_status.Status(request_status.StatusType.ERROR,
                                      error_type=request_status.ErrorType.ValueError,
                                      msg=f'Cannot find article with id: {article_id}'), None
@@ -71,7 +71,7 @@ def get_dislikes(session:Session, article_id):
     return request_status.Status(request_status.StatusType.OK), dislikes
 
 def get_rating(session:Session, article_id):
-    if is_article_not_exist(session, article_id):
+    if article_exists(session, article_id):
         return request_status.Status(request_status.StatusType.ERROR,
                                      error_type=request_status.ErrorType.ValueError,
                                      msg=f'Cannot find article with id: {article_id}'), None
@@ -89,7 +89,7 @@ def get_rating(session:Session, article_id):
 
 
 def get_comments_count(session:Session, article_id):
-    if is_article_not_exist(session, article_id):
+    if article_exists(session, article_id):
         return request_status.Status(request_status.StatusType.ERROR,
                                      error_type=request_status.ErrorType.ValueError,
                                      msg=f'Cannot find article with id: {article_id}'), None
@@ -102,7 +102,7 @@ def get_comments_count(session:Session, article_id):
 
 
 def get_article(session:Session, article_id):
-    if is_article_not_exist(session, article_id):
+    if article_exists(session, article_id):
         return request_status.Status(request_status.StatusType.ERROR,
                                      error_type=request_status.ErrorType.ValueError,
                                      msg=f'Cannot find article with id: {article_id}'), None
@@ -112,7 +112,7 @@ def get_article(session:Session, article_id):
 
 
 def get_tags(session:Session, article_id):
-    if is_article_not_exist(session, article_id):
+    if article_exists(session, article_id):
         return request_status.Status(request_status.StatusType.ERROR,
                                      error_type=request_status.ErrorType.ValueError,
                                      msg=f'Cannot find article with id: {article_id}'), None

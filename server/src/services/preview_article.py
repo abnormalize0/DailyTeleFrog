@@ -3,11 +3,11 @@ from sqlalchemy.orm import Session
 from src.config import db_url
 from src.db.scheme import ArticlePreview, Article
 from src.request_status import Status, StatusType, ErrorType
-from src.services.utils.article import is_article_not_exist
+from src.services.utils.article import article_exists
 
 
 def get_preview(session: Session, article_id):
-    if is_article_not_exist(session, article_id):
+    if article_exists(session, article_id):
         return (None, Status(StatusType.ERROR, error_type=ErrorType.ValueError,
                              msg=f'Cannot find article with id: {article_id}'))
     preview = session.query(ArticlePreview.preview_content).where(ArticlePreview.article_id == article_id).scalar()
