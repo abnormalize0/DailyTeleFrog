@@ -1,6 +1,6 @@
 <template>
   <v-container>
-    <v-row class="d-flex justify-center pt-15">
+    <v-row class="d-flex pt-15">
       <v-col cols="3">
         <LeftMenuComponent :groups="groups" />
       </v-col>
