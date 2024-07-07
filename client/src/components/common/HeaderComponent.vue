@@ -21,7 +21,7 @@
 </style>
 
 <script>
-import BasicPrimaryButton from "@/components/basic/BasicPrimaryButton.vue";
+import BasicPrimaryButton from "@/components/basic/buttons/BasicPrimaryButton.vue";
 import SearchBar from "@/components/basic/SearchBar.vue";
 
 export default {

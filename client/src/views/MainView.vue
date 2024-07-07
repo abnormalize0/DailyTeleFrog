@@ -1,27 +1,19 @@
 <template>
-  <div class="d-flex justify-center pt-15">
-    <div>
-        <LeftMenuComponent :groups="groups" />
-    </div>
-    <PostPreview :post="post"></PostPreview>
-    <div class="right-menu-container">
-      <div>
-        <RightMenuComponent />
-      </div>
-    </div>
-  </div>
-</template>
+  <v-container>
+    <v-row class="d-flex justify-center pt-15">
+    <v-col cols="3">
+      <LeftMenuComponent :groups="groups" />
+    </v-col>
+    <v-col cols="6">
+      <PostPreview :post="post"></PostPreview>
+    </v-col>
+    <v-col cols="3">
+      <RightMenuComponent />
+    </v-col>
+  </v-row>
 
-<style scoped>
-.right-menu-container {
-  width: 100%;
-  display: flex;
-  justify-content: right;
-}
-.enter-container {
-  justify-content: right;
-}
-</style>
+  </v-container>
+</template>
 
 <script>
 import PostPreview from "@/components/feed/post-preview/PostPreview.vue";
@@ -40,23 +32,23 @@ export default {
       groups: [
         {
           name: "onanisti",
-          img: "https://cdn2.iconfinder.com/data/icons/people-groups/512/Leader_Avatar-512.png",
+          img: "community-icon",
         },
         {
           name: "dungeonSlaveZ",
-          img: "https://cdn2.iconfinder.com/data/icons/people-groups/512/Leader_Avatar-512.png",
+          img: "community-icon",
         },
         {
           name: "boyNextDoor",
-          img: "https://cdn2.iconfinder.com/data/icons/people-groups/512/Leader_Avatar-512.png",
+          img: "community-icon",
         },
         {
           name: "Jhohan pohan",
-          img: "https://cdn2.iconfinder.com/data/icons/people-groups/512/Leader_Avatar-512.png",
+          img: "community-icon",
         },
         {
           name: "tester mokaka",
-          img: "https://cdn2.iconfinder.com/data/icons/people-groups/512/Leader_Avatar-512.png",
+          img: "community-icon",
         },
       ],
       post: {

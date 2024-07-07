@@ -1,86 +1,49 @@
 <template>
-  <div class="parent">
-    <div class="child pointer">
-      <i class="home-icon icon"></i>
-      <div class="p2 menu-text">Моя лента</div>
+  <div class="d-flex flex-column left-menu">
+    <div class="d-flex flex-column block-menu">
+      <LeftMenuButton label="Моя лента" icon="home-icon"/>
+      <LeftMenuButton label="Популярное" icon="popular-icon"/>
+      <LeftMenuButton label="Свежее" icon="calendar-icon"/>
     </div>
-    <div class="child pointer">
-      <i class="popular-icon icon"></i>
-      <div class="p2 menu-text">Популярное</div>
-    </div>
-    <div class="child pointer">
-      <i class="calendar-icon icon"></i>
-      <div class="p2 menu-text">Свежее</div>
-    </div>
-    <div>
-      <div class="p1" style="margin-bottom: 24px">Мои сообщества</div>
-      <div v-for="group in filteredGroups" :key="group" class="child pointer">
-        <img class="img icon" :src="group.img" />
-        <div class="p2 menu-text">{{ group.name }}</div>
+    <div class="d-flex flex-column block-menu">
+      <div class="p1 text-color">Мои сообщества</div>
+      <div v-for="group in filteredGroups" :key="group">
+        <LeftMenuButton :label=group.name :icon=group.img />
       </div>
-      <div
-        class="p3 pointer child"
-        style="
-          margin-bottom: 24px;
-          justify-content: space-between;
-          display: flex;
-        "
+      <AppendIconButton 
+        label="Больше сообществ"
+        icon="arrow-next-icon"
         v-if="showMoreGroups"
-      >
-        <div class="icon">БОЛЬШЕ СООБЩЕСТВ</div>
-        <i class="arrow-next-icon icon" style="margin-right: 1rem"></i>
-      </div>
+      />
     </div>
-    <div>
-      <div class="p1" style="margin-bottom: 24px">Полезная информация</div>
-      <div class="child pointer">
-        <i class="rules-icon icon"></i>
-        <div class="p2 menu-text">Правила</div>
-      </div>
-      <div class="child pointer">
-        <i class="advertisement-icon icon"></i>
-        <div class="p2 menu-text">Заказать рекламу</div>
-      </div>
+    <div class="d-flex flex-column block-menu">
+      <div class="p1 text-color">Полезная информация</div>
+      <LeftMenuButton label="Правила" icon="rules-icon"/>
+      <LeftMenuButton label="Заказать рекламу" icon="advertisement-icon"/>
     </div>
   </div>
 </template>
 
 <style scoped>
-.parent {
-  padding: 15px 26px 10px 26px;
-  color: white;
-  width: 20rem;
+.left-menu {
+  gap: 10px;
 }
-.child {
-  display: flex;
-  justify-content: left;
-  align-items: center;
-  height: 48px;
-  margin-bottom: 12px;
-  border-radius: 12px;
-  width: 90%;
-}
-.pointer {
-  cursor: pointer;
-}
-.pointer:hover {
-  background-color: #64648d;
-}
-.menu-text {
-  padding-left: 8px;
-}
-.icon {
-  margin-left: 14px;
-}
-.img {
-  width: 24px;
+.block-menu {
+  padding: 0px 20px;
+  gap: 10px;
 }
 </style>
 
 <script>
+import LeftMenuButton from "@/components/basic/buttons/PrependMenuButton.vue";
+import AppendIconButton from "@/components/basic/buttons/AppendIconButton.vue";
+
 export default {
   name: "LeftMenuComponent",
-  components: {},
+  components: {
+    LeftMenuButton,
+    AppendIconButton,
+  },
   props: {
     groups: [],
   },

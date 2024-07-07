@@ -11,6 +11,10 @@
   background: url('../icons/arrow-next.svg');
 }
 
+.community-icon {
+  background: url('../icons/community.svg');
+}
+
 .comment-text-color-icon {
   background: url('../icons/comment-text-color.svg');
 }
@@ -68,7 +72,8 @@
 .calendar-icon,
 .rules-icon,
 .home-icon,
-.popular-icon {
+.popular-icon,
+.community-icon {
   height: 24px;
   width: 24px;
 }

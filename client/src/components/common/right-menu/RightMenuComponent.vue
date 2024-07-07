@@ -29,7 +29,7 @@
 </style>
 
 <script>
-import BasicPrimaryButton from "@/components/basic/BasicPrimaryButton.vue";
+import BasicPrimaryButton from "@/components/basic/buttons/BasicPrimaryButton.vue";
 import AvatarBlockComponent from "@/components/common/right-menu/AvatarBlockComponent.vue";
 
 export default {
