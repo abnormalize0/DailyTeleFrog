@@ -1,7 +1,7 @@
 from . import scheme
 from .. import config
 from .. import request_status
-from src.services.utils.article import article_exists
+from src.repository.article import article_exists
 import time
 from sqlalchemy.orm import Session
 
