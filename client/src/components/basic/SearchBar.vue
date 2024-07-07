@@ -10,15 +10,17 @@
 
 <style scoped>
   .search-bar {
-    width: 600px;
+    width: 558px;
     height: 44px;
     padding: 10px 30px;
     background-color: transparent;
+    caret-color: var(--text-secondary-color);
+    transition: 600ms;
   }
   .search-bar:hover,
   .search-bar:focus-within,
   .search-bar:active {
-    background-color: var(--text-color);
+    background-color: var(--background-secondary-color);
   }
   .container-button-icon {
     all: unset;
@@ -40,16 +42,7 @@
 </style>
 
 <script>
-  export default {
-    name: "SearchBar",
-    data () {
-      return {
-        text: '',
-      }
-    },
-    methods: {
-      appendIconCallback () {},
-      prependIconCallback () {},
-    },
-  }
+export default {
+  name: "SearchBar",
+}
 </script>

@@ -1,7 +1,105 @@
+/* SPECIFIC */
 .search-text-secondary-color-icon {
   background: url('../icons/search-text-secondary-color.svg');
+}
+
+.bookmark-text-color-icon {
+  background: url('../icons/bookmark-text-color.svg');
+}
+
+.arrow-next-icon {
+  background: url('../icons/arrow-next.svg');
+}
+
+.community-icon {
+  background: url('../icons/community.svg');
+}
+
+.comment-text-color-icon {
+  background: url('../icons/comment-text-color.svg');
+}
+
+.arrow-down-text-color-icon {
+  background: url('../icons/arrow-down-text-color.svg');
+}
+
+.arrow-down-text-color-icon:hover {
+  background: url('../icons/arrow-down-text-color-hover.svg');
+}
+
+.arrow-up-text-color-icon {
+  background: url('../icons/arrow-up-text-color.svg');
+}
+
+.arrow-up-text-color-icon:hover {
+  background: url('../icons/arrow-up-text-color-hover.svg');
+}
+
+.menu-kebab-text-color-icon {
+  background: url('../icons/menu-kebab-text-color.svg');
+}
+
+.home-icon {
+  background: url('../icons//home.svg');
+}
+
+.popular-icon {
+  background: url("../icons/populag.svg");
+}
+
+.advertisement-icon {
+  background: url("../icons/advertisement.svg");
+}
+
+.rules-icon {
+  background: url("../icons/rules.svg");
+}
+
+.calendar-icon {
+  background: url("../icons/calendar.svg");
+}
+.exit-icon {
+  background: url("../icons/exit.svg");
+}
+.settings-icon {
+  background: url("../icons/settings.svg");
+}
+
+/* SIZE */
+.search-text-secondary-color-icon,
+.menu-kebab-text-color-icon,
+.advertisement-icon,
+.calendar-icon,
+.rules-icon,
+.home-icon,
+.popular-icon,
+.community-icon {
   height: 24px;
   width: 24px;
+}
+
+.bookmark-text-color-icon,
+.comment-text-color-icon,
+.arrow-down-text-color-icon,
+.arrow-up-text-color-icon,
+.exit-icon,
+.settings-icon,
+.arrow-next-icon {
+  height: 16px;
+  width: 16px;
+}
+
+/* COMMON */
+
+.search-text-secondary-color-icon,
+.bookmark-text-color-icon,
+.comment-text-color-icon,
+.arrow-down-text-color-icon,
+.arrow-up-text-color-icon,
+.menu-kebab-text-color-icon,
+.exit-icon,
+.settings-icon,
+.arrow-next-icon {
   display: block;
   cursor: pointer;
 }
