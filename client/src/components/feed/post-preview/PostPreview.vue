@@ -33,8 +33,8 @@
 
 <style scoped>
   .post-item {
-    width: 590px;
-    height: 449px;
+    width: 558px;
+    height: auto;
   }
 
   .header-container {
@@ -44,7 +44,6 @@
 
   .text-container {
     padding: 0px 26px 10px;
-    height: 26%;
   }
 
   .hashtag-footer {
