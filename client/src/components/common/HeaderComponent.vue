@@ -8,7 +8,7 @@
         <SearchBar />
       </v-col>
       <v-col cols="3" class="text-right">
-        <BasicPrimaryButton content="Войти" class="button-position" />
+        <BasicPrimaryButton content="Войти" />
       </v-col>
     </v-row>
   </v-container>

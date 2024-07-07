@@ -1,24 +1,23 @@
 <template>
   <v-container>
     <v-row class="d-flex justify-center pt-15">
-    <v-col cols="3">
-      <LeftMenuComponent :groups="groups" />
-    </v-col>
-    <v-col cols="6">
-      <PostPreview :post="post"></PostPreview>
-    </v-col>
-    <v-col cols="3">
-      <RightMenuComponent />
-    </v-col>
-  </v-row>
-
+      <v-col cols="3">
+        <LeftMenuComponent :groups="groups" />
+      </v-col>
+      <v-col cols="6">
+        <PostPreview :post="post"></PostPreview>
+      </v-col>
+      <v-col cols="3">
+        <RightMenuComponent />
+      </v-col>
+    </v-row>
   </v-container>
 </template>
 
 <script>
 import PostPreview from "@/components/feed/post-preview/PostPreview.vue";
 import LeftMenuComponent from "@/components/common/LeftMenuComponent.vue";
-import RightMenuComponent from "@/components/common/right-menu/RightMenuComponent.vue";
+import RightMenuComponent from "@/components/common/RightMenuComponent.vue";
 
 export default {
   name: "MainView",
