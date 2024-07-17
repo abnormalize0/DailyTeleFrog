@@ -22,7 +22,7 @@ def timer(log_file:config.DynamicPath):
             end = datetime.now()
             exec_time = end-start
             exec_time_str = str(exec_time)
-            logger.info(f'Processed request in {exec_time_str}: {func.__name__}\n')
+            logger.info(f'Processed request in {exec_time_str}: {func.__name__}')
             return result
 
         # timer used in server/api.py
@@ -42,6 +42,7 @@ def log_request(func):
             logger.info(f'Body: Empty')
         logger.info(f'Headers: {request.headers}')
         result = func(*args, **kwargs)
+        logger.info(f'Result: {result}\n\n\n\n')
         return result
 
     # @app.route registers url path using wrapper name, so i change name to avoid name collision
@@ -67,7 +68,7 @@ def safe_api(func):
             logger = logging.getLogger(config.log_server_api.path)
             logger.error(traceback.format_exc())
             return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
-                                              request_status.ErrorType.UnexceptedError,
-                                              msg='Unexcepted error'))})
+                                              request_status.ErrorType.UnexpectedError,
+                                              msg='Unexpected error'))})
     wrapper.__name__ = func.__name__
     return wrapper

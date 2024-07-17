@@ -2,7 +2,7 @@
 Этот файл служит для хранения API методов, которые возвращают структуру входных данных.
 Для каждого пути, по которому сервер принимает запросы должен быть свой API метод.
 API методы обязаны обрабатывать запросы типа OPTIONS, так как это поведение используется в тестах.
-Название методов формируется следубщим образом: %METHOD_NAME%_info. %METHOD_NAME% такой же как и в /server/src/api.py
+Название методов формируется следующим образом: %METHOD_NAME%_info. %METHOD_NAME% такой же как и в /server/src/api.py
 Таким образом имена не будут дублироваться для одних и тех же путей.
 '''
 
@@ -11,61 +11,74 @@ from flask import Blueprint
 
 info = Blueprint('info', __name__)
 
-@info.route('/article', methods=['OPTIONS'])
-def article_info():
-    request_post = [
+type_defaults = {
+    'int': None,
+    'str': '',
+    'json': {},
+    'list': [],
+}
+
+article_post = [
         {
-            'name': 'user-id',
-            'type': 'int',
+            'name': 'username',
+            'type': 'str',
             'is_required': True,
-            'container': 'header'
+            'container': 'body'
         },
         {
-            'name': 'article-body',
-            'type': 'json',
-            'is_required': True,
-            'container': 'body',
-            'structure': []
-        },
-        {
-            'name': 'preview-content',
-            'type': 'json',
+            'name': 'body',
+            'type': 'dict',
             'is_required': True,
             'container': 'body',
-            'structure': []
+            'structure': [],
         },
         {
-            'name': 'name',
+            'name': 'preview',
+            'type': 'dict',
+            'is_required': True,
+            'container': 'body',
+            'structure': [],
+        },
+        {
+            'name': 'title',
             'type': 'str',
             'is_required': True,
             'container': 'body',
         },
         {
             'name': 'tags',
-            'type': 'str',
-            'is_required': True,
+            'type': 'list',
+            'is_required': False,
             'container': 'body',
+            'structure': [],
         },
     ]
 
-    request_get = [
+article_get = [
         {
-            'name': 'article-id',
+            'name': 'username',
+            'type': 'str',
+            'is_required': True,
+            'container': 'body'
+        },
+        {
+            'name': 'article_id',
             'type': 'int',
             'is_required': True,
-            'container': 'header'
+            'container': 'body'
         }
     ]
 
-    return json.dumps({'post': request_post,
-                       'get': request_get})
 
-@info.route('/article/data', methods=['OPTIONS'])
-def article_data_info():
-    request_post = [
+@info.route('/article', methods=['OPTIONS'])
+def article_info():
+    return json.dumps({'post': article_post,
+                       'get': article_get})
+
+article_data_post = [
         {
-            'name': 'user-id',
-            'type': 'int',
+            'name': 'username',
+            'type': 'str',
             'is_required': True,
             'container': 'header'
         },
@@ -135,70 +148,82 @@ def article_data_info():
         }
     ]
 
-    request_get = [
+article_data_get = [
         {
-            'name': 'article-id',
-            'type': 'int',
+            'name': 'username',
+            'type': 'str',
             'is_required': True,
-            'container': 'header'
+            'container': 'body'
         },
         {
-            'name': 'requested-data',
+            'name': 'article_id',
+            'type': 'int',
+            'is_required': True,
+            'container': 'body'
+        },
+        {
+            'name': 'requested_data',
             'type': 'list',
             'is_required': True,
-            'container': 'header',
+            'container': 'body',
             'structure': [
                 {
-                    'name': 'likes_count',
+                    'name': 'likes',
                     'type': 'field',
-                    'is_required': False,
+                    'is_required': True,
+                    'container': 'body'
                 },
                 {
-                    'name': 'likes_id',
+                    'name': 'dislikes',
                     'type': 'field',
-                    'is_required': False,
-                },
-                {
-                    'name': 'dislikes_count',
-                    'type': 'field',
-                    'is_required': False,
-                },
-                {
-                    'name': 'dislikes_id',
-                    'type': 'field',
-                    'is_required': False,
-                },
-                {
-                    'name': 'comments_count',
-                    'type': 'field',
-                    'is_required': False,
-                },
-                {
-                    'name': 'creation_date',
-                    'type': 'field',
-                    'is_required': False,
+                    'is_required': True,
+                    'container': 'body'
                 },
                 {
                     'name': 'rating',
                     'type': 'field',
-                    'is_required': False,
-                }
+                    'is_required': True,
+                    'container': 'body'
+                },
+                {
+                    'name': 'comments_count',
+                    'type': 'field',
+                    'is_required': True,
+                    'container': 'body'
+                },
+                {
+                    'name': 'creation_date',
+                    'type': 'field',
+                    'is_required': True,
+                    'container': 'body'
+                },
+                {
+                    'name': 'is_liked',
+                    'type': 'field',
+                    'is_required': True,
+                    'container': 'body'
+                },
+                {
+                    'name': 'is_disliked',
+                    'type': 'field',
+                    'is_required': True,
+                    'container': 'body'
+                },
             ]
         }
     ]
 
-    return json.dumps({'post': request_post,
-                       'get': request_get})
+@info.route('/article/data', methods=['OPTIONS'])
+def article_data_info():
+    return json.dumps({'post': article_data_post,
+                       'get': article_data_get})
 
+pages_post = []
 
-@info.route('/pages', methods=['OPTIONS'])
-def pages_info():
-    request_post = []
-
-    request_get = [
+pages_get = [
         {
-            'name': 'user-id',
-            'type': 'int',
+            'name': 'username',
+            'type': 'str',
             'is_required': True,
             'container': 'header'
         },
@@ -294,14 +319,20 @@ def pages_info():
         },
     ]
 
-    return json.dumps({'post': request_post,
-                       'get': request_get})
+@info.route('/pages', methods=['OPTIONS'])
+def pages_info():
+    return json.dumps({'post': pages_post,
+                       'get': pages_get})
 
-@info.route('/users', methods=['OPTIONS'])
-def users_info():
-    request_post = [
+users_post = [
         {
-            'name': 'name',
+            'name': 'username',
+            'type': 'str',
+            'is_required': True,
+            'container': 'body',
+        },
+        {
+            'name': 'nickname',
             'type': 'str',
             'is_required': True,
             'container': 'body',
@@ -325,48 +356,6 @@ def users_info():
             'container': 'body',
         },
         {
-            'name': 'sub-tags',
-            'type': 'list',
-            'is_required': False,
-            'container': 'body',
-            'structure': [],
-        },
-        {
-            'name': 'blocked-tags',
-            'type': 'list',
-            'is_required': False,
-            'container': 'body',
-            'structure': [],
-        },
-        {
-            'name': 'sub-authors',
-            'type': 'list',
-            'is_required': False,
-            'container': 'body',
-            'structure': [],
-        },
-        {
-            'name': 'blocked-authors',
-            'type': 'list',
-            'is_required': False,
-            'container': 'body',
-            'structure': [],
-        },
-        {
-            'name': 'sub-communities',
-            'type': 'list',
-            'is_required': False,
-            'container': 'body',
-            'structure': [],
-        },
-        {
-            'name': 'blocked-communities',
-            'type': 'list',
-            'is_required': False,
-            'container': 'body',
-            'structure': [],
-        },
-        {
             'name': 'description',
             'type': 'str',
             'is_required': False,
@@ -374,22 +363,23 @@ def users_info():
         }
     ]
 
-    request_get = []
+users_get = []
 
-    return json.dumps({'post': request_post,
-                       'get': request_get})
+@info.route('/users', methods=['OPTIONS'])
+def users_info():
 
-@info.route('/users/data', methods=['OPTIONS'])
-def users_data_info():
-    request_post = [
+    return json.dumps({'post': users_post,
+                       'get': users_get})
+
+users_data_post = [
         {
-            'name': 'user-id',
-            'type': 'int',
+            'name': 'username',
+            'type': 'str',
             'is_required': True,
-            'container': 'header'
+            'container': 'body'
         },
         {
-            'name': 'name',
+            'name': 'nickname',
             'type': 'str',
             'is_required': False,
             'container': 'body',
@@ -421,28 +411,14 @@ def users_data_info():
             'structure': [],
         },
         {
-            'name': 'sub-authors',
+            'name': 'sub-users',
             'type': 'list',
             'is_required': False,
             'container': 'body',
             'structure': [],
         },
         {
-            'name': 'blocked-authors',
-            'type': 'list',
-            'is_required': False,
-            'container': 'body',
-            'structure': [],
-        },
-        {
-            'name': 'sub-communities',
-            'type': 'list',
-            'is_required': False,
-            'container': 'body',
-            'structure': [],
-        },
-        {
-            'name': 'blocked-communities',
+            'name': 'blocked-users',
             'type': 'list',
             'is_required': False,
             'container': 'body',
@@ -456,27 +432,27 @@ def users_data_info():
         }
     ]
 
-    request_get = [
+users_data_get = [
         {
-            'name': 'user-id',
-            'type': 'int',
+            'name': 'username',
+            'type': 'str',
             'is_required': True,
-            'container': 'header'
+            'container': 'body'
         },
         {
             'name': 'requested-data',
             'type': 'list',
             'is_required': True,
-            'container': 'header',
+            'container': 'body',
             'structure': [
                 {
-                    'name': 'name',
+                    'name': 'nickname',
                     'type': 'field',
                     'is_required': False,
                 },
                 {
                     'name': 'email',
-                    'type': 'str',
+                    'type': 'field',
                     'is_required': False,
                 },
                 {
@@ -493,37 +469,21 @@ def users_data_info():
                     'name': 'sub_tags',
                     'type': 'field',
                     'is_required': False,
-                    'container': 'body',
                 },
                 {
                     'name': 'blocked_tags',
                     'type': 'field',
                     'is_required': False,
-                    'container': 'body',
                 },
                 {
                     'name': 'sub_authors',
                     'type': 'field',
                     'is_required': False,
-                    'container': 'body',
                 },
                 {
                     'name': 'blocked_authors',
                     'type': 'field',
                     'is_required': False,
-                    'container': 'body',
-                },
-                {
-                    'name': 'sub_communities',
-                    'type': 'field',
-                    'is_required': False,
-                    'container': 'body',
-                },
-                {
-                    'name': 'blocked_communities',
-                    'type': 'field',
-                    'is_required': False,
-                    'container': 'body',
                 },
                 {
                     'name': 'description',
@@ -544,62 +504,64 @@ def users_data_info():
         }
     ]
 
-    return json.dumps({'post': request_post,
-                       'get': request_get})
+@info.route('/users/data', methods=['OPTIONS'])
+def users_data_info():
+    return json.dumps({'post': users_data_post,
+                       'get': users_data_get})
 
 
-@info.route('/users/password', methods=['OPTIONS'])
-def users_password_info():
-    request_post = [
+user_password_post = [
         {
-            'name': 'user-id',
-            'type': 'int',
-            'is_required': True,
-            'container': 'header'
-        },
-        {
-            'name': 'previous-password',
+            'name': 'username',
             'type': 'str',
             'is_required': True,
-            'container': 'header'
+            'container': 'body'
         },
         {
-            'name': 'new-password',
+            'name': 'previous_password',
+            'type': 'str',
+            'is_required': True,
+            'container': 'body'
+        },
+        {
+            'name': 'new_password',
             'type': 'str',
             'is_required': True,
             'container': 'body'
         }
     ]
 
-    request_get = []
+user_password_get = []
 
-    return json.dumps({'post': request_post,
-                       'get': request_get})
+@info.route('/users/password', methods=['OPTIONS'])
+def users_password_info():
+    return json.dumps({'post': user_password_post,
+                       'get': user_password_get})
 
-@info.route('/login', methods=['OPTIONS'])
-def login_info():
-    request_post = []
+login_post = []
 
-    request_get = [
+login_get = [
         {
-            'name': 'user-id',
-            'type': 'int',
+            'name': 'username',
+            'type': 'str',
             'is_required': False,
-            'container': 'header',
+            'container': 'body',
         },
         {
             'name': 'email',
             'type': 'str',
             'is_required': False,
-            'container': 'header',
+            'container': 'body',
         },
         {
             'name': 'password',
             'type': 'str',
             'is_required': True,
-            'container': 'header',
+            'container': 'body',
         }
     ]
 
-    return json.dumps({'post': request_post,
-                       'get': request_get})
+@info.route('/login', methods=['OPTIONS'])
+def login_info():
+    return json.dumps({'post': login_post,
+                       'get': login_get})

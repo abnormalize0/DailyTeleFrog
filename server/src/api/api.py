@@ -9,7 +9,7 @@
 Остальная часть названия метода позволяет избежать дублирования названий функций.
 2. Для каждого метода должен присутствовать тест в файле /server/test/test_api.py
 и ответ на запрос OPTIONS в файле /server/src/api_info.py
-3. Каждый запрос должен принимать на вход user-id заголовок.
+3. Каждый запрос должен принимать на вход username заголовок.
 По договоренности считаем, что в этом заголвке указан автор запроса.
 Значение -1 характеризует неавторизванного пользователя.
 4. Каждый API метод обязан возвращать статус операции.
@@ -23,7 +23,12 @@
 
 from flask import Flask, request
 from flask_cors import CORS
+from dotenv import load_dotenv
+from sqlalchemy import engine_from_config, create_engine
+from sqlalchemy.orm import Session
 import json
+import os
+import builtins
 
 from .. import backend
 from .. import request_status
@@ -36,62 +41,107 @@ app = Flask(__name__)
 app.register_blueprint(api_info.info)
 cors = CORS(app)
 
+global db_url
+
+def check_list_elements(data, pattern):
+    for element in data:
+        is_found = False
+        for requested_element in pattern:
+            if element != requested_element['name']:
+                continue
+            else:
+                is_found = True
+        if is_found == False:
+            return False
+    return True
+
+def check_structure(data, pattern):
+    import sys
+    for element in pattern:
+        if element['is_required'] == False:
+            if element['name'] not in data:
+                continue
+        if element['name'] not in data:
+                return False, request_status.ErrorType.OptionError
+        if not type(data[element['name']]) == getattr(builtins, element['type'], None):
+            return False, request_status.ErrorType.ValueError
+        if element['type'] == 'json':
+            is_ok, error = check_structure(data[element['name']], element['structure'])
+            if not is_ok:
+                return False, error
+        if element['type'] == 'list':
+            if element['structure']:
+                is_ok = check_list_elements(data[element['name']], element['structure'])
+                if not is_ok:
+                    return False, request_status.ErrorType.ValueError
+    return True, None
+
+def fill_default(data, pattern):
+    for value in pattern:
+        if value['name'] not in data:
+            data[value['name']] = api_info.type_defaults[value['type']]
+    return data
+
 
 @app.route('/article', methods=['POST'])
 @log.safe_api
 @log.log_request
 @log.timer(config.log_server_api)
 def api_article_post():
-    status, headers = api_types.parse_structure(request.headers, [api_types.Parameter('user-id', 'int', True)])
-    if status.is_error:
-        return json.dumps({'status': dict(status)})
-
-    if headers['user-id'] == 0:
+    is_right_structure, error = check_structure(request.json, api_info.article_post)
+    if not is_right_structure:
+        return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
+                                          error_type=error,
+                                          msg='Wrong request parameters structure.'))})
+    if request.json['username'] == 'unlogged_user':
         return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
                                           error_type=request_status.ErrorType.ValueError,
                                           msg='Unlogged user cannot use this method'))})
+    parameters = fill_default(request.json, api_info.article_post)
+    global db_url
+    engine = create_engine(db_url)
+    with Session(engine) as session:
+        status, article_id = backend.post_article(session, parameters['username'], parameters['title'], parameters['body'], parameters['preview'], parameters['tags'])
+        if status.is_error:
+            session.rollback()
+            return json.dumps({'status': dict(status)})
 
-    status, article = api_types.parse_structure(request.json, [api_types.Parameter('article-body', 'json', True),
-                                                               api_types.Parameter('preview-content', 'json', True),
-                                                               api_types.Parameter('name', 'str', True),
-                                                               api_types.Parameter('tags', 'str', True)])
-    if status.is_error:
-        return json.dumps({'status': dict(status)})
-
-    # replace "-" with "_" because field in db named with "_"
-    article['article_body'] = article.pop('article-body')
-    article['preview_content'] = article.pop('preview-content')
-
-    status, article_id = backend.post_article(article, headers['user-id'])
-    return json.dumps({'status': dict(status), 'article_id': article_id})
+        session.commit()
+        return json.dumps({'status': dict(request_status.Status(request_status.StatusType.OK)), 'article_id': article_id})
 
 @app.route('/article', methods=['GET'])
 @log.safe_api
 @log.log_request
 @log.timer(config.log_server_api)
 def api_article_get():
-    status, headers = api_types.parse_structure(request.headers, [api_types.Parameter('article-id', 'int', True)])
-    if status.is_error:
-        return json.dumps({'status': dict(status)})
-
-    article = backend.get_article(headers['article-id'])
-    if not article:
+    is_right_structure, error = check_structure(request.json, api_info.article_get)
+    if not is_right_structure:
         return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
-                                                                error_type=request_status.ErrorType.ValueError,
-                                                                msg=f"Article does not exist"))})
-    return json.dumps({'status': dict(request_status.Status(request_status.StatusType.OK)), 'article': article})
+                                          error_type=error,
+                                          msg='Wrong request parameters structure.'))})
+    parameters = fill_default(request.json, api_info.article_get)
+    global db_url
+    engine = create_engine(db_url)
+    with Session(engine) as session:
+        status, article = backend.get_article(session, parameters['article_id'], parameters['username'])
+        if status.is_error:
+            session.rollback()
+            return json.dumps({'status': dict(status)})
+
+        session.commit()
+        return json.dumps({'status': dict(request_status.Status(request_status.StatusType.OK)), 'article': article})
 
 @app.route('/article/data', methods=['POST'])
 @log.safe_api
 @log.log_request
 @log.timer(config.log_server_api)
 def api_article_data_post():
-    status, headers = api_types.parse_structure(request.headers, [api_types.Parameter('user-id', 'int', True),
+    status, headers = api_types.parse_structure(request.headers, [api_types.Parameter('username', 'str', True),
                                                                   api_types.Parameter('article-id', 'int', True)])
     if status.is_error:
         return json.dumps({'status': dict(status)})
 
-    if headers['user-id'] == 0:
+    if headers['username'] == 'unlogged_user':
         return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
                                           error_type=request_status.ErrorType.ValueError,
                                           msg='Unlogged user cannot use this method'))})
@@ -122,26 +172,26 @@ def api_article_data_post():
             return json.dumps({'status': dict(status)})
 
     if 'like-article' in command:
-        status = backend.like_article(headers['article-id'], headers['user-id'])
+        status = backend.like_article(headers['article-id'], headers['username'])
         return json.dumps({'status': dict(status)})
 
     if 'dislike-article' in command:
-        status = backend.dislike_article(headers['article-id'], headers['user-id'])
+        status = backend.dislike_article(headers['article-id'], headers['username'])
         return json.dumps({'status': dict(status)})
 
     if 'like-comment' in command:
-        status = backend.like_comment(command['like-comment']['comment_id'], headers['user-id'])
+        status = backend.like_comment(command['like-comment']['comment_id'], headers['username'])
         return json.dumps({'status': dict(status)})
 
     if 'dislike-comment' in command:
-        status = backend.dislike_comment(command['dislike-comment']['comment_id'], headers['user-id'])
+        status = backend.dislike_comment(command['dislike-comment']['comment_id'], headers['username'])
         return json.dumps({'status': dict(status)})
 
     if 'add-comment' in command:
         status, comment_id = backend.add_comment(headers['article-id'],
                                                  command['add-comment']['root'],
                                                  command['add-comment']['text'],
-                                                 headers['user-id'])
+                                                 headers['username'])
         return json.dumps({'status': dict(status), 'comment_id': comment_id})
 
 @app.route('/article/data', methods=['GET'])
@@ -149,30 +199,24 @@ def api_article_data_post():
 @log.log_request
 @log.timer(config.log_server_api)
 def api_article_data_get():
-    status, headers = api_types.parse_structure(request.headers, [api_types.Parameter('article-id', 'int', True),
-                                                                  api_types.Parameter('requested-data', 'list', True)])
-    if status.is_error:
-        return json.dumps({'status': dict(status)})
+    is_right_structure, error = check_structure(request.json, api_info.article_data_get)
+    if not is_right_structure:
+        return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
+                                          error_type=error,
+                                          msg='Wrong request parameters structure.'))})
+    parameters = fill_default(request.json, api_info.article_data_get)
+    global db_url
+    engine = create_engine(db_url)
+    with Session(engine) as session:
+        status, data = backend.get_article_data(session, parameters['article_id'], parameters['username'], parameters['requested_data'])
+        if status.is_error:
+            session.rollback()
+            return json.dumps({'status': dict(status)})
 
-    status, requested_data = api_types.parse_fields(headers['requested-data'],
-                                                    [api_types.Parameter('rating', 'field', False),
-                                                     api_types.Parameter('likes_count', 'field', False),
-                                                     api_types.Parameter('likes_id', 'field', False),
-                                                     api_types.Parameter('dislikes_count', 'field', False),
-                                                     api_types.Parameter('dislikes_id', 'field', False),
-                                                     api_types.Parameter('comments_count', 'field', False),
-                                                     api_types.Parameter('creation_date', 'field', False)])
-    if status.is_error:
-        return json.dumps({'status': dict(status)})
-
-    status, data = backend.get_article_data(headers['article-id'], requested_data)
-
-    if status.is_error:
-        return json.dumps({'status': dict(status)})
-
-    answer = {'status': dict(status)}
-    answer.update(data)
-    return json.dumps(answer)
+        session.commit()
+        answer = {'status': dict(status)}
+        answer.update(data)
+        return json.dumps(answer)
 
 @app.route('/pages', methods=['GET'])
 @log.safe_api
@@ -180,7 +224,7 @@ def api_article_data_get():
 @log.timer(config.log_server_api)
 def api_pages_get():
     status, headers = api_types.parse_structure(request.headers,
-                                                [api_types.Parameter('user-id', 'int', True),
+                                                [api_types.Parameter('username', 'str', True),
                                                  api_types.Parameter('indexes', 'list_of_int', True),
                                                  api_types.Parameter('include-nonsub', 'bool', True),
                                                  api_types.Parameter('sort-column', 'str', True),
@@ -237,7 +281,7 @@ def api_pages_get():
             exclude['community'] = exclude.pop('exclude-community')
 
     status, pages = backend.get_pages(headers['indexes'],
-                                      headers['user-id'],
+                                      headers['username'],
                                       headers['include-nonsub'],
                                       headers['sort-column'],
                                       headers['sort-direction'],
@@ -251,180 +295,145 @@ def api_pages_get():
 @log.log_request
 @log.timer(config.log_server_api)
 def api_users_post():
-    status, user_info = api_types.parse_structure(request.json, 
-                                                  [api_types.Parameter('name', 'str', True),
-                                                   api_types.Parameter('email', 'str', True),
-                                                   api_types.Parameter('password', 'str', True),
-                                                   api_types.Parameter('avatar', 'str', False),
-                                                   api_types.Parameter('sub-tags', 'list', False),
-                                                   api_types.Parameter('blocked-tags', 'list', False),
-                                                   api_types.Parameter('sub-users', 'list', False),
-                                                   api_types.Parameter('blocked-users', 'list', False),
-                                                   api_types.Parameter('sub-communities', 'list', False),
-                                                   api_types.Parameter('blocked-communities', 'list', False),
-                                                   api_types.Parameter('description', 'str', False)])
-    if status.is_error:
-        return json.dumps({'status': dict(status)})
+    is_right_structure, error = check_structure(request.json, api_info.users_post)
+    if not is_right_structure:
+        return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
+                                          error_type=error,
+                                          msg='Wrong request parameters structure.'))})
 
-    # replace "-" with "_" because field in db named with "_"
-    if 'sub-tags' in user_info.keys():
-        user_info['sub_tags'] = user_info.pop('sub-tags')
-    if 'blocked-tags' in user_info.keys():
-        user_info['blocked_tags'] = user_info.pop('blocked-tags')
-    if 'sub-users' in user_info.keys():
-        user_info['sub_users'] = user_info.pop('sub-users')
-    if 'blocked-users' in user_info.keys():
-        user_info['blocked_users'] = user_info.pop('blocked-users')
-    if 'sub-communities' in user_info.keys():
-        user_info['sub_communities'] = user_info.pop('sub-communities')
-    if 'blocked-communities' in user_info.keys():
-        user_info['blocked_communities'] = user_info.pop('blocked-communities')
+    parameters = fill_default(request.json, api_info.users_post)
+    global db_url
+    engine = create_engine(db_url)
+    with Session(engine) as session:
+        status = backend.add_user(session, parameters)
+        if status.is_error:
+            session.rollback()
+            return json.dumps({'status': dict(status)})
 
-    status, user_id = backend.add_user(user_info)
-    return json.dumps({'status': dict(status), 'user_id': user_id})
+        session.commit()
+        return json.dumps({'status': dict(request_status.Status(request_status.StatusType.OK))})
 
 @app.route('/users/data', methods=['GET'])
 @log.safe_api
 @log.log_request
 @log.timer(config.log_server_api)
 def api_users_data_get():
-    status, headers = api_types.parse_structure(request.headers, [api_types.Parameter('user-id', 'int', True),
-                                                                  api_types.Parameter('requested-data', 'list', True)])
-    if status.is_error:
-        return json.dumps({'status': dict(status)})
-
-    if headers['user-id'] == 0:
+    is_right_structure, error = check_structure(request.json, api_info.users_data_get)
+    if not is_right_structure:
+        return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
+                                          error_type=error,
+                                          msg='Wrong request parameters structure.'))})
+    if request.json['username'] == 'unlogged_user':
         return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
                                           error_type=request_status.ErrorType.ValueError,
                                           msg='Unlogged user cannot use this method'))})
+    parameters = fill_default(request.json, api_info.users_data_get)
+    global db_url
+    engine = create_engine(db_url)
+    with Session(engine) as session:
+        status, data = backend.get_user_data(session, parameters['username'], parameters['requested-data'])
+        if status.is_error:
+            session.rollback()
+            return json.dumps({'status': dict(status)})
 
-    status, requested_data = api_types.parse_fields(headers['requested-data'],
-                                                    [api_types.Parameter('name_history', 'str', False),
-                                                     api_types.Parameter('avatar', 'str', False),
-                                                     api_types.Parameter('sub_tags', 'list', False),
-                                                     api_types.Parameter('blocked_tags', 'list', False),
-                                                     api_types.Parameter('sub_users', 'list', False),
-                                                     api_types.Parameter('blocked_users', 'list', False),
-                                                     api_types.Parameter('sub_communities', 'list', False),
-                                                     api_types.Parameter('blocked_communities', 'list', False),
-                                                     api_types.Parameter('name', 'str', False),
-                                                     api_types.Parameter('email', 'str', False),
-                                                     api_types.Parameter('description', 'str', False),
-                                                     api_types.Parameter('creation_date', 'str', False),
-                                                     api_types.Parameter('rating', 'str', False)])
-
-    status, data = backend.get_user_data(headers['user-id'], requested_data)
-
-    if status.is_error:
-        return json.dumps({'status': dict(status)})
-
-    answer = {'status': dict(status)}
-    answer.update(data)
-    return json.dumps(answer)
+        session.commit()
+        answer = {'status': dict(status)}
+        answer.update(data)
+        return json.dumps(answer)
 
 @app.route('/users/data', methods=['POST'])
 @log.safe_api
 @log.log_request
 @log.timer(config.log_server_api)
 def api_users_data_post():
-    status, user_id = api_types.parse_structure(request.headers, [api_types.Parameter('user-id', 'int', True)])
-    if status.is_error:
-        return json.dumps({'status': dict(status)})
-    user_id = user_id['user-id']
-
-    if user_id == 0:
+    is_right_structure, error = check_structure(request.json, api_info.users_data_post)
+    if not is_right_structure:
+        return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
+                                          error_type=error,
+                                          msg='Wrong request parameters structure.'))})
+    if request.json['username'] == 'unlogged_user':
         return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
                                           error_type=request_status.ErrorType.ValueError,
                                           msg='Unlogged user cannot use this method'))})
+    #parameters = fill_default(request.json, api_info.users_data_post)
+    global db_url
+    engine = create_engine(db_url)
+    with Session(engine) as session:
+        username = request.json.pop('username')
+        status = backend.update_user_info(session, username, request.json)
+        if status.is_error:
+            session.rollback()
+            return json.dumps({'status': dict(status)})
 
-    status, fields = api_types.parse_structure(request.json, [api_types.Parameter('avatar', 'str', False),
-                                                              api_types.Parameter('sub-tags', 'str', False),
-                                                              api_types.Parameter('blocked-tags', 'str', False),
-                                                              api_types.Parameter('sub-users', 'str', False),
-                                                              api_types.Parameter('blocked-users', 'str', False),
-                                                              api_types.Parameter('sub-communities', 'str', False),
-                                                              api_types.Parameter('blocked-communities', 'str', False),
-                                                              api_types.Parameter('name', 'str', False),
-                                                              api_types.Parameter('email', 'str', False),
-                                                              api_types.Parameter('description', 'str', False)])
-    if status.is_error:
+        session.commit()
         return json.dumps({'status': dict(status)})
-
-    # replace "-" with "_" because field in db named with "_"
-    if 'sub-tags' in fields.keys():
-        fields['sub_tags'] = fields.pop('sub-tags')
-    if 'blocked-tags' in fields.keys():
-        fields['blocked_tags'] = fields.pop('blocked-tags')
-    if 'sub-users' in fields.keys():
-        fields['sub_users'] = fields.pop('sub-users')
-    if 'blocked-users' in fields.keys():
-        fields['blocked_users'] = fields.pop('blocked-users')
-    if 'sub-communities' in fields.keys():
-        fields['sub_communities'] = fields.pop('sub-communities')
-    if 'blocked-communities' in fields.keys():
-        fields['blocked_communities'] = fields.pop('blocked-communities')
-
-    status = backend.update_user_info(fields,
-                                      user_id)
-    return json.dumps({'status': dict(status)})
 
 @app.route('/users/password', methods=['POST'])
 @log.safe_api
 @log.log_request
 @log.timer(config.log_server_api)
 def api_users_password_post():
-    status, headers = api_types.parse_structure(request.headers,
-                                                [api_types.Parameter('user-id', 'int', True),
-                                                 api_types.Parameter('previous-password', 'str', True)])
-    if status.is_error:
-        return json.dumps({'status': dict(status)})
-
-    if headers['user-id'] == 0:
+    is_right_structure, error = check_structure(request.json, api_info.user_password_post)
+    if not is_right_structure:
+        return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
+                                          error_type=error,
+                                          msg='Wrong request parameters structure.'))})
+    if request.json['username'] == 'unlogged_user':
         return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
                                           error_type=request_status.ErrorType.ValueError,
                                           msg='Unlogged user cannot use this method'))})
+    global db_url
+    engine = create_engine(db_url)
+    with Session(engine) as session:
+        username = request.json.pop('username')
+        previous_password = request.json.pop('previous_password')
+        new_password = request.json.pop('new_password')
+        status = backend.change_password(session, previous_password, new_password, username)
+        if status.is_error:
+            session.rollback()
+            return json.dumps({'status': dict(status)})
 
-    status, new_password = api_types.parse_structure(request.json, [api_types.Parameter('new-password', 'str', True)])
-    if status.is_error:
+        session.commit()
         return json.dumps({'status': dict(status)})
-
-    status = backend.change_password(headers['previous-password'],
-                                     new_password['new-password'],
-                                     headers['user-id'])
-    return json.dumps({'status': dict(status)})
 
 @app.route('/login', methods=['GET'])
 @log.safe_api
 @log.log_request
 @log.timer(config.log_server_api)
 def api_login_get():
-    status, password = api_types.parse_structure(request.headers, [api_types.Parameter('password', 'str', True)])
-    if status.is_error:
-        return json.dumps({'status': dict(status)})
-    password = password['password']
+    is_right_structure, error = check_structure(request.json, api_info.login_get)
+    if not is_right_structure:
+        return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
+                                          error_type=error,
+                                          msg='Wrong request parameters structure.'))})
 
-    status, login = api_types.parse_structure(request.headers, [api_types.Parameter('email', 'str', False),
-                                                                api_types.Parameter('user-id', 'int', False),])
-    if status.is_error:
-        return json.dumps({'status': dict(status)})
-
-    if 'user-id' in login and 'email' in login:
+    parameters = fill_default(request.json, api_info.login_get)
+    if request.json['username'] and request.json['email']:
         return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
                                           error_type=request_status.ErrorType.ValueError,
-                                          msg='User can login via user-id OR via email.'))})
-
-    if 'user-id' in login and login['user-id'] == 0:
+                                          msg='User cant login via username and email.'))})
+    if request.json['username'] == 'unlogged_user':
         return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
                                           error_type=request_status.ErrorType.ValueError,
                                           msg='Unlogged user cannot use this method'))})
+    global db_url
+    engine = create_engine(db_url)
+    with Session(engine) as session:
+        status, is_password_correct = backend.login(session, parameters)
+        if status.is_error:
+            session.rollback()
+            return json.dumps({'status': dict(status)})
 
-    if 'user-id' in login:
-        status, is_password_correct = backend.login(password, user_id=login['user-id'])
-    else:
-        status, is_password_correct = backend.login(password, email=login['email'])
-    return json.dumps({'status': dict(status), 'is-correct': is_password_correct})
+        session.commit()
+        return json.dumps({'status': dict(status), 'is-correct': is_password_correct})
 
-def run_server():
+def run_server(server_mode='production'):
     # used in test_api to startup check
+    load_dotenv(dotenv_path='../../.env')
+    global db_url
+    if server_mode == 'test':
+        db_url = os.getenv("MVP_DB_URL_TEST")
+    else:
+        db_url = os.getenv('MVP_DB_URL_PRODUCTION')
     print('Running...')
     app.run(host='0.0.0.0', port=5000)

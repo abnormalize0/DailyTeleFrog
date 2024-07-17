@@ -52,8 +52,8 @@ def init_users():
     connection = sqlite3.connect(config.db_user.path)
     cursor = connection.cursor()
     cursor.execute(f'''CREATE TABLE {config.user_table_name} (
-                    {config.user_id_name} INTEGER PRIMARY KEY,
-                    name TEXT UNIQUE NOT NULL,
+                    {config.user_id_name} TEXT PRIMARY KEY,
+                    nickname TEXT UNIQUE NOT NULL,
                     email TEXT UNIQUE NOT NULL,
                     password TEXT NOT NULL,
                     name_history TEXT,
@@ -65,7 +65,7 @@ def init_users():
                     sub_communities TEXT,
                     blocked_communities TEXT,
                     description TEXT,
-                    creation_date INT NOT NULL,
+                    creation_date INTEGER NOT NULL,
                     rating INTEGER)''')
     connection.commit()
     connection.close()
@@ -78,7 +78,7 @@ def init_articles():
     cursor.execute(f'''CREATE TABLE {config.article_table_name} (
                     {config.article_id_name} INTEGER PRIMARY KEY,
                     name TEXT NOT NULL,
-                    creation_date INT NOT NULL,
+                    creation_date INTEGER NOT NULL,
                     community TEXT,
                     rating INTEGER,
                     likes_count INTEGER,
@@ -100,7 +100,7 @@ def init_comments():
     cursor = connection.cursor()
     cursor.execute(f'''CREATE TABLE {config.comment_table_name} (
                     {config.comment_id_name} INTEGER PRIMARY KEY,
-                    creation_date INT NOT NULL,
+                    creation_date INTEGER NOT NULL,
                     rating INTEGER,
                     likes_count INTEGER,
                     likes_id TEXT,
@@ -113,16 +113,8 @@ def init_comments():
 
 # RawTextHelpFormatter support multistring comments
 parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
-parser.add_argument('-i', '--init', action='store_true',
-                    help='Create all server databases. Existing databases will be deleted')
-parser.add_argument('--init-users', action='store_true',
-                    help='Create all users databases. Existing database will be deleted')
-parser.add_argument('--init-articles', action='store_true',
-                    help='Create all articles databases. Existing database will be deleted')
-parser.add_argument('--init-comments', action='store_true',
-                    help='Create all comments databases. Existing database will be deleted')
-parser.add_argument('--dont-start-server', action='store_true', default=False,
-                    help="Don't start the server")
+parser.add_argument('-t', '--test', action='store_true',
+                    help='Run server in test mode')
 parser.add_argument('--working-directory',
                     help='Set work directory for server')
 
@@ -134,24 +126,8 @@ if path:
         os.mkdir(path)
     os.chdir(path)
 
-if flags['init']:
-    backup()
-    init_users()
-    init_articles()
-    init_comments()
+set_up_loggers()
+if flags['test']:
+    api.run_server(server_mode="test")
 else:
-    if flags['init_users']:
-        backup()
-        init_users()
-
-    if flags['init_articles']:
-        backup()
-        init_articles()
-
-    if flags['init_comments']:
-        backup()
-        init_comments()
-
-if not flags['dont_start_server']:
-    set_up_loggers()
     api.run_server()
