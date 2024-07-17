@@ -21,6 +21,7 @@
 import PostPreview from "@/components/feed/post-preview/PostPreview.vue";
 import LeftMenuComponent from "@/components/common/LeftMenuComponent.vue";
 import RightMenuComponent from "@/components/common/RightMenuComponent.vue";
+import { PreviewArticlesService } from "@/services";
 
 export default {
   name: "MainView",
@@ -76,13 +77,16 @@ export default {
         registrationDate: "ffff",
       },
       posts: [],
+      start_ts: 0,
+      end_ts: 5
     };
   },
   methods: {
-    addMorePosts() {
-      for (let i = 0; i < 5; i++) {
-        this.posts.push(this.ipost);
-      }
+    async addMorePosts() {
+      const postChunks = await PreviewArticlesService.getPreviewArticles(this.start_ts, this.end_ts);
+      this.posts = [...this.posts, postChunks];
+      this.start_ts = this.end_ts;
+      this.end_ts += 5;
     },
     handleScroll() {
       let bottomOfWindow =
