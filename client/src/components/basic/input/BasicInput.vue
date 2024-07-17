@@ -64,8 +64,8 @@
   -moz-user-select: none;
   -ms-user-select: none;
   user-select: none;
-  -webkit-transition: all 0.5s;
-  transition: all 0.5s;
+  -webkit-transition: all 0.3s;
+  transition: all 0.3s;
   -webkit-transition-timing-function: cubic-bezier(0.25, 0.1, 0.25, 1);
   transition-timing-function: cubic-bezier(0.25, 0.1, 0.25, 1);
 }
