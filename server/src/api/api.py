@@ -24,7 +24,7 @@
 from flask import Flask, request
 from flask_cors import CORS
 from dotenv import load_dotenv
-from sqlalchemy import engine_from_config, create_engine
+from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 import json
 import os
@@ -35,10 +35,14 @@ from .. import request_status
 from .. import config
 from .. import log
 from . import api_info
+from . import preview_article
+from . import user
 from . import api_types
 
 app = Flask(__name__)
 app.register_blueprint(api_info.info)
+app.register_blueprint(preview_article.preview_article)
+app.register_blueprint(user.user)
 cors = CORS(app)
 
 global db_url
@@ -56,7 +60,6 @@ def check_list_elements(data, pattern):
     return True
 
 def check_structure(data, pattern):
-    import sys
     for element in pattern:
         if element['is_required'] == False:
             if element['name'] not in data:
