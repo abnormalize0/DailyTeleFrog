@@ -12,3 +12,21 @@ build: ## Собрать образ базы данных PostgreSQL с пара
 .PHONY: run
 run: ## Запустить контейнер с образом нашей базы данных.
 	docker run --env-file .env -dp 127.0.0.1:3306:3306 server\:1.0
+
+.PHONY: clear
+clear: 
+	docker stop $(shell docker ps -a -q)
+	docker rm $(shell docker ps -a -q)
+	docker rmi -f $(shell docker images -aq)
+
+.PHONY: exec
+exec: ## ожидает переменную хэша контейнера
+	docker exec -it $(CONTAINER) bash
+
+.PHONY: check
+check:
+	docker ps -a
+
+.PHONY: logs
+logs: ## ожидает переменную хэша контейнера
+	docker logs $(CONTAINER)
