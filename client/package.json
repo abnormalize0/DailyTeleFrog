@@ -10,8 +10,9 @@
   "dependencies": {
     "@vueup/vue-quill": "^1.2.0",
     "@vueuse/core": "^10.8.0",
-    "axios": "^1.6.7",
+    "axios": "^1.7.2",
     "core-js": "^3.8.3",
+    "http": "^0.0.1-security",
     "luxon": "^3.4.4",
     "quill-paste-smart": "^1.4.12",
     "vue": "^3.2.13",
