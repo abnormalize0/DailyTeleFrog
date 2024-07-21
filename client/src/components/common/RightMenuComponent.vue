@@ -6,8 +6,11 @@
     <div class="d-flex flex-column w-100 login-form">
       <BasicInput label="Логин" />
       <BasicInput label="Пароль" />
-      <div class="d-flex justify-center publsh-post-button">
+      <div class="d-flex justify-center">
         <BasicPrimaryButton class="w-100" content="Войти"></BasicPrimaryButton>
+      </div>
+      <div class="d-flex justify-center ">
+        <BasicSecondaryButton class="w-100" content="Создать аккаунт"></BasicSecondaryButton>
       </div>
     </div>
   </div>
@@ -37,11 +40,12 @@
 
 <script>
 import BasicPrimaryButton from "@/components/basic/buttons/BasicPrimaryButton.vue";
+import BasicSecondaryButton from "@/components/basic/buttons/BasicSecondaryButton.vue";
 import BasicInput from "@/components/basic/input/BasicInput.vue";
 
 export default {
   name: "RightMenuComponent",
-  components: { BasicPrimaryButton, BasicInput },
+  components: { BasicPrimaryButton, BasicInput, BasicSecondaryButton },
   props: {
     groups: [],
   },
