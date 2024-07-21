@@ -26,16 +26,6 @@
 .login-form {
   gap: 15px;
 }
-.striped-button {
-  background: none !important;
-  border: none;
-  padding: 0 !important;
-  text-decoration: underline;
-  color: white;
-}
-.register-lostpassword-wrap {
-  justify-content: space-between;
-}
 </style>
 
 <script>
