@@ -1,5 +1,5 @@
-/server/db
 /server/backup
+/server/.idea/
 /server/log
 __pycache__*
 build*
