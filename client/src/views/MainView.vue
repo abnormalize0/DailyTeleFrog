@@ -2,7 +2,6 @@
   <v-container>
     <v-row class="d-flex pt-15">
       <v-col cols="3">
-        <button @click="addMorePosts()" style="color: white">насрать</button>
         <LeftMenuComponent :groups="groups" />
       </v-col>
       <v-col cols="6">
