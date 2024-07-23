@@ -1,5 +1,7 @@
 Flask
 Flask-Cors
+Flask-Bcrypt==0.7.1
+pyjwt==2.4.0
 Sphinx
 sphinx-rtd-theme
 SQLAlchemy

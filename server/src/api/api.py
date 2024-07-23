@@ -23,8 +23,9 @@
 
 from flask import Flask, request
 from flask_cors import CORS
+from flask_bcrypt import Bcrypt
 from dotenv import load_dotenv
-from sqlalchemy import engine_from_config, create_engine
+from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 import json
 import os
@@ -38,6 +39,7 @@ from . import api_info
 from . import api_types
 
 app = Flask(__name__)
+bcrypt = Bcrypt(app)
 app.register_blueprint(api_info.info)
 cors = CORS(app)
 

@@ -1,6 +1,7 @@
 USE db;
 
 CREATE TABLE users (
+    id BIGINT AUTO_INCREMENT NOT NULL,
     username VARCHAR(32) NOT NULL,
     email VARCHAR(32) NOT NULL,
     nickname VARCHAR(32) NOT NULL,
@@ -8,7 +9,7 @@ CREATE TABLE users (
     creation_date DATETIME DEFAULT CURRENT_TIMESTAMP,
     avatar VARCHAR(32),
     description TEXT,
-    PRIMARY KEY (username, email),
+    PRIMARY KEY (id),
     UNIQUE (email)
 );
 
