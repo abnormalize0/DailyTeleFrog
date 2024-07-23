@@ -1,7 +1,7 @@
 from flask import Blueprint, request
 from src.services.user_service import login, register
-from .. import config
-from .. import log
+from src import config
+from src import log
 
 user = Blueprint('user', __name__)
 

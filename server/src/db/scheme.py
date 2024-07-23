@@ -41,8 +41,7 @@ class User(Base):
         self.avatar = avatar
         self.description = description
 
-    @staticmethod
-    def encode_auth_token(user_id):
+    def encode_auth_token(self):
         """
         Generates the Auth Token
         :return: string
@@ -51,7 +50,7 @@ class User(Base):
             payload = {
                 'exp': datetime.datetime.utcnow() + datetime.timedelta(days=0, seconds=5),
                 'iat': datetime.datetime.utcnow(),
-                'sub': user_id
+                'sub': self.id
             }
             return jwt.encode(
                 payload,
@@ -75,6 +74,7 @@ class User(Base):
             return 'Signature expired. Please log in again.'
         except jwt.InvalidTokenError:
             return 'Invalid token. Please log in again.'
+
 
 class UserNameHistory(Base):
     __tablename__ = "user_name_history"
