@@ -1,8 +1,9 @@
 Flask
 Flask-Cors
-Flask-Bcrypt==0.7.1
+Flask-Bcrypt==1.0.1
 pyjwt==2.4.0
 Sphinx
 sphinx-rtd-theme
 SQLAlchemy
 python-dotenv
+Werkzeug~=3.0.1
