@@ -11,8 +11,9 @@ import os
 import logging
 from datetime import datetime
 
-from src.api import api
 from src import config
+from src import create_app
+
 
 def backup():
     if not os.path.exists(config.backup_directory.path):
@@ -127,7 +128,8 @@ if path:
     os.chdir(path)
 
 set_up_loggers()
-if flags['test']:
-    api.run_server(server_mode="test")
-else:
-    api.run_server()
+
+app = create_app(server_mode='test') if flags['test'] else create_app()
+
+if __name__ == '__main__':
+    app.run()
