@@ -7,11 +7,9 @@ def create_app(server_mode='production'):
 
     from dotenv import load_dotenv
     # used in test_api to startup check
-    load_dotenv(dotenv_path='../../.env')
+    dotenv_path = '../../.env_prod' if server_mode == 'production' else '../../.env_test'
+    load_dotenv(dotenv_path=dotenv_path)
 
-    if server_mode == 'test':
-        db_url = os.getenv('MVP_DB_URL_TEST')
-    else:
-        db_url = os.getenv('MVP_DB_URL_PRODUCTION')
+    db_url = os.getenv('MVP_DB_URL')
 
     return app
