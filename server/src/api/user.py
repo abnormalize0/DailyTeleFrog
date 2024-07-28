@@ -8,9 +8,9 @@ user = Blueprint('user', __name__, url_prefix='/user')
 
 
 @user.route('/login', methods=['POST'])
-# @log.safe_api
-# @log.log_request
-# @log.timer(config.log_server_api)
+@log.safe_api
+@log.log_request
+@log.timer(config.log_server_api)
 def login():
     login_data = request.json
     username = login_data.get('username', None)
