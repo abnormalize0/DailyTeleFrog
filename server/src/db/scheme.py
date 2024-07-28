@@ -45,7 +45,7 @@ class User(Base):
         """
         try:
             payload = {
-                'exp': datetime.datetime.utcnow() + datetime.timedelta(days=0, seconds=5),
+                'exp': datetime.datetime.utcnow() + datetime.timedelta(days=0, minutes=90),
                 'iat': datetime.datetime.utcnow(),
                 'sub': self.id
             }
