@@ -3,7 +3,6 @@ import os
 
 import jwt
 
-from src.api.api import bcrypt
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.orm import Mapped
@@ -23,7 +22,7 @@ class User(Base):
     username: Mapped[str] = mapped_column(String(32))
     email: Mapped[str] = mapped_column(String(32), unique=True)
     nickname: Mapped[str] = mapped_column(String(32))
-    password: Mapped[str] = mapped_column(String(23), deferred=True)
+    password: Mapped[str] = mapped_column(String(60), deferred=True)
     creation_date: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     avatar: Mapped[Optional[str]] = mapped_column(String(32))
     description: Mapped[Optional[str]] = mapped_column(Text)
@@ -33,9 +32,7 @@ class User(Base):
         self.username = username
         self.email = email
         self.nickname = nickname
-        self.password = bcrypt.generate_password_hash(
-            password, os.getenv('BCRYPT_LOG_ROUNDS')
-        ).decode()
+        self.password = password
 
         self.creation_date = func.now()
         self.avatar = avatar
@@ -68,12 +65,24 @@ class User(Base):
         :return: integer|string
         """
         try:
-            payload = jwt.decode(auth_token, os.getenv('SECRET_KEY'))
+            payload = jwt.decode(auth_token, os.getenv('SECRET_KEY'), algorithms='HS256')
             return payload['sub']
         except jwt.ExpiredSignatureError:
             return 'Signature expired. Please log in again.'
         except jwt.InvalidTokenError:
             return 'Invalid token. Please log in again.'
+
+    def to_json(self):
+        return {
+            'id': self.id,
+            'username': self.username,
+            'email': self.email,
+            'nickname': self.nickname,
+            'password': self.password,
+            'creation_date': str(self.creation_date),
+            'avatar': self.avatar,
+            'description': self.description
+        }
 
 
 class UserNameHistory(Base):

@@ -11,10 +11,10 @@ build: ## Собрать образ базы данных PostgreSQL с пара
 
 .PHONY: run
 run: ## Запустить контейнер с образом нашей базы данных.
-	docker run --env-file .env -dp 127.0.0.1:3306:3306 server\:1.0
+	docker run --env-file .env_test -dp 127.0.0.1:3306:3306 server\:1.0
 
 .PHONY: clear
-clear: 
+clear:  ## очистить все докер инстансы
 	docker stop $(shell docker ps -a -q)
 	docker rm $(shell docker ps -a -q)
 	docker rmi -f $(shell docker images -aq)

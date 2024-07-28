@@ -114,8 +114,8 @@ def init_comments():
 
 # RawTextHelpFormatter support multistring comments
 parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
-parser.add_argument('-t', '--test', action='store_true',
-                    help='Run server in test mode')
+parser.add_argument('-p', '--production', action='store_true',
+                    help='Run server in production mode')
 parser.add_argument('--working-directory',
                     help='Set work directory for server')
 
@@ -129,7 +129,7 @@ if path:
 
 set_up_loggers()
 
-app = create_app(server_mode='test') if flags['test'] else create_app()
+app = create_app() if flags['production'] else create_app(server_mode='test')
 
 if __name__ == '__main__':
     app.run()
