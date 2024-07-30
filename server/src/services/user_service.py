@@ -14,6 +14,6 @@ class UserService:
     @staticmethod
     def register(username, password, email):
         if username is None or password is None or email is None:
-            return None, Status(StatusType.ERROR, error_type=ErrorType.ValueError)
+            return None, Status(StatusType.ERROR, msg='')
 
         return UserRepository.save_user(username, password, email)

@@ -34,7 +34,7 @@ class UserRepository:
         with Session(engine) as session:
             u = session.query(User).where(User.email == email).first()
             if u:
-                return "User already exists", Status(StatusType.ERROR)
+                return None, Status(StatusType.ERROR, msg='User already exists')
 
             user = User(
                 username=username,

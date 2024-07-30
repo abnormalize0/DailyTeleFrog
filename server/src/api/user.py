@@ -28,5 +28,5 @@ def register():
     username = register_data.get('username', None)
     password = register_data.get('password', None)
     email = register_data.get('email', None)
-    registered_user, _ = UserService.register(username, password, email)
-    return Response(response=registered_user, status=200, mimetype="application/json")
+    registered_user, status = UserService.register(username, password, email)
+    return Response(response=registered_user, status=status.convert_to_http_error(), mimetype="application/json")
