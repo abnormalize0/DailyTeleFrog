@@ -1,6 +1,10 @@
 Flask
 Flask-Cors
+bcrypt==4.2.0
+pyjwt==2.4.0
+mysqlclient==2.2.4
 Sphinx
 sphinx-rtd-theme
 SQLAlchemy
 python-dotenv
+Werkzeug~=3.0.1

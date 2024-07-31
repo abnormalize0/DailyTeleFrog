@@ -167,13 +167,6 @@ def update_user_info(session, username, data):
                     return status
     return request_status.Status(request_status.StatusType.OK)
 
-def login(session, parameters):
-    password = parameters['password']
-    username = parameters['username']
-    email = parameters['email']
-    status, is_password_correct = user.check_password(session=session, password=password, username=username, email=email)
-    return status, is_password_correct
-
 def change_password(session, previous_password, new_password, username):
     is_same = user.check_password(session, previous_password, username=username)
     if not is_same:

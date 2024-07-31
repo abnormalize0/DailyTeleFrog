@@ -1,10 +1,14 @@
 import datetime
+import os
+
+import jwt
 
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
 from sqlalchemy import String, Text, BigInteger, DateTime
+from src.request_status import Status, StatusType
 from sqlalchemy.sql import func
 from typing import Optional
 
@@ -15,13 +19,71 @@ class Base(DeclarativeBase):
 
 class User(Base):
     __tablename__ = "users"
-    username: Mapped[str] = mapped_column(String(32), primary_key=True)
-    email: Mapped[str] = mapped_column(String(32), primary_key=True, unique=True)
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    username: Mapped[str] = mapped_column(String(32))
+    email: Mapped[str] = mapped_column(String(32), unique=True)
     nickname: Mapped[str] = mapped_column(String(32))
-    password: Mapped[str] = mapped_column(String(23), deferred=True)
+    password: Mapped[str] = mapped_column(String(60), deferred=True)
     creation_date: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     avatar: Mapped[Optional[str]] = mapped_column(String(32))
     description: Mapped[Optional[str]] = mapped_column(Text)
+
+    def __init__(self, username, email, nickname, password, avatar, description, **kw):
+        super().__init__(**kw)
+        self.username = username
+        self.email = email
+        self.nickname = nickname
+        self.password = password
+
+        self.creation_date = func.now()
+        self.avatar = avatar
+        self.description = description
+
+    def encode_auth_token(self):
+        """
+        Generates the Auth Token
+        :return: string
+        """
+        try:
+            payload = {
+                'exp': datetime.datetime.utcnow() + datetime.timedelta(days=0, minutes=90),
+                'iat': datetime.datetime.utcnow(),
+                'sub': self.id
+            }
+            return jwt.encode(
+                payload,
+                os.getenv('SECRET_KEY'),
+                algorithm='HS256'
+            )
+        except jwt.exceptions.InvalidTokenError:
+            return None, Status(StatusType.ERROR, msg='Error occurred, try later')
+
+    @staticmethod
+    def decode_auth_token(auth_token):
+        """
+        Decodes the auth token
+        :param auth_token:
+        :return: integer|string
+        """
+        try:
+            payload = jwt.decode(auth_token, os.getenv('SECRET_KEY'), algorithms='HS256')
+            return payload['sub']
+        except jwt.ExpiredSignatureError:
+            return None, Status(StatusType.ERROR, msg='Signature expired. Please log in again.')
+        except jwt.InvalidTokenError:
+            return None, Status(StatusType.ERROR, msg='Please log in again.')
+
+    def to_json(self):
+        return {
+            'id': self.id,
+            'username': self.username,
+            'email': self.email,
+            'nickname': self.nickname,
+            'password': self.password,
+            'creation_date': str(self.creation_date),
+            'avatar': self.avatar,
+            'description': self.description
+        }
 
 
 class UserNameHistory(Base):

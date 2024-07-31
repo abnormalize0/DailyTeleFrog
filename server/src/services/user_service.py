@@ -1,18 +1,19 @@
-from src.repository.user import get_user, save_user
+from src.repository.user import UserRepository
 from src.request_status import Status, StatusType, ErrorType
-from datetime import datetime
-
-def login(username, password):
-    if username is None or password is None:
-        return None, Status(StatusType.ERROR, error_type=ErrorType.ValueError)
-
-    return get_user(username, password)
 
 
-def register(username, password, email):
-    if username is None or password is None or email is None:
-        return None, Status(StatusType.ERROR, error_type=ErrorType.ValueError)
+class UserService:
 
-    creation_time = datetime.now()
+    @staticmethod
+    def login(username, password):
+        if username is None or password is None:
+            return None, Status(StatusType.ERROR, error_type=ErrorType.ValueError)
 
-    return save_user(username, password, email, creation_time)
+        return UserRepository.get_user(username, password)
+
+    @staticmethod
+    def register(username, password, email):
+        if username is None or password is None or email is None:
+            return None, Status(StatusType.ERROR, msg='The fields are wrong')
+
+        return UserRepository.save_user(username, password, email)
