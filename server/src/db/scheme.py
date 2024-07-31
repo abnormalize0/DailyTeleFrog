@@ -8,6 +8,7 @@ from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
 from sqlalchemy import String, Text, BigInteger, DateTime
+from src.request_status import Status, StatusType
 from sqlalchemy.sql import func
 from typing import Optional
 
@@ -54,8 +55,8 @@ class User(Base):
                 os.getenv('SECRET_KEY'),
                 algorithm='HS256'
             )
-        except Exception as e:
-            return e
+        except jwt.exceptions.InvalidTokenError:
+            return None, Status(StatusType.ERROR, msg='Error occurred, try later')
 
     @staticmethod
     def decode_auth_token(auth_token):
@@ -68,9 +69,9 @@ class User(Base):
             payload = jwt.decode(auth_token, os.getenv('SECRET_KEY'), algorithms='HS256')
             return payload['sub']
         except jwt.ExpiredSignatureError:
-            return 'Signature expired. Please log in again.'
+            return None, Status(StatusType.ERROR, msg='Signature expired. Please log in again.')
         except jwt.InvalidTokenError:
-            return 'Invalid token. Please log in again.'
+            return None, Status(StatusType.ERROR, msg='Please log in again.')
 
     def to_json(self):
         return {

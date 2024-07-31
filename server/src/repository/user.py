@@ -19,13 +19,13 @@ class UserRepository:
             user = session.query(User).where(User.username == username).first()
             if user and bcrypt.checkpw(password.encode('utf-8'), user.password.encode('utf-8')) and isinstance(user,
                                                                                                                User):
-                auth_token = user.encode_auth_token()
+                auth_token, error = user.encode_auth_token()
                 if auth_token:
                     return json.dumps({
                         "user": user.to_json(),
                         "auth_token": auth_token
                     }), Status(StatusType.OK)
-                return {"user": None, "auth_token": None}, Status(StatusType.ERROR)
+                return {"user": None, "auth_token": None}, error
             return None, Status(StatusType.ERROR)
 
     @staticmethod
@@ -34,7 +34,7 @@ class UserRepository:
         with Session(engine) as session:
             u = session.query(User).where(User.email == email).first()
             if u:
-                return None, Status(StatusType.ERROR, msg='User already exists')
+                return None, Status(StatusType.ERROR, msg='User with this email already exists')
 
             user = User(
                 username=username,
@@ -48,6 +48,7 @@ class UserRepository:
             session.add(user)
             session.commit()
             session.flush()
-            auth_token = user.encode_auth_token()
-
-            return json.dumps({'user': user.to_json(), 'auth_token': auth_token}), Status(StatusType.OK)
+            auth_token, error = user.encode_auth_token()
+            if auth_token:
+                return json.dumps({'user': user.to_json(), 'auth_token': auth_token}), Status(StatusType.OK)
+            return {"user": None, "auth_token": None}, error
