@@ -3,6 +3,7 @@
 '''
 
 import os
+from flask_mail import Mail
 
 class DynamicPath():
     def __init__(self, *args):
@@ -37,3 +38,6 @@ article_table_name = 'articles'
 
 comment_id_name = 'comment_id'
 comment_table_name = 'comments'
+
+# Mail
+mail = Mail()
