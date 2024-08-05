@@ -48,7 +48,7 @@ class User(Base):
             payload = {
                 'exp': datetime.datetime.utcnow() + datetime.timedelta(days=0, minutes=90),
                 'iat': datetime.datetime.utcnow(),
-                'sub': self.id
+                'user_id': self.id
             }
             return jwt.encode(
                 payload,
@@ -57,21 +57,6 @@ class User(Base):
             )
         except jwt.exceptions.InvalidTokenError:
             return None, Status(StatusType.ERROR, msg='Error occurred, try later')
-
-    @staticmethod
-    def decode_auth_token(auth_token):
-        """
-        Decodes the auth token
-        :param auth_token:
-        :return: integer|string
-        """
-        try:
-            payload = jwt.decode(auth_token, os.getenv('SECRET_KEY'), algorithms='HS256')
-            return payload['sub']
-        except jwt.ExpiredSignatureError:
-            return None, Status(StatusType.ERROR, msg='Signature expired. Please log in again.')
-        except jwt.InvalidTokenError:
-            return None, Status(StatusType.ERROR, msg='Please log in again.')
 
     def to_json(self):
         return {
