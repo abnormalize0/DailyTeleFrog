@@ -36,17 +36,17 @@ def register():
 
 
 @user.route('/forgot/password', methods=['POST'])
-# @log.safe_api
-# @log.log_request
-# @log.timer(log_server_api)
+@log.safe_api
+@log.log_request
+@log.timer(log_server_api)
 def forgot_password():
     forgot_password_data = request.json
     email = forgot_password_data.get('email', None)
     mail_message = Message(
-        'Hi ! Don’t forget to follow me for more article!',
+        'Запрос на восстановление пароля MVP',
         sender=os.getenv('MAIL_USERNAME'),
         recipients=[email]
     )
-    mail_message.body = 'Hello Flask message sent from Flask-Mail'
+    mail_message.html = '<button type="button">Сбросьте Ваш Пароль</button>'
     mail.send(mail_message)
     return Response(status=200)
