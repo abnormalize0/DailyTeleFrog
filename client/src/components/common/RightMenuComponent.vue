@@ -1,90 +1,19 @@
 <template>
-	<div class="d-flex flex-column primary-rounded background-secondary-color align-center wrap-menu" v-if="!logedIn">
-		<div class="h2 text-color">Войти</div>
-		<div class="d-flex flex-column w-100 login-form">
-			<BasicInput label="Логин" :modelValue="username" @update:modelValue="$event => (username = $event)" />
-			<BasicInput label="Пароль" :modelValue="password" @update:modelValue="$event => (password = $event)" />
-			<div class="d-flex reset-password text-color p2">
-				Забыли пароль?
-			</div>
-			<div class="d-flex justify-center">
-				<BasicPrimaryButton class="w-100" content="Войти" @click="login()"></BasicPrimaryButton>
-			</div>
-			<div class="d-flex justify-center">
-				<BasicSecondaryButton class="w-100" content="Создать аккаунт"></BasicSecondaryButton>
-			</div>
-		</div>
-	</div>
-	<div class="d-flex flex-column primary-rounded background-secondary-color align-center wrap-menu" v-if="logedIn">
-		<div class="d-flex profile-wrap text-color">
-			<div class="d-flex">
-				<img src="../../assets/Avatar.png">
-				<div class="name-tag-wrap">
-					{{ avatarBlock.profileName }}
-					<div>
-						{{ avatarBlock.profileTag }}
-					</div>
-				</div>
-			</div>
-			<div class="d-flex">
-				<i class="settings-icon" styl`e="margin-right: 8px" />
-				<i class="exit-icon" />
-			</div>
-		</div>
-		<div class="d-flex flex-column w-100 counters">
-			<div v-for="i in 3" class="text-color" :key="i">
-				{{ getDisplayString(i) }}
-			</div>
-		</div>
-		<BasicPrimaryButton class="w-100" content="Опубликовать пост"></BasicPrimaryButton>
-	</div>
+	<ProfileComponent />
 </template>
 
 <style scoped>
-.wrap-menu {
-	width: 267px;
-	height: auto;
-	padding: 20px;
-	gap: 11px;
-}
 
-.login-form {
-	gap: 15px;
-}
-
-.name-tag-wrap {
-	margin-left: 12px;
-}
-
-.profile-wrap {
-	width: 100%;
-	justify-content: space-between;
-	align-items: center;
-}
-
-.counters {
-	margin: 24px 0 32px;
-}
-
-.reset-password {
-	text-decoration: underline;
-}
-
-.reset-password:hover {
-	cursor: pointer;
-}
 </style>
 
 <script>
-import BasicPrimaryButton from "@/components/basic/buttons/BasicPrimaryButton.vue";
-import BasicSecondaryButton from "@/components/basic/buttons/BasicSecondaryButton.vue";
-import BasicInput from "@/components/basic/input/BasicInput.vue";
+import ProfileComponent from './profile/ProfileComponent.vue';
+import { AccountService } from "@/services";
 
 export default {
 	name: "RightMenuComponent",
-	components: { BasicPrimaryButton, BasicInput, BasicSecondaryButton },
+	components: { ProfileComponent },
 	props: {
-		groups: [],
 	},
 	data() {
 		return {
@@ -102,13 +31,12 @@ export default {
 		};
 	},
 	methods: {
-		login() {
+		async login() {
+      
 			const usernameSanitized = this.username.replace(/[!"#$%&'()*+,-./:;<=>?@[\]^_`{|}~]/g, "");
-			if (this.username.includes(" ")) {
-				window.alert("alarm");
-			}
-			console.log(usernameSanitized);
-			console.log(this.password);
+			const passwordSanitized = this.password.replace(/[!"#$%&'()*+,-./:;<=>?@[\]^_`{|}~]/g, "");
+      AccountService.loginPost(usernameSanitized, passwordSanitized);
+			
 		},
 		getDisplayString(type) {
 			switch (type) {
