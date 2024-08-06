@@ -1,6 +1,7 @@
 <template>
   <div class="d-flex input-field text-color primary-border primary-rounded">
-    <input class="input-text-box" placeholder=" "/>
+    <input class="input-text-box" :value="modelValue"
+    @input="$emit('update:modelValue', $event.target.value)"/>
     <label class="floating-label p2 text-secondary-color">{{label}}</label>
   </div>
 </template>
