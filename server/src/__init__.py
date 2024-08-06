@@ -1,5 +1,6 @@
 from src.config import mail
 from flask import Flask
+from flask_cors import CORS
 import os
 from os.path import join, dirname
 
@@ -22,6 +23,9 @@ def create_app(server_mode='production'):
     app.config['MAIL_USE_SSL'] = True
 
     mail.init_app(app)
+
+    # cors
+    CORS(app)
 
     # apply the blueprints to the app
     from .api.user import user
