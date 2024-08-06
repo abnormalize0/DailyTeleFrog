@@ -5,21 +5,24 @@
 import json
 import enum
 
+
 class ErrorType(enum.Enum):
     ValueError = 0
     OptionError = 1
-    UnexceptedError = 2
+    UnexpectedError = 2
+
 
 class StatusType(enum.Enum):
     ERROR = 0
     OK = 1
 
-class Status():
+
+class Status:
     _status_type = None
     _error_type = None
     _msg = None
 
-    def __init__(self, is_error:StatusType, error_type:ErrorType=None, msg=None):
+    def __init__(self, is_error: StatusType, error_type: ErrorType = None, msg=None):
         self._status_type = is_error
 
         if not bool(self._status_type.value):
@@ -49,3 +52,9 @@ class Status():
     @property
     def is_error(self):
         return not bool(self._status_type.value)
+
+    def convert_to_http_error(self):
+        if self._status_type == StatusType.OK:
+            return 200
+        elif self._status_type == StatusType.ERROR:
+            return 500

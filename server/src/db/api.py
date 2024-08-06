@@ -12,15 +12,15 @@ from . import worker
 from .. import config
 from .. import request_status
 
-def check_password(password, user_id=None, email=None):
+def check_password(password, username=None, email=None):
     status = None
     data = None
-    if user_id:
+    if username:
         status, data = worker.get_entry_data(config.db_user.path,
                                             config.user_table_name,
                                             ['password'],
                                             id_name=config.user_id_name,
-                                            id_value=user_id)
+                                            id_value=username)
     else:
         status, data = worker.get_entry_data(config.db_user.path,
                                             config.user_table_name,
@@ -32,26 +32,26 @@ def check_password(password, user_id=None, email=None):
     stored_password = data['password']
     return status, password == stored_password
 
-def change_password(password, user_id):
+def change_password(password, username):
     status = worker.update_entry(config.db_user.path,
                                  config.user_table_name,
                                  config.user_id_name,
-                                 user_id,
+                                 username,
                                  'password',
                                  password)
     return status
 
-def get_unblocked_articles(user_id, include_nonsub, sort_column, sort_direction, include, exclude, bounds):
+def get_unblocked_articles(username, include_nonsub, sort_column, sort_direction, include, exclude, bounds):
     status = None
     data = {}
-    if user_id == 0:
+    if username == 'unlogged_user':
         status = request_status.Status(request_status.StatusType.OK)
     else:
         status, data = worker.get_entry_data(config.db_user.path,
                                             config.user_table_name,
                                             ['blocked_tags', 'blocked_users', 'blocked_communities'],
                                             id_name=config.user_id_name,
-                                            id_value=user_id)
+                                            id_value=username)
     if status.is_error:
         return status, None
 
@@ -92,7 +92,7 @@ def get_unblocked_articles(user_id, include_nonsub, sort_column, sort_direction,
                                                 bounds=bounds,
                                                 sort_column=sort_column,
                                                 sort_direction=sort_direction,
-                                                user_id=user_id)
+                                                username=username)
 
     if status.is_error:
         return status, None
@@ -101,8 +101,8 @@ def get_unblocked_articles(user_id, include_nonsub, sort_column, sort_direction,
         articles_id[config.article_id_name] = [articles_id[config.article_id_name]]
     return status, articles_id[config.article_id_name]
 
-def create_comment(article_id, user_id):
-    comment = {'author_id': user_id,
+def create_comment(article_id, username):
+    comment = {'author_id': username,
                'creation_date': round(time.time() * 1000),
                'rating': 0,
                'likes_count': 0,
@@ -127,13 +127,13 @@ def append_answer_to_comment(root, comment, root_id):
             return True, changed_coments
     return False, None
 
-def add_comment(article_id, root_id, comment_text, user_id):
-    status, comment_id, creation_date = create_comment(article_id, user_id)
+def add_comment(article_id, root_id, comment_text, username):
+    status, comment_id, creation_date = create_comment(article_id, username)
     if status.is_error:
         return status, None
     comment = {'comment_text': comment_text,
                'creation_date': creation_date,
-               'author_id': user_id,
+               'author_id': username,
                'rating': 0,
                'likes_count': 0,
                'dislikes_count': 0,
@@ -186,7 +186,7 @@ def set_vote_on_article(id, vote_count, vote_type):
     with open(os.path.join(config.db_article_directory.path, f'{id}.json'), 'w', encoding="utf-8") as file:
         json.dump(article, file, ensure_ascii=False, indent=4)
 
-def vote(db, table_name, id_name, id, user_id, vote_type):
+def vote(db, table_name, id_name, id, username, vote_type):
     status, data = worker.get_entry_data(db,
                                          table_name,
                                          ['likes_id', 'likes_count', 'author_id', 'dislikes_count', 'dislikes_id'],
@@ -197,7 +197,7 @@ def vote(db, table_name, id_name, id, user_id, vote_type):
 
     author_id = data['author_id']
 
-    if user_id == author_id:
+    if username == author_id:
         return request_status.Status(request_status.StatusType.ERROR, request_status.ErrorType.ValueError,
                                      msg='User tries to like or dislike their own comment or article')
 
@@ -212,13 +212,13 @@ def vote(db, table_name, id_name, id, user_id, vote_type):
     is_have_reverse_vote = False
 
     # user set like on disliked post/comment or dislike on liked post/comment
-    if reverse_vote_id and str(user_id) in reverse_vote_id.split(config.delimiter):
+    if reverse_vote_id and str(username) in reverse_vote_id.split(config.delimiter):
         status = worker.update_entry(db,
                                      table_name,
                                      id_name,
                                      id,
                                      reverse_vote + '_id',
-                                     reverse_vote_id.replace(f'{config.delimiter}{user_id}{config.delimiter}', ''))
+                                     reverse_vote_id.replace(f'{config.delimiter}{username}{config.delimiter}', ''))
         if status.is_error:
             return status
 
@@ -236,13 +236,13 @@ def vote(db, table_name, id_name, id, user_id, vote_type):
         vote_id = ''
     change = 1
 
-    if str(user_id) not in vote_id.split(config.delimiter):
+    if str(username) not in vote_id.split(config.delimiter):
         status = worker.update_entry(db,
                                      table_name,
                                      id_name,
                                      id,
                                      vote_type + '_id',
-                                     vote_id + f'{config.delimiter}{user_id}{config.delimiter}')
+                                     vote_id + f'{config.delimiter}{username}{config.delimiter}')
         if status.is_error:
             return status
     else:
@@ -251,7 +251,7 @@ def vote(db, table_name, id_name, id, user_id, vote_type):
                                      id_name,
                                      id,
                                      vote_type + '_id',
-                                     vote_id.replace(f'{config.delimiter}{user_id}{config.delimiter}', ''))
+                                     vote_id.replace(f'{config.delimiter}{username}{config.delimiter}', ''))
         if status.is_error:
             return status
         change = -1
@@ -327,16 +327,16 @@ def post_article_to_db(article):
     return status, article_id
 
 def add_user(info):
-    status, user_id = worker.add_entry(config.db_user.path,
+    status, username = worker.add_entry(config.db_user.path,
                                        config.user_table_name,
                                        info)
-    return status, user_id
+    return status, username
 
-def user_update_info(field_name, field_value, user_id):
+def user_update_info(field_name, field_value, username):
     status = worker.update_entry(config.db_user.path,
                                  config.user_table_name,
                                  config.user_id_name,
-                                 user_id,
+                                 username,
                                  field_name,
                                  field_value)
     return status
@@ -349,10 +349,10 @@ def article_get_data(article_id, requested_data):
                                          article_id)
     return status, data
 
-def user_get_data(user_id, requested_data):
+def user_get_data(username, requested_data):
     status, data = worker.get_entry_data(config.db_user.path,
                                          config.user_table_name,
                                          requested_data,
                                          config.user_id_name,
-                                         user_id)
+                                         username)
     return status, data
