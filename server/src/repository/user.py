@@ -3,7 +3,7 @@ import json
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 from src.db.scheme import User
-from src.request_status import Status, StatusType
+from src.request_status import Status, StatusType, ErrorType
 import bcrypt
 import os
 
@@ -25,8 +25,10 @@ class UserRepository:
                         "user": user.to_json(),
                         "auth_token": auth_token
                     }), Status(StatusType.OK)
-                return {"user": None, "auth_token": None}, error
-            return None, Status(StatusType.ERROR)
+                return json.dumps({"user": None, "auth_token": None}), error
+            return json.dumps({"user": None, "auth_token": None}), Status(StatusType.ERROR,
+                                                                          error_type=ErrorType.ValueError,
+                                                                          msg="User is not found")
 
     @staticmethod
     def save_user(username, password, email):
@@ -51,4 +53,4 @@ class UserRepository:
             auth_token, error = user.encode_auth_token()
             if auth_token:
                 return json.dumps({'user': user.to_json(), 'auth_token': auth_token}), Status(StatusType.OK)
-            return {"user": None, "auth_token": None}, error
+            return json.dumps({"user": None, "auth_token": None}), error
