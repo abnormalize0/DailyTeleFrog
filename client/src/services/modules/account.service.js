@@ -1,6 +1,6 @@
 import { AccountApi } from "@/api";
 
-export const loginPost = async (username, password) => {
-    AccountApi.login(username, password);
-
+export const login = async (username, password) => {
+    const { data } = await AccountApi.login(username, password);
+    return data;
 }

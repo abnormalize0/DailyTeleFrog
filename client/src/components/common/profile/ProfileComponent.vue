@@ -1,22 +1,23 @@
 <template>
-	<div class="d-flex flex-column primary-rounded background-secondary-color align-center wrap-menu" v-if="!logedIn">
+	<div class="d-flex flex-column primary-rounded background-secondary-color align-center wrap-menu" 
+	v-if="tabType == 0">
 		<div class="h2 text-color">Войти</div>
 		<div class="d-flex flex-column w-100 login-form">
 			<BasicInput label="Логин" :modelValue="username" @update:modelValue="$event => (username = $event)" />
 			<BasicInput label="Пароль" :modelValue="password" @update:modelValue="$event => (password = $event)" />
-			<div class="d-flex reset-password text-color p2">
+			<div class="d-flex reset-password text-color p2" @click="()=> this.tabType = 2">
 				Забыли пароль?
 			</div>
 			<div class="d-flex justify-center">
 				<BasicPrimaryButton class="w-100" content="Войти" @click="login()"></BasicPrimaryButton>
 			</div>
 			<div class="d-flex justify-center">
-				<BasicSecondaryButton class="w-100" content="Создать аккаунт"></BasicSecondaryButton>
+				<BasicSecondaryButton class="w-100" content="Создать аккаунт" @click="()=>this.tabType = 1"></BasicSecondaryButton>
 			</div>
 		</div>
 	</div>
 	<div class="d-flex flex-column primary-rounded background-secondary-color align-center wrap-menu" 
-    v-if="logedIn">
+    v-if="tabType == 3">
 		<div class="d-flex profile-wrap text-color">
 			<div class="d-flex">
 				<img src="../../../assets/Avatar.png">
@@ -28,7 +29,7 @@
 				</div>
 			</div>
 			<div class="d-flex">
-				<i class="settings-icon" styl`e="margin-right: 8px" />
+				<i class="settings-icon" style="margin-right: 8px" />
 				<i class="exit-icon" />
 			</div>
 		</div>
@@ -38,6 +39,34 @@
 			</div>
 		</div>
 		<BasicPrimaryButton class="w-100" content="Опубликовать пост"></BasicPrimaryButton>
+	</div>
+	<div class="d-flex flex-column primary-rounded background-secondary-color align-center wrap-menu" 
+	v-if="tabType == 1">
+		<div class="h2 text-color">Регистрация</div>
+		<div class="d-flex flex-column w-100 login-form">
+			<BasicInput label="Email" :modelValue="username" @update:modelValue="$event => (username = $event)" />
+			<BasicInput label="Логин" :modelValue="password" @update:modelValue="$event => (password = $event)" />
+			<BasicInput label="Пароль" :modelValue="password" @update:modelValue="$event => (password = $event)" />
+			<div class="d-flex justify-center">
+				<BasicPrimaryButton class="w-100" content="Создать аккаунт" @click="login()"></BasicPrimaryButton>
+			</div>
+			<div class="d-flex justify-center">
+				<BasicSecondaryButton class="w-100" content="Назад" @click="()=> this.tabType = 0"></BasicSecondaryButton>
+			</div>
+		</div>
+	</div>
+	<div class="d-flex flex-column primary-rounded background-secondary-color align-center wrap-menu" 
+	v-if="tabType == 2">
+		<div class="h2 text-color">Забыли пароль?</div>
+		<div class="d-flex flex-column w-100 login-form">
+			<BasicInput label="Email" :modelValue="username" @update:modelValue="$event => (username = $event)" />
+			<div class="d-flex justify-center">
+				<BasicPrimaryButton class="w-100" content="Восстановить пароль" @click="login()"></BasicPrimaryButton>
+			</div>
+			<div class="d-flex justify-center">
+				<BasicSecondaryButton class="w-100" content="Назад" @click="()=> this.tabType = 0"></BasicSecondaryButton>
+			</div>
+		</div>
 	</div>
 </template>
 
@@ -91,6 +120,7 @@ export default {
 	data() {
 		return {
 			logedIn: false,
+			tabType: 0,
 			username: "",
 			password: "",
 			avatarBlock: {
@@ -108,8 +138,13 @@ export default {
       
 			const usernameSanitized = this.username.replace(/[!"#$%&'()*+,-./:;<=>?@[\]^_`{|}~]/g, "");
 			const passwordSanitized = this.password.replace(/[!"#$%&'()*+,-./:;<=>?@[\]^_`{|}~]/g, "");
-      AccountService.loginPost(usernameSanitized, passwordSanitized);
+			const x = await AccountService.login(usernameSanitized, passwordSanitized);
+			console.log(x);
+			this.logedIn = true;
 			
+		},
+		register() {
+			this.registering = true;
 		},
 		getDisplayString(type) {
 			switch (type) {
