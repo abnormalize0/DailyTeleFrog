@@ -18,8 +18,10 @@ def login():
     login_data = request.json
     username = login_data.get('username', None)
     password = login_data.get('password', None)
-    logged_in_user, _ = UserService.login(username, password)
-    return Response(response=logged_in_user, status=200, mimetype="application/json")
+    logged_in_user, status = UserService.login(username, password)
+    if status.is_error:
+        logged_in_user = status.__str__()
+    return Response(response=logged_in_user, status=status.convert_to_http_error(), mimetype="application/json")
 
 
 @user.route('/register', methods=['POST'])
@@ -32,6 +34,8 @@ def register():
     password = register_data.get('password', None)
     email = register_data.get('email', None)
     registered_user, status = UserService.register(username, password, email)
+    if status.is_error:
+        registered_user = status.__str__()
     return Response(response=registered_user, status=status.convert_to_http_error(), mimetype="application/json")
 
 
