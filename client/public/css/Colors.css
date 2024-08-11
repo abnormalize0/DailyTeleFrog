@@ -18,6 +18,10 @@
   color: var(--text-secondary-color) !important;
 }
 
+.text-thirdly-color {
+  color: var(--text-thirdly-color) !important;
+}
+
 .text-secondary-color:hover {
   color: var(--text-secondary-color-hover) !important;
 }
