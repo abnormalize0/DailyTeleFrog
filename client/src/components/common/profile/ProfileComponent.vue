@@ -6,7 +6,7 @@
 		<div class="d-flex flex-column w-100 login-form">
 			<BasicInput class="form-input" name="Логин" label="Логин" :modelValue="username" @update:modelValue="$event => (username = $event)" />
 			<BasicInput class="form-input" name="Пароль" label="Пароль" :modelValue="password" @update:modelValue="$event => (password = $event)" />
-			<div class="d-flex text-thirdly-color p2" v-if="incorrectPassword">
+			<div class="d-flex text-thirdly-color p2" v-if="displayWarning">
 				Неправильный пароль. Попробуйте снова, пожалуйста. 
 			</div>
 			<div class="d-flex reset-password text-color p2" @click="changeTab(tabProfileTypes.ForgotPassword)">
@@ -53,7 +53,7 @@
 			<BasicInput class="form-input" name="Email" label="Email" :modelValue="email" @update:modelValue="$event => (email = $event)" />
 			<BasicInput class="form-input" name="Логин" label="Логин" :modelValue="username" @update:modelValue="$event => (username = $event)" />
 			<BasicInput class="form-input" name="Пароль" label="Пароль" :modelValue="password" @update:modelValue="$event => (password = $event)" />
-			<div class="d-flex text-thirdly-color p2" v-if="emailAlreadyInUse">
+			<div class="d-flex text-thirdly-color p2" v-if="displayWarning">
 				Такой Email уже используется. Попробуйте другой.
 			</div>
 			<div class="d-flex justify-center">
@@ -70,6 +70,9 @@
 		<div class="h2 text-color">Забыли пароль?</div>
 		<div class="d-flex flex-column w-100 login-form">
 			<BasicInput class="form-input" name="Email" label="Email" :modelValue="email" @update:modelValue="$event => (email = $event)" />
+			<div class="d-flex text-thirdly-color p2" v-if="displayWarning">
+				Такой Email не зарегистрирован.
+			</div>
 			<div class="d-flex justify-center">
 				<BasicPrimaryButton class="w-100" content="Восстановить пароль" @click="login()"></BasicPrimaryButton>
 			</div>
@@ -140,8 +143,7 @@ export default {
 	data() {
 		return {
 			tabType: 0,
-			incorrectPassword: false,
-			emailAlreadyInUse: false,
+			displayWarning: false,
 			tabProfileTypes: {
 				LogedIn: 3,
 				Login: 0,
@@ -172,21 +174,22 @@ export default {
 			if (x) {
 				let inputs = document.getElementsByClassName("form-input");
 				this.highlightInputs(inputs, ["Пароль"]);
-				this.incorrectPassword = true;
+				this.displayWarning = true;
 			} else {
 				this.tabType = this.tabProfileTypes.LogedIn;
 			}			
 		},
 		changeTab(tabNumber) {
 			this.clearData();
+			this.displayWarning = false
 			this.tabType = tabNumber;
 		},
 		register() {
-			let x = true;
-			if (x) {
+			let notGood = true;
+			if (notGood) {
 				let inputs = document.getElementsByClassName("form-input");
 				this.highlightInputs(inputs, ["Email"]);
-				this.emailAlreadyInUse = true;
+				this.displayWarning= true;
 			} else {
 				this.tabType = this.tabProfileTypes.RegistrationSuccess;
 			}
@@ -210,12 +213,17 @@ export default {
 		highlightInputs(inputsArray, namesToHighlight) {
 			for (let i = 0; i < inputsArray.length; i++) {
 					if (namesToHighlight.indexOf(inputsArray[i].attributes["name"].value) != -1) {
-						inputsArray[i].style.border = "1px solid red";
+						inputsArray[i].style.border = "1px solid red"; // в идеале сделать классом и пушить/попать
 					}
 				}
 		},
-		forgotPasswordSubmit() {
-
+		forgotPassword() {
+			let notGood = false;
+			if (notGood) {
+				this.displayWarning = true;
+			} else {
+				this.tabType = this.tabProfileTypes.RegistrationSuccess;
+			}
 		}
 	}
 };
