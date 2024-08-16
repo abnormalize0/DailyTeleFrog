@@ -45,7 +45,10 @@ export default {
     AppendIconButton,
   },
   props: {
-    groups: [],
+    groups: {
+      type: Array,
+      default: () => [],
+    }
   },
   data() {
     return {
