@@ -16,7 +16,11 @@
   line-height: 20.8px !important;
 }
 
-.p2 {
+.p2,
+.p2::-webkit-input-placeholder,
+.p2:-ms-input-placeholder,
+.p2:-moz-placeholder,
+.p2::-moz-placeholder {
   font-family: var(--family-name) !important;
   font-size: 14px !important;
   letter-spacing: 0 !important;

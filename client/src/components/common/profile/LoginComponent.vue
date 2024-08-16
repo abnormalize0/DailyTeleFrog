@@ -3,8 +3,8 @@
 	<div class="d-flex flex-column primary-rounded background-secondary-color align-center wrap-menu">
 		<div class="h2 text-color">Войти</div>
 		<div class="d-flex flex-column w-100 login-form">
-			<BasicInput class="form-input" name="Логин" label="Логин" :modelValue="username" @update:modelValue="$event => (username = $event)" />
-			<BasicInput class="form-input" name="Пароль" label="Пароль" :modelValue="password" @update:modelValue="$event => (password = $event)" />
+			<BasicInput class="form-input" name="Логин" label="Логин" v-model="username" @update:modelValue="$event => (username = $event)" />
+			<BasicInput class="form-input" name="Пароль" label="Пароль" type="password" v-model="password" @update:modelValue="$event => (password = $event)" />
 			<div class="d-flex text-mistake-color p2" v-if="displayWarning">
 				Неправильный пароль. Попробуйте снова, пожалуйста. 
 			</div>

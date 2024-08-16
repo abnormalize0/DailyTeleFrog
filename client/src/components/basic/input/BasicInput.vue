@@ -1,20 +1,28 @@
 <template>
-  <div class="d-flex input-field text-color primary-border primary-rounded">
-    <input class="input-text-box" :value="modelValue"
-    @input="$emit('update:modelValue', $event.target.value)"/>
+  <div class="d-flex input-field primary-border primary-rounded">
+    <input 
+      class="input-text-box" 
+      v-model="modelValue"
+      @input="updateModelValue($event.target.value)"
+      :type="type"
+      placeholder=" "
+    />
     <label class="floating-label p2 text-secondary-color">{{label}}</label>
   </div>
 </template>
 
 <style scoped>
 .input-field {
+  display: flex;
   height: 50px !important;
   width: 100% !important;
   padding: 10px 15px;
   background-color: transparent;
-  caret-color: var(--text-secondary-color);
+  caret-color: var(--text-secondary-color) !important;
   transition: 600ms;
   position: relative;
+  justify-content: center;
+  align-items: center;
 }
 
 .input-field:hover,
@@ -23,14 +31,23 @@
   background-color: var(--background-secondary-color);
 }
 
-.input-field::-webkit-input-placeholder,
-.input-field:-ms-input-placeholder,
-.input-field:-moz-placeholder,
-.input-field::-moz-placeholder {
-  font-family: var(--family-name);
-  font-size: 14px !important;
-  letter-spacing: 0 !important;
-  color: var(--text-secondary-color);
+.input-field .floating-label {
+  position: absolute;
+  left: 15px;
+  pointer-events: none;
+}
+
+.input-field:focus-within .floating-label, 
+.input-field:active .floating-label {
+  position: absolute;
+  font-size: 10px !important;
+  line-height: 11.6px !important;
+  margin-bottom: 2px;
+  top: 10px;
+}
+
+.input-text-box:not(:focus):not(:placeholder-shown) + .floating-label {
+  display: none;
 }
 
 .input-text-box {
@@ -39,24 +56,8 @@
   color: var(--text-secondary-color);
 }
 
-.floating-label {
-  position: absolute;
-  pointer-events: none;
-  align-self: center;
-  transition: 0.2s;
-  color: var(--text-secondary-color);
-}
-
-.input-field .input-text-box:focus+.floating-label,
-.input-field .input-text-box:not(:placeholder-shown)+.floating-label {
-  top: 5px;
-  -webkit-transform: scale(0.71) translateY(-10%) translateX(-10px);
-  transform: scale(0.71) translateY(-10%) translateX(-10px);
-}
-
-.input-field .input-text-box:focus,
-.input-field .input-text-box:not(:placeholder-shown) {
-  padding-top: 10px;
+.input-field .input-text-box:focus {
+  padding-top: 14px;
 }
 
 .input-field .input-text-box,
@@ -76,13 +77,23 @@
 export default {
   name: "BasicInput",
   props: {
-	modelValue: {
-	type: String,
-	default: "",
-	},
     label: {
       type: String,
       default: "",
+    },
+    type: {
+      type: String,
+      default: "text"
+    }
+  },
+  data() {
+    return {
+      modelValue: ""
+    }
+  },
+  methods: {
+    updateModelValue(value) {
+      this.$emit("update:modelValue", value);
     }
   }
 }
