@@ -65,6 +65,14 @@
   background: url("../icons/settings.svg");
 }
 
+.eye {
+  background: url("../icons/eye.svg");
+}
+
+.eye-off {
+  background: url("../icons/eye-off.svg");
+}
+
 /* SIZE */
 .search-text-secondary-color-icon,
 .menu-kebab-text-color-icon,
@@ -84,7 +92,9 @@
 .arrow-up-text-color-icon,
 .exit-icon,
 .settings-icon,
-.arrow-next-icon {
+.arrow-next-icon,
+.eye,
+.eye-off {
   height: 16px;
   width: 16px;
 }
@@ -99,7 +109,9 @@
 .menu-kebab-text-color-icon,
 .exit-icon,
 .settings-icon,
-.arrow-next-icon {
+.arrow-next-icon,
+.eye,
+.eye-off {
   display: block;
   cursor: pointer;
 }

@@ -4,10 +4,17 @@
       class="input-text-box" 
       v-model="modelValue"
       @input="updateModelValue($event.target.value)"
-      :type="type"
+      :type="computedType"
       placeholder=" "
     />
     <label class="floating-label p2 text-secondary-color">{{label}}</label>
+    <span 
+      v-if="type === 'password'" 
+      @click="togglePasswordVisibility" 
+      class="password-icon"
+    >
+      <i :class="passwordVisible ? 'eye-off' : 'eye'"></i>
+    </span>
   </div>
 </template>
 
@@ -71,6 +78,12 @@
   -webkit-transition-timing-function: cubic-bezier(0.25, 0.1, 0.25, 1);
   transition-timing-function: cubic-bezier(0.25, 0.1, 0.25, 1);
 }
+
+.password-icon {
+  position: absolute;
+  align-self: center;
+  right: 15px;
+}
 </style>
 
 <script>
@@ -88,12 +101,21 @@ export default {
   },
   data() {
     return {
-      modelValue: ""
+      modelValue: "",
+      passwordVisible: false
+    }
+  },
+  computed: {
+    computedType() {
+      return this.passwordVisible && this.type === 'password' ? 'text' : this.type;
     }
   },
   methods: {
     updateModelValue(value) {
       this.$emit("update:modelValue", value);
+    },
+    togglePasswordVisibility() {
+      this.passwordVisible = !this.passwordVisible;
     }
   }
 }
