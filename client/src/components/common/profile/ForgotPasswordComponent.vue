@@ -2,7 +2,13 @@
 	<div class="d-flex flex-column primary-rounded background-secondary-color align-center wrap-menu">
 		<div class="h2 text-color">Забыли пароль?</div>
 		<div class="d-flex flex-column w-100 login-form">
-			<BasicInput class="form-input" name="Email" label="Email" :modelValue="email" @update:modelValue="$event => (email = $event)" />
+			<BasicInput 
+        class="form-input" 
+        name="Email" 
+        label="Email" 
+        v-model="email"
+        @input="updateEmail($event.target.value)"
+      />
 			<div class="d-flex text-mistake-color p2" v-if="displayWarning">
 				Такой Email не зарегистрирован.
 			</div>
@@ -17,13 +23,6 @@
 </template>
 
 <style scoped>
-.wrap-menu {
-	width: 267px;
-	height: auto;
-	padding: 20px;
-	gap: 11px;
-}
-
 .login-form {
 	gap: 15px;
 }
@@ -65,6 +64,9 @@ export default {
 					}
 				}
 		},
+    updateEmail(value) {
+      this.$emit("@update:email", value);
+    }
 	}
 };
 </script>

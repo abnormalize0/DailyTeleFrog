@@ -1,5 +1,4 @@
 <template>
-	<!--Вид залогиненного пользователя-->
 	<div class="d-flex flex-column primary-rounded background-secondary-color align-center wrap-menu">
 		<div class="d-flex profile-wrap text-color">
 			<div class="d-flex">
@@ -26,13 +25,6 @@
 </template>
 
 <style scoped>
-.wrap-menu {
-	width: 267px;
-	height: auto;
-	padding: 20px;
-	gap: 11px;
-}
-
 .login-form {
 	gap: 15px;
 }

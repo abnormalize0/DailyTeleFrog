@@ -3,9 +3,27 @@
 	<div class="d-flex flex-column primary-rounded background-secondary-color align-center wrap-menu">
 		<div class="h2 text-color">Регистрация</div>
 		<div class="d-flex flex-column w-100 login-form">
-			<BasicInput class="form-input" name="Email" label="Email" :modelValue="email" @update:modelValue="$event => (email = $event)" />
-			<BasicInput class="form-input" name="Логин" label="Логин" :modelValue="username" @update:modelValue="$event => (username = $event)" />
-			<BasicInput class="form-input" name="Пароль" label="Пароль" :modelValue="password" @update:modelValue="$event => (password = $event)" />
+			<BasicInput 
+				class="form-input" 
+				name="Email" 
+				label="Email" 
+				v-model="email" 
+				@input="updateEmail($event.target.value)"
+			/>
+			<BasicInput 
+				class="form-input" 
+				name="Логин" 
+				label="Логин" 
+				v-model="username"
+				@input="updateUsername($event.target.value)"
+			/>
+			<BasicInput 
+				class="form-input" 
+				name="Пароль" 
+				label="Пароль" 
+				v-model="password" 
+				@input="updatePassword($event.target.value)"
+			/>
 			<div class="d-flex text-mistake-color p2" v-if="displayWarning">
 				Такой Email уже используется. Попробуйте другой.
 			</div>
@@ -20,13 +38,6 @@
 </template>
 
 <style scoped>
-.wrap-menu {
-	width: 267px;
-	height: auto;
-	padding: 20px;
-	gap: 11px;
-}
-
 .login-form {
 	gap: 15px;
 }
@@ -75,6 +86,15 @@ export default {
 						inputsArray[i].style.border = "1px solid #C90C00"; // в идеале сделать классом и пушить/попать
 					}
 				}
+		},
+		updateEmail(value) {
+			this.$emit("@update:email", value);
+		},
+		updateUsername(value) {
+			this.$emit("@update:username", value);
+		},
+		updatePassword(value) {
+			this.$emit("@update:password", value);
 		}
 	}
 };

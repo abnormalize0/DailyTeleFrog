@@ -2,10 +2,6 @@
 	<ProfileComponent />
 </template>
 
-<style scoped>
-
-</style>
-
 <script>
 import ProfileComponent from './profile/ProfileComponent.vue';
 

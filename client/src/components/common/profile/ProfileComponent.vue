@@ -1,22 +1,23 @@
 <template>
-	<!--Логин-->
 	<LoginComponent @changeTab="onTabChange($event)"
 	v-if="tabType == TabService.tabProfileTypes.Login" />
-	<!--Вид залогиненного пользователя-->
 	<LogedInComponent
 	v-if="tabType == TabService.tabProfileTypes.LogedIn" />
-	<!--Регистрация-->
 	<RegistrationComponent @changeTab="onTabChange($event)" 
 	v-if="tabType == TabService.tabProfileTypes.Register" />
-	<!--Забыли пароль-->
 	<ForgotPasswordComponent @changeTab="onTabChange($event)"
 	v-if="tabType == TabService.tabProfileTypes.ForgotPassword" />
-	<!--Регистрация прошла успешно-->
 	<RegistrationCompleteComponent @changeTab="onTabChange($event)"
 	v-if="tabType == TabService.tabProfileTypes.RegistrationSuccess" />
 </template>
 
 <style scoped>
+.wrap-menu {
+	width: 267px;
+	height: auto;
+	padding: 20px;
+	gap: 11px;
+}
 </style>
 
 <script>

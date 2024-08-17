@@ -1,16 +1,30 @@
 <template>
-	<!--Логин-->
 	<div class="d-flex flex-column primary-rounded background-secondary-color align-center wrap-menu">
 		<div class="h2 text-color">Войти</div>
 		<div class="d-flex flex-column w-100 login-form">
-			<BasicInput class="form-input" name="Логин" label="Логин" v-model="username" @update:modelValue="$event => (username = $event)" />
-			<BasicInput class="form-input" name="Пароль" label="Пароль" type="password" v-model="password" @update:modelValue="$event => (password = $event)" />
-			<div class="d-flex text-mistake-color p2" v-if="displayWarning">
-				Неправильный пароль. Попробуйте снова, пожалуйста. 
-			</div>
-			<div class="d-flex reset-password text-color p2" @click="TabService.changeTab(this, TabService.tabProfileTypes.ForgotPassword)">
-				Забыли пароль?
-			</div>
+			<BasicInput 
+        class="form-input" 
+        name="Логин" 
+        label="Логин" 
+        v-model="username" 
+        @input="updateUsername($event.target.value)" 
+      />
+      <div class="d-flex flex-column password-section">
+        <BasicInput 
+          class="form-input" 
+          name="Пароль" 
+          label="Пароль" 
+          type="password" 
+          v-model="password" 
+          @input="updatePassword($event.target.value)" 
+        />
+        <div class="d-flex text-mistake-color p2" v-if="displayWarning">
+          Неправильный пароль. Попробуйте снова, пожалуйста. 
+        </div>
+        <div class="d-flex reset-password text-color p3" @click="TabService.changeTab(this, TabService.tabProfileTypes.ForgotPassword)">
+          Забыли пароль?
+        </div>
+      </div>
 			<div class="d-flex justify-center">
 				<BasicPrimaryButton class="w-100" content="Войти" @click="login()"></BasicPrimaryButton>
 			</div>
@@ -22,11 +36,8 @@
 </template>
 
 <style scoped>
-.wrap-menu {
-	width: 267px;
-	height: auto;
-	padding: 20px;
-	gap: 11px;
+.password-section {
+  gap: 8px;
 }
 
 .login-form {
@@ -39,10 +50,12 @@
 
 .reset-password {
 	text-decoration: underline;
+  transition: color 600ms;
 }
 
 .reset-password:hover {
 	cursor: pointer;
+  color: var(--text-color-hover) !important;
 }
 </style>
 
@@ -109,7 +122,13 @@ export default {
 			} else {
 				TabService.changeTab(TabService.tabProfileTypes.RegistrationSuccess);
 			}
-		}
+		},
+    updateUsername(value) {
+      this.$emit("@update:username", value);
+    },
+    updatePassword(value) {
+      this.$emit("@update:password", value);
+    }
 	}
 };
 </script>
