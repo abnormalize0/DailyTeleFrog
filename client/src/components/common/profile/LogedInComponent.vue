@@ -25,10 +25,6 @@
 </template>
 
 <style scoped>
-.login-form {
-	gap: 15px;
-}
-
 .name-tag-wrap {
 	margin-left: 12px;
 }

@@ -40,10 +40,6 @@
   gap: 8px;
 }
 
-.login-form {
-	gap: 15px;
-}
-
 .name-tag-wrap {
 	margin-left: 12px;
 }
@@ -63,8 +59,8 @@
 import BasicPrimaryButton from "@/components/basic/buttons/BasicPrimaryButton.vue";
 import BasicSecondaryButton from "@/components/basic/buttons/BasicSecondaryButton.vue";
 import BasicInput from "@/components/basic/input/BasicInput.vue";
-import { TabService } from "@/services";
-//import { AccountService } from "@/services";
+import { TabService, UtilsService } from "@/services";
+// import { AccountService,  } from "@/services";
 
 export default {
 	name: "LoginComponent",
@@ -92,28 +88,18 @@ export default {
 	},
 	methods: {
 		async login() {
-//			const usernameSanitized = this.sanitize(this.username);
-//			const passwordSanitized = this.sanitize(this.password);
-			//const x = await AccountService.login(usernameSanitized, passwordSanitized);
-			//console.log(x);
+			// const usernameSanitized = UtilsService.sanitize(this.username);
+			// const passwordSanitized = UtilsService.sanitize(this.password);
+			// const x = await AccountService.login(usernameSanitized, passwordSanitized);
+			// console.log(x);
 			let x = true;
 			if (x) {
-				let inputs = document.getElementsByClassName("form-input");
-				this.highlightInputs(inputs, ["Пароль"]);
+				
+				UtilsService.highlightInputs(["Пароль"]);
 				this.displayWarning = true;
 			} else {
 				TabService.changeTab(this, TabService.tabProfileTypes.LogedIn);
 			}			
-		},
-		sanitize(data) {
-			return data.replace(/[!"#$%&'()*+,-./:;<=>?@[\]^_`{|}~]/g, "").replace(/\s/g, "");
-		},
-		highlightInputs(inputsArray, namesToHighlight) {
-			for (let i = 0; i < inputsArray.length; i++) {
-					if (namesToHighlight.indexOf(inputsArray[i].attributes["name"].value) != -1) {
-						inputsArray[i].style.border = "1px solid #C90C00"; // в идеале сделать классом и пушить/попать
-					}
-				}
 		},
 		forgotPassword() {
 			let notGood = false;

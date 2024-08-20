@@ -37,17 +37,11 @@
 	</div>
 </template>
 
-<style scoped>
-.login-form {
-	gap: 15px;
-}
-</style>
-
 <script>
 import BasicPrimaryButton from "@/components/basic/buttons/BasicPrimaryButton.vue";
 import BasicSecondaryButton from "@/components/basic/buttons/BasicSecondaryButton.vue";
 import BasicInput from "@/components/basic/input/BasicInput.vue";
-import { TabService } from "@/services";
+import { TabService, UtilsService } from "@/services";
 //import { AccountService } from "@/services";
 
 export default {
@@ -68,24 +62,19 @@ export default {
 	},
 	methods: {
 		register() {
-			let notGood = false;
+			const notGood = true;
 			if (notGood) {
-				let inputs = document.getElementsByClassName("form-input");
-				this.highlightInputs(inputs, ["Email"]);
-				this.displayWarning= true;
+				UtilsService.highlightInputs(["Email"]);
+				this.displayWarning = true;
 			} else {
+				const registrationData = {
+					email: UtilsService.sanitize(this.email),
+					username: UtilsService.sanitize(this.username),
+					password: UtilsService.sanitize(this.password)
+				} 
+				console.log(registrationData); // lint
 				TabService.changeTab(this, TabService.tabProfileTypes.RegistrationSuccess);
 			}
-		},
-		sanitize(data) {
-			return data.replace(/[!"#$%&'()*+,-./:;<=>?@[\]^_`{|}~]/g, "").replace(/\s/g, "");
-		},
-		highlightInputs(inputsArray, namesToHighlight) {
-			for (let i = 0; i < inputsArray.length; i++) {
-					if (namesToHighlight.indexOf(inputsArray[i].attributes["name"].value) != -1) {
-						inputsArray[i].style.border = "1px solid #C90C00"; // в идеале сделать классом и пушить/попать
-					}
-				}
 		},
 		updateEmail(value) {
 			this.$emit("@update:email", value);
