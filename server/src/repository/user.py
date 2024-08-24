@@ -2,7 +2,7 @@ import json
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
-from src.db.scheme import User
+from src.db.user_model import User
 from src.request_status import Status, StatusType, ErrorType
 import bcrypt
 import os
