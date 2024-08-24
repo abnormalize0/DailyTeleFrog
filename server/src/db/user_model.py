@@ -47,7 +47,7 @@ class User(Base):
                 payload,
                 os.getenv('SECRET_KEY'),
                 algorithm='HS256'
-            )
+            ), Status(StatusType.OK)
         except jwt.exceptions.InvalidTokenError:
             return None, Status(StatusType.ERROR, msg='Error occurred, try later')
 
