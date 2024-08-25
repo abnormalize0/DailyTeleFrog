@@ -2,8 +2,7 @@ import pytest
 from unittest.mock import patch, MagicMock
 from src.repository.user import UserRepository
 from src.db.user_model import User
-from src.request_status import StatusType, Status, ErrorType
-import json
+from src.request_status import StatusType
 
 
 @pytest.fixture
@@ -43,17 +42,11 @@ def test_get_user_by_username_and_password_success(mock_engine, mock_session, mo
 
     mock_user_instance = MagicMock(spec=User)
     mock_user_instance.password = 'hashed_password'
-    # mock_user_instance.encode_auth_token.return_value = 'token', None
-    # mock_user_instance.to_json.return_value = {'username': 'test_user'}
 
     mock_session_instance.query.return_value.where.return_value.first.return_value = mock_user_instance
     mock_check_pw_bcrypt.return_value = True
 
     result, status = UserRepository.get_user('test_user', 'test_pass')
-    # expected_result = json.dumps({
-    #     "user": {'username': 'test_user'},
-    #     "auth_token": 'token'
-    # })
     assert result == mock_user_instance
     assert status.__dict__()['type'] == StatusType.OK.name
 
@@ -65,10 +58,6 @@ def test_get_user_by_username_and_password_user_is_not_found(mock_engine, mock_s
     mock_session_instance.query.return_value.where.return_value.first.return_value = None
 
     result, status = UserRepository.get_user('test_user', 'test_pass')
-    # expected_result = json.dumps({
-    #     "user": None,
-    #     "auth_token": None
-    # })
 
     assert result is None
     assert status.__dict__()['type'] == StatusType.ERROR.name
@@ -84,35 +73,10 @@ def test_get_user_by_username_and_password_user_password_is_wrong(mock_engine, m
     mock_check_pw_bcrypt.return_value = False
 
     result, status = UserRepository.get_user('test_user', 'test_pass')
-    # expected_result = json.dumps({
-    #     "user": None,
-    #     "auth_token": None
-    # })
 
     assert result is None
     assert status.__dict__()['type'] == StatusType.ERROR.name
     assert status._msg == "User is not found"
-
-
-# def test_get_user_by_username_and_password_token_is_not_generated(mock_engine, mock_session, mock_check_pw_bcrypt):
-#     mock_session_instance = MagicMock()
-#     mock_session.return_value.__enter__.return_value = mock_session_instance
-#
-#     mock_user_instance = MagicMock(spec=User)
-#     mock_session_instance.query.return_value.where.return_value.first.return_value = mock_user_instance
-#     mock_check_pw_bcrypt.return_value = True
-#
-#     mock_user_instance.encode_auth_token.return_value = None, Status(StatusType.ERROR,
-#                                                                      error_type=ErrorType.UnexpectedError)
-#     result, status = UserRepository.get_user('test_user', 'test_pass')
-#
-#     expected_result = json.dumps({
-#         "user": None,
-#         "auth_token": None
-#     })
-#
-#     assert result == expected_result
-#     assert status.__dict__()['type'] == StatusType.ERROR.name
 
 
 def test_save_user_username_password_email_success(mock_engine, mock_session, mock_hash_pw_bcrypt, mock_getenv):
@@ -122,24 +86,14 @@ def test_save_user_username_password_email_success(mock_engine, mock_session, mo
     mock_session_instance.query.return_value.where.return_value.first.return_value = None
     mock_hash_pw_bcrypt.return_value = b'hashed_pw'
 
-    # mock_user_instance = MagicMock()
-    # mock_user_instance.encode_auth_token.return_value = 'token'
-    # mock_user_instance.to_json.return_value = {'username': 'test_user'}
-
-    # mock_session_instance.add.side_effect = lambda x: setattr(x, 'id', 1)
-    #
-    # with patch('src.db.user_model.User', return_value=mock_user_instance):
     result, status = UserRepository.save_user('test_user', 'test_pass', 'test@example.com')
 
-    # expected_result = json.dumps({'user': {'username': 'test_user'}, 'auth_token': 'token'})
     assert result.username == 'test_user'
     assert result.password == 'hashed_pw'
     assert result.email == 'test@example.com'
     assert status.__dict__()['type'] == StatusType.OK.name
 
-    # mock_session_instance.add.assert_called_once_with(mock_user_instance)
     mock_session_instance.commit.assert_called_once()
-    # mock_user_instance.encode_auth_token.assert_called_once()
 
 
 def test_save_user_username_password_email_user_exists(mock_engine, mock_session, mock_hash_pw_bcrypt, mock_getenv):
@@ -154,4 +108,3 @@ def test_save_user_username_password_email_user_exists(mock_engine, mock_session
     assert result is None
     assert status.__dict__()['type'] == StatusType.ERROR.name
     assert status._msg == 'User with this email already exists'
-

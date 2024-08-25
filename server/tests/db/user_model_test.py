@@ -10,7 +10,7 @@ def test_user_model_encode_auth(monkeypatch):
     user: User = User("username", "email", "nickname",
                       "password", "avatar", "description")
     user.id = 1
-    token = user.encode_auth_token()
+    token, status = user.encode_auth_token()
     assert token is not None
 
     payload = jwt.decode(token, os.getenv('SECRET_KEY'), algorithms='HS256')
