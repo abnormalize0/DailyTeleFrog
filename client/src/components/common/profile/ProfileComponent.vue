@@ -12,9 +12,6 @@
 </template>
 
 <style>
-.not-good-input{
-	border: 1px solid #C90C00;
-}
 .login-form {
 	gap: 15px;
 }

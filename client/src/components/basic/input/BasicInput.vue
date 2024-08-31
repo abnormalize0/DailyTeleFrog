@@ -1,18 +1,9 @@
 <template>
   <div class="d-flex input-field primary-border primary-rounded">
-    <input 
-      class="input-text-box" 
-      v-model="modelValue"
-      @input="updateModelValue($event.target.value)"
-      :type="computedType"
-      placeholder=" "
-    />
-    <label class="floating-label p2 text-secondary-color">{{label}}</label>
-    <span 
-      v-if="type === 'password'" 
-      @click="togglePasswordVisibility" 
-      class="password-icon"
-    >
+    <input class="input-text-box" v-model="modelValue" @input="updateModelValue($event.target.value)"
+      :type="computedType" placeholder=" " />
+    <label class="floating-label p2 text-secondary-color">{{ label }}</label>
+    <span v-if="type === 'password'" @click="togglePasswordVisibility" class="password-icon">
       <i :class="passwordVisible ? 'eye-off' : 'eye'"></i>
     </span>
   </div>
@@ -44,7 +35,7 @@
   pointer-events: none;
 }
 
-.input-field:focus-within .floating-label, 
+.input-field:focus-within .floating-label,
 .input-field:active .floating-label {
   position: absolute;
   font-size: 10px !important;
@@ -53,7 +44,7 @@
   top: 10px;
 }
 
-.input-text-box:not(:focus):not(:placeholder-shown) + .floating-label {
+.input-text-box:not(:focus):not(:placeholder-shown)+.floating-label {
   display: none;
 }
 
@@ -84,12 +75,20 @@
   align-self: center;
   right: 15px;
 }
+
+.not-good-input{
+	border: 1px solid #C90C00;
+}
 </style>
 
 <script>
 export default {
   name: "BasicInput",
   props: {
+    validators: {
+      type: Array,
+      default: () => [],
+    },
     label: {
       type: String,
       default: "",
@@ -111,6 +110,13 @@ export default {
     }
   },
   methods: {
+    validate() {
+      const validatorsResult = this.validators.filter(val => val.result === true);
+      if (validatorsResult.length === 0) {
+        return;
+      }
+      return validatorsResult[0].message;
+    },
     updateModelValue(value) {
       this.$emit("update:modelValue", value);
     },
