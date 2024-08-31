@@ -1,15 +1,27 @@
 <template>
-  <div class="d-flex input-field primary-border primary-rounded">
-    <input class="input-text-box" v-model="modelValue" @input="updateModelValue($event.target.value)"
-      :type="computedType" placeholder=" " />
-    <label class="floating-label p2 text-secondary-color">{{ label }}</label>
-    <span v-if="type === 'password'" @click="togglePasswordVisibility" class="password-icon">
-      <i :class="passwordVisible ? 'eye-off' : 'eye'"></i>
-    </span>
+  <div class="d-flex flex-column input-error-gap">
+    <div class="d-flex input-field primary-rounded" :class="errorVisible ? 'error-border' : 'primary-border'">
+      <input class="input-text-box" 
+        :class="errorVisible ? 'text-mistake-color' : 'text-secondary-color'" 
+        v-model="modelValue" @input="updateModelValue($event.target.value)"
+        :type="computedType" placeholder=" " @blur="validate" @keydown.enter="validate"/>
+      <label class="floating-label p2" :class="errorVisible ? 'text-mistake-color' : 'text-secondary-color'">{{ label }}</label>
+      <span v-if="type === 'password'" @click="togglePasswordVisibility" class="password-icon">
+        <i v-if="!errorVisible" :class="passwordVisible ? 'eye-off' : 'eye'"></i>
+        <i v-if="errorVisible" :class="passwordVisible ? 'eye-error-off' : 'eye-error'"></i>
+      </span>
+    </div>
+    <div v-if="errorVisible" class="error-text p4 error-message">
+      {{ errorMessage }}
+    </div>
   </div>
 </template>
 
 <style scoped>
+.input-error-gap {
+  gap: 5px;
+}
+
 .input-field {
   display: flex;
   height: 50px !important;
@@ -51,7 +63,6 @@
 .input-text-box {
   width: 100%;
   outline: 0;
-  color: var(--text-secondary-color);
 }
 
 .input-field .input-text-box:focus {
@@ -76,8 +87,8 @@
   right: 15px;
 }
 
-.not-good-input{
-	border: 1px solid #C90C00;
+.error-message {
+  margin-left: 1px;
 }
 </style>
 
@@ -101,7 +112,9 @@ export default {
   data() {
     return {
       modelValue: "",
-      passwordVisible: false
+      passwordVisible: false,
+      errorVisible: false,
+      errorMessage: "",
     }
   },
   computed: {
@@ -109,13 +122,17 @@ export default {
       return this.passwordVisible && this.type === 'password' ? 'text' : this.type;
     }
   },
+  emits: ['update:modelValue'],
   methods: {
     validate() {
-      const validatorsResult = this.validators.filter(val => val.result === true);
+      const validatorsResult = this.validators.map(val => val(this.modelValue)).filter(val => val.result === false);
       if (validatorsResult.length === 0) {
+        this.errorVisible = false;
+        this.errorMessage = "";
         return;
       }
-      return validatorsResult[0].message;
+      this.errorMessage = validatorsResult[0].message;
+      this.errorVisible = true;
     },
     updateModelValue(value) {
       this.$emit("update:modelValue", value);

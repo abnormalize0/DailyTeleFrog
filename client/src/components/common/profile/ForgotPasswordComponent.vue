@@ -8,10 +8,8 @@
         label="Email" 
         v-model="email"
         @input="updateEmail($event.target.value)"
+        :validators="this.emailValidators"
       />
-			<div class="d-flex text-mistake-color p2" v-if="displayWarning">
-				Такой Email не зарегистрирован.
-			</div>
 			<div class="d-flex justify-center">
 				<BasicPrimaryButton class="w-100" content="Восстановить пароль" @click="forgotPassword()"></BasicPrimaryButton>
 			</div>
@@ -26,7 +24,8 @@
 import BasicPrimaryButton from "@/components/basic/buttons/BasicPrimaryButton.vue";
 import BasicSecondaryButton from "@/components/basic/buttons/BasicSecondaryButton.vue";
 import BasicInput from "@/components/basic/input/BasicInput.vue";
-import { TabService, UtilsService } from "@/services";
+import { TabService } from "@/services";
+import { required, sanitizeEmail } from "@/utils/validators";
 
 export default {
 	name: "ProfileComponent",
@@ -37,22 +36,24 @@ export default {
 	data() {
 		return {
 			TabService,
-			displayWarning: false,
 			email: "",
 		};
 	},
+	emits: ["update:email"],
+  computed: {
+    emailValidators() {
+      return [required, sanitizeEmail];
+    }
+  },
 	methods: {
 		forgotPassword() {
 			let notGood = true;
-			if (notGood) {
-            UtilsService.highlightInputs(["Email"]);
-			this.displayWarning = true;
-			} else {
+			if (!notGood) {
 				TabService.changeTab(this, TabService.tabProfileTypes.RegistrationSuccess);
 			}
 		},
     updateEmail(value) {
-      this.$emit("@update:email", value);
+      this.$emit("update:email", value);
     }
 	}
 };

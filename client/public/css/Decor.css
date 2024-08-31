@@ -6,6 +6,14 @@
   border: 1.5px solid var(--text-secondary-color);
 }
 
+.error-border {
+  border: 1.5px solid var(--mistake-color);
+}
+
+.error-text {
+  color: var(--text-mistake-color);
+}
+
 .primary-border:hover,
 .primary-border:focus-within,
 .primary-border:active {

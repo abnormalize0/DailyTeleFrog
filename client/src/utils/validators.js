@@ -27,14 +27,14 @@ function maxLength (data, length) {
 
 function sanitizeLogin(data) {
     return {
-        result: data.replace(/^[a-zA-Z0-9_-]{6,32}$/),
+        result: /^[a-zA-Z0-9_-]{6,32}$/.test(data),
         message: "Логин не соответствует правилам",
     };
 }
 
 function sanitizePassword(data) {
     return {
-        result: data.replace(/^[a-zA-Z0-9!@#$%^&*+=<>?~`|,.]{8,24}$/),
+        result: /^[a-zA-Z0-9!@#$%^&*+=<>?~`|,.]{8,24}$/.test(data),
         message: "Пароль не соответствует правилам"
     };
 }

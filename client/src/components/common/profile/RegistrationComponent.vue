@@ -9,6 +9,7 @@
 				label="Email" 
 				v-model="email" 
 				@input="updateEmail($event.target.value)"
+        :validators="this.emailValidators"
 			/>
 			<BasicInput 
 				class="form-input" 
@@ -16,17 +17,17 @@
 				label="Логин" 
 				v-model="username"
 				@input="updateUsername($event.target.value)"
+        :validators="this.loginValidators"
 			/>
 			<BasicInput 
 				class="form-input" 
 				name="Пароль" 
 				label="Пароль" 
+        type="password" 
 				v-model="password" 
 				@input="updatePassword($event.target.value)"
+        :validators="this.passwordValidators"
 			/>
-			<div class="d-flex text-mistake-color p2" v-if="displayWarning">
-				Такой Email уже используется. Попробуйте другой.
-			</div>
 			<div class="d-flex justify-center">
 				<BasicPrimaryButton class="w-100" content="Создать аккаунт" @click="register()"></BasicPrimaryButton>
 			</div>
@@ -41,8 +42,8 @@
 import BasicPrimaryButton from "@/components/basic/buttons/BasicPrimaryButton.vue";
 import BasicSecondaryButton from "@/components/basic/buttons/BasicSecondaryButton.vue";
 import BasicInput from "@/components/basic/input/BasicInput.vue";
-import { TabService, UtilsService } from "@/services";
-//import { AccountService } from "@/services";
+import { TabService } from "@/services";
+import { required, sanitizeLogin, sanitizeEmail, sanitizePassword } from "@/utils/validators";
 
 export default {
 	name: "RegistrationComponent",
@@ -50,40 +51,47 @@ export default {
 	props: {
 		groups: [],
 	},
-    emits: ["changeTab"],
+  emits: ["changeTab", "update:email", "update:username", "update:password"],
 	data() {
 		return {
 			TabService,
-			displayWarning: false,
 			username: "",
 			password: "",
 			email: "",
-        }
+    }
 	},
+  computed: {
+    emailValidators() {
+      return [required, sanitizeEmail];
+    },
+    loginValidators() {
+      return [required, sanitizeLogin];
+    },
+    passwordValidators() {
+      return [required, sanitizePassword];
+    },
+  },
 	methods: {
 		register() {
 			const notGood = true;
-			if (notGood) {
-				UtilsService.highlightInputs(["Email"]);
-				this.displayWarning = true;
-			} else {
+			if (!notGood) {
 				const registrationData = {
-					email: UtilsService.sanitize(this.email),
-					username: UtilsService.sanitize(this.username),
-					password: UtilsService.sanitize(this.password)
+					email: this.email,
+					username: this.username,
+					password: this.password
 				} 
 				console.log(registrationData); // lint
 				TabService.changeTab(this, TabService.tabProfileTypes.RegistrationSuccess);
 			}
 		},
 		updateEmail(value) {
-			this.$emit("@update:email", value);
+			this.$emit("update:email", value);
 		},
 		updateUsername(value) {
-			this.$emit("@update:username", value);
+			this.$emit("update:username", value);
 		},
 		updatePassword(value) {
-			this.$emit("@update:password", value);
+			this.$emit("update:password", value);
 		}
 	}
 };

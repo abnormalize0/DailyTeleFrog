@@ -8,6 +8,7 @@
         label="Логин" 
         v-model="username" 
         @input="updateUsername($event.target.value)" 
+        :validators="this.loginValidators"
       />
       <div class="d-flex flex-column password-section">
         <BasicInput 
@@ -17,10 +18,8 @@
           type="password" 
           v-model="password" 
           @input="updatePassword($event.target.value)" 
+          :validators="this.passwordValidators"
         />
-        <div class="d-flex text-mistake-color p2" v-if="displayWarning">
-          Неправильный пароль. Попробуйте снова, пожалуйста. 
-        </div>
         <div class="d-flex reset-password text-color p3" @click="TabService.changeTab(this, TabService.tabProfileTypes.ForgotPassword)">
           Забыли пароль?
         </div>
@@ -59,8 +58,8 @@
 import BasicPrimaryButton from "@/components/basic/buttons/BasicPrimaryButton.vue";
 import BasicSecondaryButton from "@/components/basic/buttons/BasicSecondaryButton.vue";
 import BasicInput from "@/components/basic/input/BasicInput.vue";
-import { TabService, UtilsService } from "@/services";
-// import { AccountService,  } from "@/services";
+import { TabService } from "@/services";
+import { required, sanitizeLogin, sanitizePassword } from "@/utils/validators";
 
 export default {
 	name: "LoginComponent",
@@ -68,11 +67,10 @@ export default {
 	props: {
 		groups: [],
 	},
-    emits: ["changeTab"],
+    emits: ["changeTab", "update:username", "update:password"],
 	data() {
 		return {
-            TabService,
-			displayWarning: false,
+      TabService,
 			username: "",
 			password: "",
 			email: "",
@@ -86,6 +84,14 @@ export default {
 			},
 		};
 	},
+  computed: {
+    loginValidators() {
+      return [required, sanitizeLogin];
+    },
+    passwordValidators() {
+      return [required, sanitizePassword];
+    }
+  },
 	methods: {
 		async login() {
 			// const usernameSanitized = UtilsService.sanitize(this.username);
@@ -93,27 +99,21 @@ export default {
 			// const x = await AccountService.login(usernameSanitized, passwordSanitized);
 			// console.log(x);
 			let x = true;
-			if (x) {
-				
-				UtilsService.highlightInputs(["Пароль"]);
-				this.displayWarning = true;
-			} else {
+			if (!x) {
 				TabService.changeTab(this, TabService.tabProfileTypes.LogedIn);
 			}			
 		},
 		forgotPassword() {
 			let notGood = false;
-			if (notGood) {
-				this.displayWarning = true;
-			} else {
+			if (!notGood) {
 				TabService.changeTab(TabService.tabProfileTypes.RegistrationSuccess);
 			}
 		},
     updateUsername(value) {
-      this.$emit("@update:username", value);
+      this.$emit("update:username", value);
     },
     updatePassword(value) {
-      this.$emit("@update:password", value);
+      this.$emit("update:password", value);
     }
 	}
 };
