@@ -1,6 +1,7 @@
 <template>
   <v-btn 
-    class="button primary-first-color text-color primary-rounded p-button"
+    class="button primary-rounded p-button"
+    :class="disabled ? 'disabled' : 'primary-first-color text-color'"
     height="44px"
   >
     {{content}}
@@ -10,6 +11,10 @@
 <style scoped>
   .button {
     transition: 600ms;
+  }
+  .disabled {
+    background: var(--text-secondary-color);
+    color: var(--text-secondary-color-hover);
   }
 </style>
 
@@ -21,6 +26,10 @@ export default {
       type: String,
       default: "",
     },
+    disabled: {
+      type: Boolean,
+      default: false
+    }
   }
 }
 </script>

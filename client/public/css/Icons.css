@@ -65,6 +65,22 @@
   background: url("../icons/settings.svg");
 }
 
+.eye {
+  background: url("../icons/eye.svg");
+}
+
+.eye-error {
+  background: url("../icons/eye-error.svg");
+}
+
+.eye-off {
+  background: url("../icons/eye-off.svg");
+}
+
+.eye-error-off {
+  background: url("../icons/eye-error-off.svg");
+}
+
 /* SIZE */
 .search-text-secondary-color-icon,
 .menu-kebab-text-color-icon,
@@ -84,7 +100,11 @@
 .arrow-up-text-color-icon,
 .exit-icon,
 .settings-icon,
-.arrow-next-icon {
+.arrow-next-icon,
+.eye,
+.eye-error,
+.eye-off,
+.eye-error-off {
   height: 16px;
   width: 16px;
 }
@@ -99,7 +119,11 @@
 .menu-kebab-text-color-icon,
 .exit-icon,
 .settings-icon,
-.arrow-next-icon {
+.arrow-next-icon,
+.eye,
+.eye-error,
+.eye-off,
+.eye-error-off {
   display: block;
   cursor: pointer;
 }

@@ -25,7 +25,7 @@ def create_app(server_mode='production'):
     mail.init_app(app)
 
     # cors
-    CORS(app, resources={r"/*": {"origins": "*"}})
+    CORS(app, resources={r"/*": {"origins": "*"}}, allow_headers="*", expose_headers="*")
 
     # apply the blueprints to the app
     from .api.user import user

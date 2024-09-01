@@ -17,7 +17,6 @@ def test_login_success(mock_get_user):
     result, status = UserService.login('test_user', 'test_pass')
 
     expected_result = json.dumps({
-        "user": {'username': 'test_user'},
         "auth_token": 'fake_auth_token'
     })
 
@@ -61,7 +60,6 @@ def test_login_user_auth_token_not_encoded(mock_get_user):
     result, status = UserService.login('test_user', 'test_pass')
 
     expected_result = json.dumps({
-        "user": None,
         "auth_token": None
     })
 
@@ -79,10 +77,7 @@ def test_register_success(mock_save_user):
 
     result, status = UserService().register('test_user', 'W3#j9$HlQ', 'email@gmail.com')
 
-    expected_result = json.dumps({
-        "user": {'username': 'test_user'},
-        "auth_token": 'fake_auth_token'
-    })
+    expected_result = json.dumps({})
 
     assert result == expected_result
     assert status.__dict__()['type'] == StatusType.OK.name

@@ -22,10 +22,9 @@ class UserService:
         auth_token, error = user.encode_auth_token()
         if auth_token:
             return json.dumps({
-                "user": user.to_json(),
                 "auth_token": auth_token
             }), Status(StatusType.OK)
-        return json.dumps({"user": None, "auth_token": None}), error
+        return json.dumps({"auth_token": None}), error
 
     def register(self, username, password, email):
         if username is None or password is None or email is None:
@@ -50,5 +49,5 @@ class UserService:
 
         auth_token, error = user.encode_auth_token()
         if auth_token:
-            return json.dumps({'user': user.to_json(), 'auth_token': auth_token}), Status(StatusType.OK)
+            return json.dumps({}), Status(StatusType.OK)
         return json.dumps({"user": None, "auth_token": None}), error
