@@ -122,17 +122,19 @@ export default {
       return this.passwordVisible && this.type === 'password' ? 'text' : this.type;
     }
   },
-  emits: ['update:modelValue'],
+  emits: ['update:modelValue', 'error'],
   methods: {
     validate() {
       const validatorsResult = this.validators.map(val => val(this.modelValue)).filter(val => val.result === false);
       if (validatorsResult.length === 0) {
         this.errorVisible = false;
         this.errorMessage = "";
+        this.$emit("error", false);
         return;
       }
       this.errorMessage = validatorsResult[0].message;
       this.errorVisible = true;
+      this.$emit("error", true);
     },
     updateModelValue(value) {
       this.$emit("update:modelValue", value);

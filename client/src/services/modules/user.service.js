@@ -11,6 +11,6 @@ export const register = async (username, password, email) => {
 }
 
 export const forgotPassword = async (email) => {
-    const { data } = await UserApi.forgotPassword(email);
-    return data;
+    const { status } = await UserApi.forgotPassword(email);
+    return status;
 }

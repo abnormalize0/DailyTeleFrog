@@ -44,7 +44,7 @@
 import BasicPrimaryButton from "@/components/basic/buttons/BasicPrimaryButton.vue";
 
 export default {
-	name: "LogedInComponent",
+	name: "LoggedInComponent",
 	components: { BasicPrimaryButton, },
 	props: {
 		groups: [],

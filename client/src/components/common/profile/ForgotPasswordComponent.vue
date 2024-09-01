@@ -7,14 +7,14 @@
         name="Email" 
         label="Email" 
         v-model="email"
-        @input="updateEmail($event.target.value)"
         :validators="this.emailValidators"
+        @error="validateForm"
       />
 			<div class="d-flex justify-center">
-				<BasicPrimaryButton class="w-100" content="Восстановить пароль" @click="forgotPassword()"></BasicPrimaryButton>
+				<BasicPrimaryButton class="w-100" content="Восстановить пароль" :disabled="!forgotPasswordFormValid" @click="forgotPassword()"></BasicPrimaryButton>
 			</div>
 			<div class="d-flex justify-center">
-				<BasicSecondaryButton class="w-100" content="Назад" @click="TabService.changeTab(this, TabService.tabProfileTypes.Login)"></BasicSecondaryButton>
+				<BasicSecondaryButton class="w-100" content="Назад" @click="this.$emit('changeTab', TabProfileTypes.Login)"></BasicSecondaryButton>
 			</div>
 		</div>
 	</div>
@@ -24,8 +24,9 @@
 import BasicPrimaryButton from "@/components/basic/buttons/BasicPrimaryButton.vue";
 import BasicSecondaryButton from "@/components/basic/buttons/BasicSecondaryButton.vue";
 import BasicInput from "@/components/basic/input/BasicInput.vue";
-import { TabService } from "@/services";
 import { required, sanitizeEmail } from "@/utils/validators";
+import { TabProfileTypes } from "@/components/common/profile/profile-tab";
+import { UserService } from "@/services";
 
 export default {
 	name: "ProfileComponent",
@@ -35,25 +36,27 @@ export default {
 	},
 	data() {
 		return {
-			TabService,
+			TabProfileTypes,
 			email: "",
+      forgotPasswordFormValid: true,
 		};
 	},
-	emits: ["update:email"],
   computed: {
     emailValidators() {
       return [required, sanitizeEmail];
     }
   },
 	methods: {
-		forgotPassword() {
-			let notGood = true;
-			if (!notGood) {
-				TabService.changeTab(this, TabService.tabProfileTypes.RegistrationSuccess);
+		async forgotPassword() {
+			if (this.forgotPasswordFormValid && this.email) {
+        const result = await UserService.forgotPassword(this.email);
+        if (result === 200) {
+          this.$emit("changeTab", TabProfileTypes.Login);
+        }
 			}
 		},
-    updateEmail(value) {
-      this.$emit("update:email", value);
+    validateForm(value) {
+      this.forgotPasswordFormValid = !value;
     }
 	}
 };

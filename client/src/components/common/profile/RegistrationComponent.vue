@@ -1,5 +1,4 @@
 <template>
-	<!--Регистрация-->
 	<div class="d-flex flex-column primary-rounded background-secondary-color align-center wrap-menu">
 		<div class="h2 text-color">Регистрация</div>
 		<div class="d-flex flex-column w-100 login-form">
@@ -8,16 +7,16 @@
 				name="Email" 
 				label="Email" 
 				v-model="email" 
-				@input="updateEmail($event.target.value)"
         :validators="this.emailValidators"
+        @error="validateEmail"
 			/>
 			<BasicInput 
 				class="form-input" 
 				name="Логин" 
 				label="Логин" 
 				v-model="username"
-				@input="updateUsername($event.target.value)"
         :validators="this.loginValidators"
+        @error="validateUsername"
 			/>
 			<BasicInput 
 				class="form-input" 
@@ -25,14 +24,14 @@
 				label="Пароль" 
         type="password" 
 				v-model="password" 
-				@input="updatePassword($event.target.value)"
         :validators="this.passwordValidators"
+        @error="validatePassword"
 			/>
 			<div class="d-flex justify-center">
-				<BasicPrimaryButton class="w-100" content="Создать аккаунт" @click="register()"></BasicPrimaryButton>
+				<BasicPrimaryButton class="w-100" content="Создать аккаунт" @click="register()" :disabled="!registerFormValid"></BasicPrimaryButton>
 			</div>
 			<div class="d-flex justify-center">
-				<BasicSecondaryButton class="w-100" content="Назад" @click="TabService.changeTab(this, TabService.tabProfileTypes.Login)"></BasicSecondaryButton>
+				<BasicSecondaryButton class="w-100" content="Назад" @click="this.$emit('changeTab', TabProfileTypes.Login)"></BasicSecondaryButton>
 			</div>
 		</div>
 	</div>
@@ -42,8 +41,9 @@
 import BasicPrimaryButton from "@/components/basic/buttons/BasicPrimaryButton.vue";
 import BasicSecondaryButton from "@/components/basic/buttons/BasicSecondaryButton.vue";
 import BasicInput from "@/components/basic/input/BasicInput.vue";
-import { TabService } from "@/services";
 import { required, sanitizeLogin, sanitizeEmail, sanitizePassword } from "@/utils/validators";
+import { TabProfileTypes } from "@/components/common/profile/profile-tab";
+import { UserService } from "@/services";
 
 export default {
 	name: "RegistrationComponent",
@@ -51,13 +51,19 @@ export default {
 	props: {
 		groups: [],
 	},
-  emits: ["changeTab", "update:email", "update:username", "update:password"],
+  emits: ["changeTab"],
 	data() {
 		return {
-			TabService,
+			TabProfileTypes,
 			username: "",
 			password: "",
 			email: "",
+      registerFormValid: true,
+      registerForm: {
+        email: true,
+        username: true,
+        password: true,
+      }
     }
 	},
   computed: {
@@ -72,27 +78,26 @@ export default {
     },
   },
 	methods: {
-		register() {
-			const notGood = true;
-			if (!notGood) {
-				const registrationData = {
-					email: this.email,
-					username: this.username,
-					password: this.password
-				} 
-				console.log(registrationData); // lint
-				TabService.changeTab(this, TabService.tabProfileTypes.RegistrationSuccess);
+		async register() {
+			if (this.registerFormValid && this.username && this.email && this.password) {
+        const result = await UserService.register(this.username, this.password, this.email);
+				if (result) {
+          this.$emit("changeTab", TabProfileTypes.RegistrationSuccess);
+        }
 			}
 		},
-		updateEmail(value) {
-			this.$emit("update:email", value);
-		},
-		updateUsername(value) {
-			this.$emit("update:username", value);
-		},
-		updatePassword(value) {
-			this.$emit("update:password", value);
-		}
+    validateUsername(value) {
+      this.registerForm.username = !value;
+      this.registerFormValid = this.registerForm.username && this.registerForm.password && this.registerForm.email;
+    },
+    validatePassword(value) {
+      this.registerForm.password = !value;
+      this.registerFormValid = this.registerForm.username && this.registerForm.password && this.registerForm.email;
+    },
+    validateEmail(value) {
+      this.registerForm.email = !value;
+      this.registerFormValid = this.registerForm.username && this.registerForm.password && this.registerForm.email;
+    }
 	}
 };
 </script>

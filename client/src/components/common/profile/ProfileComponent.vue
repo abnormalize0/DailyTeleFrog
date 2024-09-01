@@ -1,14 +1,14 @@
 <template>
-	<LoginComponent @changeTab="onTabChange($event)"
-	v-if="tabType == TabService.tabProfileTypes.Login" />
-	<LogedInComponent
-	v-if="tabType == TabService.tabProfileTypes.LogedIn" />
-	<RegistrationComponent @changeTab="onTabChange($event)" 
-	v-if="tabType == TabService.tabProfileTypes.Register" />
-	<ForgotPasswordComponent @changeTab="onTabChange($event)"
-	v-if="tabType == TabService.tabProfileTypes.ForgotPassword" />
-	<RegistrationCompleteComponent @changeTab="onTabChange($event)"
-	v-if="tabType == TabService.tabProfileTypes.RegistrationSuccess" />
+  <LoginComponent @changeTab="onTabChange($event)"
+    v-if="tabType === TabProfileTypes.Login" />
+  <LoggedInComponent
+    v-if="tabType === TabProfileTypes.LoggedIn" />
+  <RegistrationComponent @changeTab="onTabChange($event)" 
+    v-if="tabType === TabProfileTypes.Register" />
+  <ForgotPasswordComponent @changeTab="onTabChange($event)"
+    v-if="tabType === TabProfileTypes.ForgotPassword" />
+  <RegistrationCompleteComponent @changeTab="onTabChange($event)"
+    v-if="tabType === TabProfileTypes.RegistrationSuccess" />
 </template>
 
 <style>
@@ -25,22 +25,22 @@
 
 <script>
 import LoginComponent from "./LoginComponent.vue";
-import LogedInComponent from "./LogedInComponent.vue";
+import LoggedInComponent from "./LoggedInComponent.vue";
 import RegistrationComponent from "./RegistrationComponent.vue";
 import ForgotPasswordComponent from "./ForgotPasswordComponent.vue";
 import RegistrationCompleteComponent from "./RegistrationCompleteComponent.vue";
-import { TabService } from "@/services";
+import { TabProfileTypes } from "@/components/common/profile/profile-tab";
 
 export default {
 	name: "ProfileComponent",
-	components: { LoginComponent, LogedInComponent, RegistrationComponent, RegistrationCompleteComponent, ForgotPasswordComponent },
+	components: { LoginComponent, LoggedInComponent, RegistrationComponent, RegistrationCompleteComponent, ForgotPasswordComponent },
 	props: {
 		groups: [],
 	},
 	data() {
 		return {
 			tabType: 0,
-			TabService,
+      TabProfileTypes,
 		};
 	},
 	methods: {

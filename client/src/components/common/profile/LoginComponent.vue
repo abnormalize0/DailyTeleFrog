@@ -7,8 +7,8 @@
         name="Логин" 
         label="Логин" 
         v-model="username" 
-        @input="updateUsername($event.target.value)" 
         :validators="this.loginValidators"
+        @error="validateUsername"
       />
       <div class="d-flex flex-column password-section">
         <BasicInput 
@@ -17,18 +17,23 @@
           label="Пароль" 
           type="password" 
           v-model="password" 
-          @input="updatePassword($event.target.value)" 
           :validators="this.passwordValidators"
+          @error="validatePassword"
         />
-        <div class="d-flex reset-password text-color p3" @click="TabService.changeTab(this, TabService.tabProfileTypes.ForgotPassword)">
+        <div class="d-flex reset-password text-color p3" @click="this.$emit('changeTab', TabProfileTypes.ForgotPassword)">
           Забыли пароль?
         </div>
       </div>
 			<div class="d-flex justify-center">
-				<BasicPrimaryButton class="w-100" content="Войти" @click="login()"></BasicPrimaryButton>
+				<BasicPrimaryButton 
+          class="w-100" 
+          content="Войти" 
+          :disabled="!loginFormValid"
+          @click="login()">
+        </BasicPrimaryButton>
 			</div>
 			<div class="d-flex justify-center">
-				<BasicSecondaryButton class="w-100" content="Создать аккаунт" @click="TabService.changeTab(this ,TabService.tabProfileTypes.Register)"></BasicSecondaryButton>
+				<BasicSecondaryButton class="w-100" content="Создать аккаунт" @click="this.$emit('changeTab', TabProfileTypes.Register)"></BasicSecondaryButton>
 			</div>
 		</div>
 	</div>
@@ -58,8 +63,9 @@
 import BasicPrimaryButton from "@/components/basic/buttons/BasicPrimaryButton.vue";
 import BasicSecondaryButton from "@/components/basic/buttons/BasicSecondaryButton.vue";
 import BasicInput from "@/components/basic/input/BasicInput.vue";
-import { TabService } from "@/services";
+import { UserService } from "@/services";
 import { required, sanitizeLogin, sanitizePassword } from "@/utils/validators";
+import { TabProfileTypes } from "@/components/common/profile/profile-tab";
 
 export default {
 	name: "LoginComponent",
@@ -67,10 +73,9 @@ export default {
 	props: {
 		groups: [],
 	},
-    emits: ["changeTab", "update:username", "update:password"],
+  emits: ["changeTab"],
 	data() {
 		return {
-      TabService,
 			username: "",
 			password: "",
 			email: "",
@@ -82,6 +87,12 @@ export default {
 				profileName: "koks",
 				profileTag: "@keks",
 			},
+      loginFormValid: true,
+      loginForm: {
+        username: true,
+        password: true,
+      },
+      TabProfileTypes
 		};
 	},
   computed: {
@@ -93,27 +104,22 @@ export default {
     }
   },
 	methods: {
-		async login() {
-			// const usernameSanitized = UtilsService.sanitize(this.username);
-			// const passwordSanitized = UtilsService.sanitize(this.password);
-			// const x = await AccountService.login(usernameSanitized, passwordSanitized);
-			// console.log(x);
-			let x = true;
-			if (!x) {
-				TabService.changeTab(this, TabService.tabProfileTypes.LogedIn);
-			}			
+    async login() {
+      if (this.loginFormValid && this.username && this.password) {
+        const result = await UserService.login(this.username, this.password);
+        if (result) {
+          localStorage.setItem('auth_token', result.auth_token);
+          this.$emit("changeTab", TabProfileTypes.LoggedIn);
+        }
+      }
 		},
-		forgotPassword() {
-			let notGood = false;
-			if (!notGood) {
-				TabService.changeTab(TabService.tabProfileTypes.RegistrationSuccess);
-			}
-		},
-    updateUsername(value) {
-      this.$emit("update:username", value);
+    validateUsername(value) {
+      this.loginForm.username = !value;
+      this.loginFormValid = this.loginForm.username && this.loginForm.password;
     },
-    updatePassword(value) {
-      this.$emit("update:password", value);
+    validatePassword(value) {
+      this.loginForm.password = !value;
+      this.loginFormValid = this.loginForm.username && this.loginForm.password;
     }
 	}
 };
