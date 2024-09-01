@@ -34,9 +34,6 @@ import { TabProfileTypes } from "@/components/common/profile/profile-tab";
 export default {
 	name: "ProfileComponent",
 	components: { LoginComponent, LoggedInComponent, RegistrationComponent, RegistrationCompleteComponent, ForgotPasswordComponent },
-	props: {
-		groups: [],
-	},
 	data() {
 		return {
 			tabType: 0,

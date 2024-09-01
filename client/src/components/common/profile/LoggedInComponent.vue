@@ -46,9 +46,6 @@ import BasicPrimaryButton from "@/components/basic/buttons/BasicPrimaryButton.vu
 export default {
 	name: "LoggedInComponent",
 	components: { BasicPrimaryButton, },
-	props: {
-		groups: [],
-	},
     data() {
 		return {
 			avatarBlock: {

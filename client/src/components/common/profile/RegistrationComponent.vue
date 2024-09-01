@@ -48,9 +48,6 @@ import { UserService } from "@/services";
 export default {
 	name: "RegistrationComponent",
 	components: { BasicPrimaryButton, BasicInput, BasicSecondaryButton},
-	props: {
-		groups: [],
-	},
   emits: ["changeTab"],
 	data() {
 		return {

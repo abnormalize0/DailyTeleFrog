@@ -31,9 +31,6 @@ import { UserService } from "@/services";
 export default {
 	name: "ProfileComponent",
 	components: { BasicPrimaryButton, BasicInput, BasicSecondaryButton, },
-	props: {
-		groups: [],
-	},
 	data() {
 		return {
 			TabProfileTypes,

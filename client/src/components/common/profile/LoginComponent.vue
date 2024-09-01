@@ -70,9 +70,6 @@ import { TabProfileTypes } from "@/components/common/profile/profile-tab";
 export default {
 	name: "LoginComponent",
 	components: { BasicPrimaryButton, BasicInput, BasicSecondaryButton },
-	props: {
-		groups: [],
-	},
   emits: ["changeTab"],
 	data() {
 		return {
