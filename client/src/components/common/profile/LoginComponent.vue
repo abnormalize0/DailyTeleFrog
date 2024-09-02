@@ -64,8 +64,10 @@ import BasicPrimaryButton from "@/components/basic/buttons/BasicPrimaryButton.vu
 import BasicSecondaryButton from "@/components/basic/buttons/BasicSecondaryButton.vue";
 import BasicInput from "@/components/basic/input/BasicInput.vue";
 import { UserService } from "@/services";
+import { NOT_FILLED_FIELDS_MESSAGE, WRONGLY_FILLED_FIELDS_MESSAGE} from "@/utils/messages";
 import { required, sanitizeLogin, sanitizePassword } from "@/utils/validators";
 import { TabProfileTypes } from "@/components/common/profile/profile-tab";
+import { showToast } from "@/utils/toast";
 
 export default {
 	name: "LoginComponent",
@@ -108,6 +110,10 @@ export default {
           localStorage.setItem('auth_token', result.auth_token);
           this.$emit("changeTab", TabProfileTypes.LoggedIn);
         }
+      } else if (!this.loginFormValid) {
+        showToast(WRONGLY_FILLED_FIELDS_MESSAGE, { type: 'error', autoClose: 5000});
+      } else {
+        showToast(NOT_FILLED_FIELDS_MESSAGE, { type: 'error' });
       }
 		},
     validateUsername(value) {

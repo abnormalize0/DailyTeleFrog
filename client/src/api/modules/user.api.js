@@ -1,11 +1,12 @@
 import { axiosClient } from "../axios";
+import { showToast } from "@/utils/toast";
 
 export const login = (username, password) => {
     return axiosClient.post('/user/login', {
         username: username,
         password: password
     }).catch((error) => {
-        console.error(error.toJSON());
+        showToast(error.message, { type: 'error', autoClose: 5000 });
         return {};
     });
 }
@@ -16,7 +17,7 @@ export const register = (username, password, email) => {
         password: password,
         email: email
     }).catch((error) => {
-        console.error(error.toJSON());
+        showToast(error.message, { type: 'error', autoClose: 5000 });
         return {};
     });
 }
@@ -25,7 +26,7 @@ export const forgotPassword = (email) => {
     return axiosClient.post('/user/forgot/password', {
         email: email,
     }).catch((error) => {
-        console.error(error.toJSON());
+        showToast(error.message, { type: 'error', autoClose: 5000 });
         return {};
     });
 }
