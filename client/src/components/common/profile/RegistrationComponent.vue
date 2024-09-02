@@ -41,9 +41,11 @@
 import BasicPrimaryButton from "@/components/basic/buttons/BasicPrimaryButton.vue";
 import BasicSecondaryButton from "@/components/basic/buttons/BasicSecondaryButton.vue";
 import BasicInput from "@/components/basic/input/BasicInput.vue";
+import { NOT_FILLED_FIELDS_MESSAGE, WRONGLY_FILLED_FIELDS_MESSAGE} from "@/utils/messages";
 import { required, sanitizeLogin, sanitizeEmail, sanitizePassword } from "@/utils/validators";
 import { TabProfileTypes } from "@/components/common/profile/profile-tab";
 import { UserService } from "@/services";
+import { showToast } from "@/utils/toast";
 
 export default {
 	name: "RegistrationComponent",
@@ -81,7 +83,11 @@ export default {
 				if (result) {
           this.$emit("changeTab", TabProfileTypes.RegistrationSuccess);
         }
-			}
+			} else if (!this.registerFormValid) {
+        showToast(WRONGLY_FILLED_FIELDS_MESSAGE, { type: 'error', autoClose: 5000});
+      } else {
+        showToast(NOT_FILLED_FIELDS_MESSAGE, { type: 'error' });
+      }
 		},
     validateUsername(value) {
       this.registerForm.username = !value;
