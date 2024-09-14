@@ -1,14 +1,14 @@
-import AppendIconButton from "../components/basic/buttons/AppendIconButton.vue";
+// import AppendIconButton from "../components/basic/buttons/AppendIconButton.vue";
 
-export default {
-  component: AppendIconButton,
-  title: 'AppendIconButton',
-  tags: ['autodocs'],
-}
+// export default {
+//   component: AppendIconButton,
+//   title: 'AppendIconButton',
+//   tags: ['autodocs'],
+// }
 
-export const Default = {
-  args: {
-    label: 'Больше сообществ',
-    icon: 'arrow-next-icon'
-  }
-}
+// export const Default = {
+//   args: {
+//     label: 'Больше сообществ',
+//     icon: 'arrow-next-icon'
+//   }
+// }
