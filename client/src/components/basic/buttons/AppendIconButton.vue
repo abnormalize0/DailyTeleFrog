@@ -22,7 +22,7 @@
 
 <script>
 export default {
-  name: "LeftMenuButton",
+  name: "AppendIconButton",
   props: {
     label: {
       type: String,
