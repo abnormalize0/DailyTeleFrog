@@ -23,7 +23,7 @@
 
 <script>
 export default {
-  name: "LeftMenuButton",
+  name: "PrependMenuButton",
   props: {
     label: {
       type: String,
