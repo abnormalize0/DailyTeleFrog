@@ -46,6 +46,7 @@
     "eslint": "^7.32.0",
     "eslint-plugin-storybook": "^0.8.0",
     "eslint-plugin-vue": "^8.0.3",
-    "storybook": "^8.3.0"
+    "storybook": "^8.3.0",
+    "vite-plugin-require": "^1.2.14"
   }
 }

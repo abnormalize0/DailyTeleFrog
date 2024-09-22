@@ -1,20 +1,21 @@
 <template>
-    <v-btn 
-      variant="outlined"
-      class="button text-secondary-color primary-rounded p-button"
-      height="44px"
-    >
-      {{content}}
-    </v-btn>
-  </template>
+  <v-btn 
+    variant="outlined"
+    class="button text-secondary-color primary-rounded p-button"
+    height="44px"
+  >
+    {{content}}
+  </v-btn>
+</template>
   
-  <style scoped>
-    .button {
-      transition: 600ms;
-    }
-  </style>
+<style scoped>
+  .button {
+    transition: 600ms;
+    padding: 10px 16px 10px 16px;
+  }
+</style>
   
-  <script>
+<script>
   export default {
     name: "BasicSecondaryButton",
     props: {
@@ -24,4 +25,4 @@
       },
     }
   }
-  </script>
+</script>
