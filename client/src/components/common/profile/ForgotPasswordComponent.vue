@@ -31,7 +31,7 @@ import { UserService } from "@/services";
 import { showToast } from "@/utils/toast";
 
 export default {
-	name: "ProfileComponent",
+	name: "ForgotPasswordComponent",
 	components: { BasicPrimaryButton, BasicInput, BasicSecondaryButton, },
 	data() {
 		return {

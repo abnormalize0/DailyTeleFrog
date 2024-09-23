@@ -10,6 +10,7 @@
   justify-content: space-between;
   align-items: center;
   height: 46px;
+  transition: 600ms;
   padding: 10px 10px 10px 15px;
 }
 .pointer {
