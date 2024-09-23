@@ -11,7 +11,7 @@
 <style scoped>
   .button {
     transition: 600ms;
-    padding: 10px 16px 10px 16px;
+    padding: 10px 16px;
   }
   .disabled {
     background: var(--text-secondary-color);
