@@ -1,14 +1,14 @@
 <template>
   <div class="d-flex flex-column left-menu">
     <div class="d-flex flex-column block-menu">
-      <LeftMenuButton label="Моя лента" icon="home-icon"/>
-      <LeftMenuButton label="Популярное" icon="popular-icon"/>
-      <LeftMenuButton label="Свежее" icon="calendar-icon"/>
+      <PrependMenuButton label="Моя лента" icon="home-icon"/>
+      <PrependMenuButton label="Популярное" icon="popular-icon"/>
+      <PrependMenuButton label="Свежее" icon="calendar-icon"/>
     </div>
     <div class="d-flex flex-column block-menu">
       <div class="p1 text-color">Мои сообщества</div>
       <div v-for="group in filteredGroups" :key="group">
-        <LeftMenuButton :label=group.name :icon=group.img />
+        <PrependMenuButton :label=group.name :icon=group.img />
       </div>
       <AppendIconButton 
         label="Больше сообществ"
@@ -18,8 +18,8 @@
     </div>
     <div class="d-flex flex-column block-menu">
       <div class="p1 text-color">Полезная информация</div>
-      <LeftMenuButton label="Правила" icon="rules-icon"/>
-      <LeftMenuButton label="Заказать рекламу" icon="advertisement-icon"/>
+      <PrependMenuButton label="Правила" icon="rules-icon"/>
+      <PrependMenuButton label="Заказать рекламу" icon="advertisement-icon"/>
     </div>
   </div>
 </template>
@@ -35,17 +35,20 @@
 </style>
 
 <script>
-import LeftMenuButton from "@/components/basic/buttons/PrependMenuButton.vue";
+import PrependMenuButton from "@/components/basic/buttons/PrependMenuButton.vue";
 import AppendIconButton from "@/components/basic/buttons/AppendIconButton.vue";
 
 export default {
   name: "LeftMenuComponent",
   components: {
-    LeftMenuButton,
+    PrependMenuButton,
     AppendIconButton,
   },
   props: {
-    groups: [],
+    groups: {
+      type: Array,
+      default: () => [],
+    }
   },
   data() {
     return {

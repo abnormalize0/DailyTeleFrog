@@ -14,12 +14,16 @@
   color: var(--text-color) !important;
 }
 
+.text-color-hover {
+  color: var(--text-color-hover) !important;
+}
+
 .text-secondary-color {
   color: var(--text-secondary-color) !important;
 }
 
-.text-thirdly-color {
-  color: var(--text-thirdly-color) !important;
+.text-mistake-color {
+  color: var(--text-mistake-color) !important;
 }
 
 .text-secondary-color:hover {

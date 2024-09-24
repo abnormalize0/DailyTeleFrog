@@ -6,8 +6,34 @@
   border: 1.5px solid var(--text-secondary-color);
 }
 
+.error-border {
+  border: 1.5px solid var(--mistake-color);
+}
+
+.error-text {
+  color: var(--text-mistake-color);
+}
+
 .primary-border:hover,
 .primary-border:focus-within,
 .primary-border:active {
   border: 1.5px solid var(--text-color);
+}
+
+.Toastify__toast {
+  font-family: var(--family-name);
+  background-color: var(--background-secondary-color-hover);
+  color: var(--text-color);
+  border-radius: 10px; 
+  padding: 20px 15px;
+}
+
+.Toastify__toast-body {
+  font-family: var(--family-name); /* Apply your custom font */
+  font-size: 12px;
+  color: var(--text-color);
+}
+
+.Toastify__progress-bar {
+  background: var(--mistake-color); /* Optional: Change progress bar color */
 }
