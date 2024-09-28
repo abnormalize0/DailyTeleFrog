@@ -15,7 +15,7 @@ jobs:
         with:
           path: |
             ~/.cache/Cypress
-            node_modules
+            client/node_modules
           key: ${{ runner.os }}-yarn-v1-${{ hashFiles('**/yarn.lock') }}
           restore-keys: |
             ${{ runner.os }}-yarn-v1
@@ -39,15 +39,18 @@ jobs:
         with:
           path: |
             ~/.cache/Cypress
-            node_modules
+            client/node_modules
           key: ${{ runner.os }}-yarn-v1-${{ hashFiles('**/yarn.lock') }}
           restore-keys: |
             ${{ runner.os }}-yarn-v1
       - name: Install Playwright
+        working-directory: ./client
         run: npx playwright install --with-deps
       - name: Build Storybook
+        working-directory: ./client
         run: yarn build-storybook --quiet
       - name: Serve Storybook and run tests
+        working-directory: ./client
         run: |
           npx concurrently -k -s first -n "SB,TEST" -c "magenta,blue" \
             "npx http-server storybook-static --port 6006 --silent" \
@@ -66,7 +69,7 @@ jobs:
         with:
           path: |
             ~/.cache/Cypress
-            node_modules
+            client/node_modules
           key: ${{ runner.os }}-yarn-v1-${{ hashFiles('**/yarn.lock') }}
           restore-keys: |
             ${{ runner.os }}-yarn-v1
