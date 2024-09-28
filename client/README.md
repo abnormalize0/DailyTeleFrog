@@ -24,6 +24,12 @@ npm run build
 npm run lint
 ```
 
+### To run StoryBook
+
+```
+npm run storybook
+```
+
 ### Customize configuration
 
 See [Configuration Reference](https://cli.vuejs.org/config/).

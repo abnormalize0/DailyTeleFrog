@@ -11,6 +11,7 @@
   align-items: center;
   height: 46px;
   padding: 10px 10px 10px 15px;
+  transition: 600ms;
   gap: 10px;
 }
 .pointer {
