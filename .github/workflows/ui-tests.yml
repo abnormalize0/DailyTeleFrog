@@ -96,7 +96,5 @@ jobs:
         run: |
           cd client
           npx chromatic --project-token=$CHROMATIC_PROJECT_TOKEN
-        with: # Set the secret as an input
-          CHROMATIC_PROJECT_TOKEN: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
         env:
           CHROMATIC_PROJECT_TOKEN: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
