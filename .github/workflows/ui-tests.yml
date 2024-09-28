@@ -67,7 +67,9 @@ jobs:
         with:
           fetch-depth: 0  # Required to retrieve Git history
       - name: Restore npm dependencies
-        working-directory: ./client
+        run: | 
+          cd ./client
+          npm install
         uses: actions/cache@v4
         id: npm-cache
         with:
@@ -78,7 +80,8 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-npm-
       - name: Publish to Chromatic
-        working-directory: ./client
-        uses: chromaui/action@latest
+        run: |
+          cd client
+          npx chromatic --project-token=$CHROMATIC_PROJECT_TOKEN
         with:
           projectToken: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
