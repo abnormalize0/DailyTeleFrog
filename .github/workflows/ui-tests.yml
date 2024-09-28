@@ -81,6 +81,17 @@ jobs:
           cd client
           npm install
 
+      - name: Print Secrets
+        run: |
+          echo "MY_SECRET: ${{ secrets.MY_SECRET }}"
+      - name: Print GitHub Environment Variables
+        run: |
+          echo "GITHUB_REPOSITORY: $GITHUB_REPOSITORY"
+          echo "GITHUB_REF: $GITHUB_REF"
+          echo "GITHUB_SHA: $GITHUB_SHA"
+          echo "GITHUB_WORKFLOW: $GITHUB_WORKFLOW"
+
+
       - name: Publish to Chromatic
         run: |
           cd client
