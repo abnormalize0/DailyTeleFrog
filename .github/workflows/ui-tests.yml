@@ -85,7 +85,7 @@ jobs:
         run: |
           echo "MY_SECRET: $CHROMATIC_PROJECT_TOKEN"
         env:
-          CHROMATIC_PROJECT_TOKEN: ${{ vars.CHROMATIC_PROJECT_TOKEN }}
+          CHROMATIC_PROJECT_TOKEN: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
       - name: Print GitHub Environment Variables
         run: |
           echo "GITHUB_REPOSITORY: $GITHUB_REPOSITORY"
