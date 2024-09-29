@@ -83,7 +83,7 @@ jobs:
 
       - name: Print Secrets
         run: |
-          echo "MY_SECRET: ${{ secrets.MY_SECRET }}"
+          echo "MY_SECRET: $CHROMATIC_PROJECT_TOKEN"
       - name: Print GitHub Environment Variables
         run: |
           echo "GITHUB_REPOSITORY: $GITHUB_REPOSITORY"
