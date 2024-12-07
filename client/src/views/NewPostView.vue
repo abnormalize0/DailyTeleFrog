@@ -5,15 +5,14 @@
         <template #item="{ element: block, index }">
           <div class="modal-grid">
             <img class="handle" :src=block.image style="max-height: 80px;">
-            <input @input="image_title(index)" class="ddinput" size="10" :value=block.title />
+            <input @input="image_title(index, $event)" class="ddinput" size="10" :value=block.title />
             <div style="font-size: 40px" @click="delete_img(index)">&times;</div>
           </div>
         </template>
       </draggable>
       <div v-if="current_image != -1 && slidesarray[current_image].length < 10">
         <div class="modal-grid">
-          <input v-model="image_src" class="ddinput" size="10" placeholder="Укажите URL" />
-          <div style="font-size: 40px" @click="add_img()">&or;</div>
+          <input type="file" multiple @change="load_img"/>
         </div>
       </div>
       <template v-slot:actions>
@@ -33,9 +32,15 @@
   </v-snackbar>
 
   <div class="worksheet-class" @scroll="scroll_worker()" ref="worksheet">
-    <div v-for="(block, index) in blocks" v-bind:key="index" :ref="el => { if (el) block_element[index] = el }" class="element blink">
+    <div v-for="(block, index) in blocks" v-bind:key="index" :ref="el => { if (el) block_element[index] = el }" class="element">
       <div class="single-block">
-        <QuillEditor placeholder="Вставить текст" v-if="block.type == 'text'" v-model:content="markdown_content[block.id]" theme="bubble" :options="options" />
+        <ul v-if="block.type == 'toc'">
+          <div v-for="(block2, index2) in blocks" v-bind:key="index2">
+            <a :href='"#header" + block2.id' v-if="block2.type == 'header' && block2.content != undefined "><li>{{block2.content.slice(1, block2.content.length - 3)}}</li></a>
+          </div>
+        </ul>
+        <QuillEditor :id='"header" + block.id' class="text_header" placeholder="Заголовок" v-if="block.type == 'header'" contentType="text" v-model:content="markdown_content[block.id]" theme="bubble" @update:content="() => on_update(block.id)" :options="clear_options" />
+        <QuillEditor placeholder="Вставить текст" v-if="block.type == 'text'" v-model:content="markdown_content[block.id]" theme="bubble" @update:content="() => on_update(block.id)" :options="options" />
         <vueper-slides v-if="block.type == 'carousel'" fade :touchable="false" arrows-outside bullets-outside :slide-ratio="1080 / 1920">
           <vueper-slide
             v-for="(slide, i) in slidesarray[block.id]"
@@ -201,7 +206,17 @@
     left: 0px;
     background-color: red;
   }
+  
+  .text_header {
+    font-weight: bold;
+    font-size: 36px;
+  }
 
+  a {
+    width: 100%;
+    text-decoration: none;
+    color: white;
+  }
 </style>
 
 <script>
@@ -215,6 +230,8 @@
 
   import { VueperSlides, VueperSlide } from 'vueperslides'
   import 'vueperslides/dist/vueperslides.css'
+
+  import axios from 'axios';
 
   export default {
     components: {
@@ -237,24 +254,31 @@
     data() {
       return {
         blocks: [
-          {name:'Element 0', id: 0, type: "text", insert_buttons: false, height: 0},
+          {name:'Element 0', id: 0, type: "text", insert_buttons: false, height: 0, content: ""},
         ],
         options: {
           modules: {
             toolbar: ['bold', 'italic', 'underline', 'strike', { 'list': 'ordered'}, { 'list': 'bullet' }, 'link', 'clean' ],
           },
         },
+        clear_options: {
+          modules: {
+            toolbar: false,
+          },
+        },
         items: [
+          { title: 'Заголовок', type: 'header' },
+          { title: 'Автособираемое оглавление', type: 'toc' },
           { title: 'Текстовое поле', type: 'text' },
           { title: 'Карусель изображений', type: 'carousel' },
         ],
         scroll_position: 0,
         scroll_fade: false,
         scroll_visibility: false,   //три переменные которые отвечают за позиционирование и видимость указателя позиции в правом меню
-        image_src: "",              //переменная поля ввода адреса для вставки картинки
         snackbar: false,            //видимость окна уведомления о том что нельзя удалять последнюю картинку
         dialog: false,              //видимость окна добавления картинок
         last_id: 1,                 //текущий последний идентификатор чтоб знать какой присваивать новым блокам
+        last_blink: 1,
         scale: 0.5,                 //множитель скалирования миниатюр в правом меню
         timer: 0,                   //хехе рекурсия делает бррр
         current_image: -1,          //идентификатор чтоб окну добавления картинок знать с каким элментом он работает
@@ -277,6 +301,11 @@
         block.height = this.block_element[cc].clientHeight * this.scale
         cc++
       })
+      if(this.last_blink != this.last_id) {
+        this.last_blink = this.last_id
+        this.scroll_to(this.last_id - 1)
+      }
+      
     },
     methods: {
       add_element(type, target_block) {
@@ -297,11 +326,20 @@
       drag_end_handler() {
         this.allow_menu = 1;
       },
+      on_update(id) {
+        let target = this.blocks.findIndex((element) => element.id == id)
+        this.blocks[target].content = JSON.stringify(this.markdown_content[id]);
+      },
       scroll_to(id) {
         let target = this.blocks.findIndex((element) => element.id == id)
         this.block_element[target].scrollIntoView({ behavior: 'smooth' });
-        this.block_element[target].classList.toggle("blink")
-        this.block_element[target].classList.toggle("blink2")
+        if (this.block_element[target].classList.length == 1) {
+          this.block_element[target].classList.toggle("blink")
+        } else {
+          this.block_element[target].classList.toggle("blink")
+          this.block_element[target].classList.toggle("blink2")
+        }
+        
 
       },
 
@@ -332,8 +370,8 @@
         this.dialog = true
         this.current_image = index;
       },
-      image_title(index) {
-        this.slidesarray[this.current_image][index].title = this.block[this.current_image].title;
+      image_title(index, event) {
+        this.slidesarray[this.current_image][index].title = event.target.value;
       },
       delete_img(index) {
         if(this.slidesarray[this.current_image].length == 1) {
@@ -342,12 +380,36 @@
         }
         this.slidesarray[this.current_image].splice(index, 1);
       },
-      add_img() {
-        this.slidesarray[this.current_image].push({
-          title: '',
-          image: this.image_src
-        })
-        this.image_src = "";
+      load_img(event) {
+        let config = require('../config.json');
+        let target_array;
+        if (event.target.files.length + this.slidesarray[this.current_image].length > 10) {
+          target_array = Array.prototype.slice.call( event.target.files, 0, 10 - this.slidesarray[this.current_image].length);
+        } else {
+          target_array = event.target.files
+        }
+        target_array.forEach((element) => {
+          if(this.slidesarray[this.current_image].length == 10) {
+            return;
+          }
+          let reader = new FileReader();
+          reader.readAsDataURL(element);
+          reader.onload = () => {
+            const myForm = new FormData();
+            myForm.append("image", reader.result.substring(reader.result.indexOf(",") + 1));
+
+            axios.post("https://api.imgbb.com/1/upload?key=" + config.keys.imgbb, myForm, {
+              headers: {
+                "Content-Type": "multipart/form-data",
+              },
+            }).then((response) => {
+              this.slidesarray[this.current_image].push({
+                title: '',
+                image: response.data.data.url
+              })
+            });
+          };
+        });
       },
       show_menu_buttons(id) {
         if(!this.allow_menu){
