@@ -5,15 +5,14 @@
         <template #item="{ element: block, index }">
           <div class="modal-grid">
             <img class="handle" :src=block.image style="max-height: 80px;">
-            <input @input="image_title(index)" class="ddinput" size="10" :value=block.title />
+            <input @input="image_title(index, $event)" class="ddinput" size="10" :value=block.title />
             <div style="font-size: 40px" @click="delete_img(index)">&times;</div>
           </div>
         </template>
       </draggable>
       <div v-if="current_image != -1 && slidesarray[current_image].length < 10">
         <div class="modal-grid">
-          <input v-model="image_src" class="ddinput" size="10" placeholder="Укажите URL" />
-          <div style="font-size: 40px" @click="add_img()">&or;</div>
+          <input type="file" multiple @change="load_img"/>
         </div>
       </div>
       <template v-slot:actions>
@@ -216,6 +215,8 @@
   import { VueperSlides, VueperSlide } from 'vueperslides'
   import 'vueperslides/dist/vueperslides.css'
 
+  import axios from 'axios';
+
   export default {
     components: {
         draggable,
@@ -251,7 +252,6 @@
         scroll_position: 0,
         scroll_fade: false,
         scroll_visibility: false,   //три переменные которые отвечают за позиционирование и видимость указателя позиции в правом меню
-        image_src: "",              //переменная поля ввода адреса для вставки картинки
         snackbar: false,            //видимость окна уведомления о том что нельзя удалять последнюю картинку
         dialog: false,              //видимость окна добавления картинок
         last_id: 1,                 //текущий последний идентификатор чтоб знать какой присваивать новым блокам
@@ -332,8 +332,8 @@
         this.dialog = true
         this.current_image = index;
       },
-      image_title(index) {
-        this.slidesarray[this.current_image][index].title = this.block[this.current_image].title;
+      image_title(index, event) {
+        this.slidesarray[this.current_image][index].title = event.target.value;
       },
       delete_img(index) {
         if(this.slidesarray[this.current_image].length == 1) {
@@ -342,12 +342,36 @@
         }
         this.slidesarray[this.current_image].splice(index, 1);
       },
-      add_img() {
-        this.slidesarray[this.current_image].push({
-          title: '',
-          image: this.image_src
-        })
-        this.image_src = "";
+      load_img(event) {
+        let config = require('../config.json');
+        let target_array;
+        if (event.target.files.length + this.slidesarray[this.current_image].length > 10) {
+          target_array = Array.prototype.slice.call( event.target.files, 0, 10 - this.slidesarray[this.current_image].length);
+        } else {
+          target_array = event.target.files
+        }
+        target_array.forEach((element) => {
+          if(this.slidesarray[this.current_image].length == 10) {
+            return;
+          }
+          let reader = new FileReader();
+          reader.readAsDataURL(element);
+          reader.onload = () => {
+            const myForm = new FormData();
+            myForm.append("image", reader.result.substring(reader.result.indexOf(",") + 1));
+
+            axios.post("https://api.imgbb.com/1/upload?key=" + config.keys.imgbb, myForm, {
+              headers: {
+                "Content-Type": "multipart/form-data",
+              },
+            }).then((response) => {
+              this.slidesarray[this.current_image].push({
+                title: '',
+                image: response.data.data.url
+              })
+            });
+          };
+        });
       },
       show_menu_buttons(id) {
         if(!this.allow_menu){
