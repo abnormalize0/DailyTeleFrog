@@ -40,9 +40,23 @@
   line-height: 11.6px !important;
 }
 
+.h1 {
+  font-family: var(--family-name) !important;
+  font-size: 26px;
+  letter-spacing: 0 !important;
+  line-height: 30.1px !important;
+}
+
 .h2 {
   font-family: var(--family-name) !important;
   font-size: 23px;
   letter-spacing: 0 !important;
   line-height: 26.6px !important;
+}
+
+.h3 {
+  font-family: var(--family-name) !important;
+  font-size: 20px;
+  letter-spacing: 0 !important;
+  line-height: 23.2px !important;
 }
