@@ -27,7 +27,6 @@ Default.play = async ({canvasElement}) => {
   await sleep(2000);
   const canvas = within(canvasElement);
   const hide = canvas.getByTestId("hide");
-  console.log(hide);
   await userEvent.click(hide);
   await sleep(2000);
   await userEvent.click(hide);
