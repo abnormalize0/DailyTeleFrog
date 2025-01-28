@@ -20,19 +20,13 @@
 .underline {
   text-decoration: underline;
 }
-
-.censor {
-  background-color: var(--text-color);
-  color: transparent;
-  user-select: none;
-}
 </style>
 
 <script>
 import { ParagraphState } from '@/enum/ParagraphState';
 
 export default {
-  name: "Paragraph",
+  name: "ParagraphText",
   props: {
     content: {
       type: String,
