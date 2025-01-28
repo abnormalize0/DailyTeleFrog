@@ -3,5 +3,5 @@ export const ParagraphState = Object.freeze({
   BOLD: "bold",
   UNDERLINE: "underline",
   STRIKETHROUGH: "strikethrough",
-  CENSOR: "censor"
+  SPOILER: "spoiler"
 });

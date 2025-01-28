@@ -2,6 +2,10 @@
   border-radius: 10px !important;
 }
 
+.secondary-rounded {
+  border-radius: 5px !important;
+}
+
 .primary-border {
   border: 1.5px solid var(--text-secondary-color);
 }

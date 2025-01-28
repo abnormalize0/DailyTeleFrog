@@ -1,9 +1,9 @@
-import Paragraph from "@/components/constructor/Paragraph.vue";
+import ParagraphText from "@/components/constructor/ParagraphText.vue";
 import { ParagraphState } from "@/enum/ParagraphState";
 
 export default {
-  component: Paragraph,
-  title: 'Paragraph',
+  component: ParagraphText,
+  title: 'ParagraphText',
   tags: ['autodocs'],
   decorators: [() => ({
     template: '<div style="margin: 3em;"><story/></div>'
