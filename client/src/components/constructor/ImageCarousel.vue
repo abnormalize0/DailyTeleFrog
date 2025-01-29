@@ -16,12 +16,13 @@
         :key="index"
         class="radio-label"
       >
-        <input
+      </label>
+      <input
+        v-for="(_, index) in imgs"
           type="radio"
           :value="index"
           v-model="currentIndex"
         />
-      </label>
     </div>
   </div>
 </template>
@@ -59,16 +60,21 @@ img.active {
   width: 10px;
   height: 10px;
   border-radius: 100%;
+  border-width: 1.5px;
   border: var(--primary-second-color);
   cursor: pointer;
   display: inline-block;
   transition: background-color 0.3s;
 }
 
+.radio-label input[type="radio"]:checked + .radio-label {
+  background-color: var(--primary-color) !important;
+  border: var(--primary-color);
+}
+
 .radio-label input[type="radio"] {
   display: none;
 }
-
 
 /* .carousel-images {
   position: relative;
@@ -87,12 +93,6 @@ img.active {
 .carousel-images img.active {
   opacity: 1;
 } */
-
-/*
-
-.radio-label input[type="radio"]:checked + .radio-label {
-  background-color: black; */
-/*} */
 </style>
 
 
