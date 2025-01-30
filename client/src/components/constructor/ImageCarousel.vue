@@ -2,21 +2,16 @@
   <div class="carousel d-flex flex-column">
     <div class="d-flex flex-row carousel-images">
       <img
-        v-for="(image, index) in imgs"
-        :key="index"  
-        :src='image'
-        :class="{ active: index === currentIndex }"
+        v-if="imgs.length > 0"
+        :key="'key_' + currentIndex"  
+        :src='imgs[currentIndex]'
+        class="fade"
+        :class="{ active: true }"
         alt="Carousel Image"
       />
     </div>
 
     <div v-if="imgs.length > 1" class="d-flex flex-row carousel-controls">
-      <label
-        v-for="(_, index) in imgs"
-        :key="index"
-        class="radio-label"
-      >
-      </label>
       <input
         v-for="(_, index) in imgs"
           type="radio"
@@ -36,6 +31,7 @@
 
 .carousel-images {
   width: 100%;
+  min-height: 193px;
   overflow: hidden;
 }
 
@@ -44,7 +40,6 @@ img {
   height: 100%;
   object-fit: cover;
   opacity: 0;
-  transition: opacity 0.5s ease;
 }
 
 img.active {
@@ -56,43 +51,32 @@ img.active {
   gap: 5px;
 }
 
-.radio-label {
+input[type="radio"] {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid var(--primary-second-color);
+  border-radius: 50%;
+  outline: none;
+  cursor: pointer;
+  position: relative;
+}
+
+input[type="radio"]:checked {
+  border-color: var(--primary-first-color);
+}
+
+input[type="radio"]:checked::before {
+  content: "";
   width: 10px;
   height: 10px;
-  border-radius: 100%;
-  border-width: 1.5px;
-  border: var(--primary-second-color);
-  cursor: pointer;
-  display: inline-block;
-  transition: background-color 0.3s;
-}
-
-.radio-label input[type="radio"]:checked + .radio-label {
-  background-color: var(--primary-color) !important;
-  border: var(--primary-color);
-}
-
-.radio-label input[type="radio"] {
-  display: none;
-}
-
-/* .carousel-images {
-  position: relative;
-  width: 90%; 
-  height: 300px;
-  overflow: hidden;
-}
-
-.carousel-images img {
+  background-color: var(--primary-first-color);
+  border-radius: 50%;
   position: absolute;
-  object-fit: cover;
-  opacity: 0;
-  transition: opacity 0.5s ease;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
 }
-
-.carousel-images img.active {
-  opacity: 1;
-} */
 </style>
 
 
@@ -109,6 +93,6 @@ export default {
     return {
       currentIndex: 0,
     }
-  }
+  },
 }
 </script>

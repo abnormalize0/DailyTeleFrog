@@ -1,5 +1,6 @@
 import ParagraphSpoiler from "@/components/constructor/ParagraphSpoiler.vue";
 import { userEvent, within } from "@storybook/test";
+import {sleep} from "@/utils/utils";
 
 export default {
   component: ParagraphSpoiler,
@@ -16,11 +17,6 @@ export const Default = {
   args: {
     content: content,
   }
-}
-
-// Function to emulate pausing between interactions
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 Default.play = async ({canvasElement}) => {
