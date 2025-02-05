@@ -11,6 +11,14 @@
   background: url('../icons/arrow-next.svg');
 }
 
+.add-icon {
+  background: url('../icons/add.svg');
+}
+
+.trash-icon {
+  background: url('../icons/trash.svg');
+}
+
 .community-icon {
   background: url('../icons/community.svg');
 }
@@ -89,6 +97,8 @@
 .rules-icon,
 .home-icon,
 .popular-icon,
+.trash-icon,
+.add-icon,
 .community-icon {
   height: 24px;
   width: 24px;
@@ -123,6 +133,8 @@
 .eye,
 .eye-error,
 .eye-off,
+.add-icon,
+.trash-icon,
 .eye-error-off {
   display: block;
   cursor: pointer;
