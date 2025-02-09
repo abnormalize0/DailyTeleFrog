@@ -17,6 +17,8 @@
   --on-background-secondary-color-hover: #64648D;
   --success-color: #1CC900;
   --mistake-color: #C90C00;
+  --active-color: #EBECEE;
+  --not-active-color: #787B7E;
 }
 
 input {

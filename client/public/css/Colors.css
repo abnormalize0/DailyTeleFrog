@@ -57,3 +57,7 @@
 .mistake-color {
   color: var(--mistake-color) !important;
 }
+
+.not-active-color {
+  color: var(--not-active-color) !important;
+}
