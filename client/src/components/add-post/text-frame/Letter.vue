@@ -38,27 +38,23 @@ export default {
   }),
   computed: {
     applyStyle() {
-      if (!this.type) {
-        return;
+      switch(this.type) {
+        case ParagraphState.BOLD:
+          this.letter = "B";
+          return "bold";
+        case ParagraphState.ITALIC:
+          this.letter = "I";
+          return "italic";
+        case ParagraphState.UNDERLINE:
+          this.letter = "U";
+          return "underline";
+        case ParagraphState.STRIKETHROUGH:
+          this.letter = "S";
+          return "strikethrough";
+        default:
+          this.letter = "C";
+          return;
       }
-      if (this.type === ParagraphState.BOLD) {
-        this.letter = "B";
-        return "bold";
-      }
-      if (this.type === ParagraphState.ITALIC) {
-        this.letter = "I";
-        return "italic";
-      }
-      if (this.type === ParagraphState.UNDERLINE) {
-        this.letter = "U";
-        return "underline";
-      }
-      if (this.type === ParagraphState.STRIKETHROUGH) {
-        this.letter = "S";
-        return "strikethrough";
-      }
-      this.letter = "C";
-      return;
     }
   }
 }
