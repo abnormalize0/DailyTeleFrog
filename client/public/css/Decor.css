@@ -49,3 +49,16 @@
 .Toastify__progress-bar {
   background: var(--mistake-color); /* Optional: Change progress bar color */
 }
+
+.italic {
+  font-style: italic;
+}
+.bold {
+  font-weight: bold;
+}
+.strikethrough {
+  text-decoration: line-through;
+}
+.underline {
+  text-decoration: underline;
+}
