@@ -7,21 +7,6 @@
   </div>
 </template>
 
-<style scoped>
-.italic {
-  font-style: italic;
-}
-.bold {
-  font-weight: bold;
-}
-.strikethrough {
-  text-decoration: line-through;
-}
-.underline {
-  text-decoration: underline;
-}
-</style>
-
 <script>
 import { ParagraphState } from '@/enum/ParagraphState';
 
