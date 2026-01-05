@@ -10,7 +10,6 @@ import inspect
 import re
 import importlib.util
 
-
 class TestView():
     file_path = ''
     class_name = ''
@@ -39,7 +38,7 @@ def append_tests_from_class(class_obj, list_to_append, module_name):
     methods = dir(class_obj)
     select_test_methods(methods)
     for method in methods:
-        list_to_append.append(TestView(module_name[2:-3], class_obj.__name__, method))
+        list_to_append.append(TestView(module_name[5:-3], class_obj.__name__, method))
 
 def append_tests_from_module(list_to_append, module_name):
     for name, obj in inspect.getmembers(sys.modules[module_name]):
@@ -48,7 +47,7 @@ def append_tests_from_module(list_to_append, module_name):
 
 def find_all_tests():
     test_files = []
-    for path, subdirs, files in os.walk('.'):
+    for path, subdirs, files in os.walk('/app'):
         for name in files:
             test_files.append(os.path.join(path, name))
 

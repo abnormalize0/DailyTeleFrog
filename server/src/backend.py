@@ -6,7 +6,7 @@ import json
 import os
 import time
 
-from .db import api, user, article
+from .db import api, user, article, comment
 from . import config
 from . import request_status
 
@@ -23,18 +23,18 @@ def get_page_articles(index, username, include_nonsub, sort_column, sort_directi
     return status, page_articles
 
 def select_preview(article):
-    preview = {}
-    preview['name'] = article['name']
-    preview['preview_content'] = article['preview_content']
-    preview['tags'] = article['tags']
-    preview['creation_date'] = article['creation_date']
-    preview['author_preview'] = article['author_preview']
-    preview['likes_count'] = article['likes_count']
-    preview['likes_id'] = article['likes_id']
-    preview['dislikes_count'] = article['dislikes_count']
-    preview['dislikes_id'] = article['dislikes_id']
-    preview['comments_count'] = article['comments_count']
-    return preview
+    return {
+        "name": article['name'],
+        "preview_content": article['preview_content'],
+        "creation_date": article['creation_date'],
+        "author_preview": article['author_preview'],
+        "likes_count": article['likes_count'],
+        "likes_id": article['likes_id'],
+        "dislikes_count": article['dislikes_count'],
+        "dislikes_id": article['dislikes_id'],
+        "comments_count": article['comments_count'],
+        "tags": article['tags'],
+    }
 
 def get_page(index, username, include_nonsub, sort_column, sort_direction, include, exclude, bounds):
     status, page_articles = get_page_articles(index, username, include_nonsub, sort_column, sort_direction,
@@ -62,37 +62,42 @@ def get_pages(indexes, username, include_nonsub, sort_column, sort_direction, in
     return request_status.Status(request_status.StatusType.OK), pages
 
 def get_article(session, article_id, username):
-    status, article_info = article.get_article(session, article_id)
+    status, article_info = article.get(session, article_id)
     if status.is_error:
         return status, None
-    status, preview = article.get_preview(session, article_id)
+    status, author_preview = user.preview(session, username)
     if status.is_error:
         return status, None
-    status, likes = article.get_likes(session, article_id)
+    status, preview = article.preview(session, article_id)
     if status.is_error:
         return status, None
-    status, dislikes = article.get_dislikes(session, article_id)
+    status, likes = article.likes_count(session, article_id)
     if status.is_error:
         return status, None
-    status, rating = article.get_rating(session, article_id)
+    status, dislikes = article.dislikes_count(session, article_id)
     if status.is_error:
         return status, None
-    status, comments_count = article.get_comments_count(session, article_id)
+    status, rating = article.rating(session, article_id)
     if status.is_error:
         return status, None
-    #status, comments = comment.get_comments(session, article_id)
+    status, comments_count = article.comments_count(session, article_id)
+    if status.is_error:
+        return status, None
+    status, comments = comment.from_article(session, article_id)
+    if status.is_error:
+        return status, None
     status, is_liked = article.is_liked(session, article_id, username)
     if status.is_error:
         return status, None
     status, is_disliked = article.is_disliked(session, article_id, username)
     if status.is_error:
         return status, None
-    status, tags = article.get_tags(session, article_id)
+    status, tags = article.tags(session, article_id)
     if status.is_error:
         return status, None
     return request_status.Status(request_status.StatusType.OK), {
         "creation_date": article_info.creation_date,
-        "author_preview": "author_preview",
+        "author_preview": author_preview,
         "title": article_info.title,
         "body": article_info.body,
         "preview": preview,
@@ -100,6 +105,7 @@ def get_article(session, article_id, username):
         "dislikes": dislikes,
         "rating": rating,
         "comments_count": comments_count,
+        "comments": comments,
         "is_liked": is_liked,
         "is_disliked": is_disliked,
         "tags": tags,
@@ -107,7 +113,7 @@ def get_article(session, article_id, username):
 
 
 def post_article(session, author, title, body, preview, tags):
-    article_id = article.add_article(
+    article_id = article.post(
         session=session,
         title=title,
         body=body,
@@ -183,73 +189,83 @@ def change_password(session, previous_password, new_password, username):
     user.change_password(session, new_password, username)
     return request_status.Status(request_status.StatusType.OK)
 
-def dislike_article(article_id, username):
-    status = api.vote(config.db_article.path,
-                      config.article_table_name,
-                      config.article_id_name,
-                      article_id,
-                      username,
-                      'dislikes')
+def article_dislike(session, article_id, username):
+    status = article.dislike(session, article_id, username)
     return status
 
-def like_article(article_id, username):
-    status = api.vote(config.db_article.path,
-                      config.article_table_name,
-                      config.article_id_name,
-                      article_id,
-                      username,
-                      'likes')
+def article_like(session, article_id, username):
+    status = article.like(session, article_id, username)
     return status
 
-def dislike_comment(comment_id, username):
-    status = api.vote(config.db_comment.path,
-                      config.comment_table_name,
-                      config.comment_id_name,
-                      comment_id,
-                      username,
-                      'dislikes')
+def comment_like(session, comment_id, username):
+    status = comment.like(session, comment_id, username)
     return status
 
-def like_comment(comment_id, username):
-    status = api.vote(config.db_comment.path,
-                      config.comment_table_name,
-                      config.comment_id_name,
-                      comment_id,
-                      username,
-                      'likes')
+def comment_dislike(session, comment_id, username):
+    status = comment.dislike(session, comment_id, username)
     return status
 
-def add_comment(article_id, root, comment_text, username):
-    status, id = api.add_comment(article_id, root, comment_text, username)
+def add_comment(session, article_id, root, comment_text, username):
+    status, id = comment.add(session, article_id, root, comment_text, username)
     return status, id
+
+def get_comment_data(session, comment_id, username, requested_data):
+    data: dict = {}
+    for key in requested_data:
+        match key:
+            case "likes":
+                status, data[key] = comment.likes_count(session, comment_id)
+                if status.is_error:
+                    return status, None
+            case "dislikes":
+                status, data[key] = comment.dislikes_count(session, comment_id)
+                if status.is_error:
+                    return status, None
+            case "rating":
+                status, data[key] = comment.rating(session, comment_id)
+                if status.is_error:
+                    return status, None
+            case "creation_date":
+                status, data[key] = comment.creation_date(session, comment_id)
+                if status.is_error:
+                    return status, None
+            case "is_liked":
+                status, data[key] = comment.is_liked(session, comment_id, username)
+                if status.is_error:
+                    return status, None
+            case "is_disliked":
+                status, data[key] = comment.is_disliked(session, comment_id, username)
+                if status.is_error:
+                    return status, None
+    return request_status.Status(request_status.StatusType.OK), data
 
 def get_article_data(session, article_id, username, requested_data):
     data: dict = {}
     for key in requested_data:
         match key:
             case "likes":
-                status, data[key] = article.get_likes(session, article_id)
+                status, data[key] = article.likes_count(session, article_id)
                 if status.is_error:
                     return status, None
             case "dislikes":
-                status, data[key] = article.get_dislikes(session, article_id)
+                status, data[key] = article.dislikes_count(session, article_id)
                 if status.is_error:
                     return status, None
             case "rating":
-                status, data[key] = article.get_rating(session, article_id)
+                status, data[key] = article.rating(session, article_id)
                 if status.is_error:
                     return status, None
             case "comments_count":
-                status, data[key] = article.get_comments_count(session, article_id)
+                status, data[key] = article.comments_count(session, article_id)
                 if status.is_error:
                     return status, None
             case "creation_date":
-                status, article_info = article.get_article(session, article_id)
+                status, article_info = article.get(session, article_id)
                 if status.is_error:
                     return status, None
                 data[key] = article_info.creation_date
             case "tags":
-                status, data[key] = article.get_tags(session, article_id)
+                status, data[key] = article.tags(session, article_id)
                 if status.is_error:
                     return status, None
             case "is_liked":

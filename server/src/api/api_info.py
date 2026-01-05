@@ -75,6 +75,198 @@ def article_info():
     return json.dumps({'post': article_post,
                        'get': article_get})
 
+
+
+article_like_post = [
+    {
+        'name': 'username',
+        'type': 'str',
+        'is_required': True,
+        'container': 'body'
+    },
+    {
+        'name': 'article_id',
+        'type': 'int',
+        'is_required': True,
+        'container': 'body'
+    }
+]
+
+article_like_get = []
+
+@info.route('/article/like', methods=['OPTIONS'])
+def article_like_info():
+    return json.dumps({'post': article_like_post,
+                       'get': article_like_get})
+
+
+article_dislike_post = [
+    {
+        'name': 'username',
+        'type': 'str',
+        'is_required': True,
+        'container': 'body'
+    },
+    {
+        'name': 'article_id',
+        'type': 'int',
+        'is_required': True,
+        'container': 'body'
+    }
+]
+
+article_dislike_get = []
+
+@info.route('/article/dislike', methods=['OPTIONS'])
+def article_dislike_info():
+    return json.dumps({'post': article_dislike_post,
+                       'get': article_dislike_get})
+
+article_comment_post = [
+    {
+        'name': 'username',
+        'type': 'str',
+        'is_required': True,
+        'container': 'body'
+    },
+    {
+        'name': 'article_id',
+        'type': 'int',
+        'is_required': True,
+        'container': 'body'
+    },
+    {
+        'name': 'text',
+        'type': 'str',
+        'is_required': True,
+        'container': 'body'
+    },
+    {
+        'name': 'root',
+        'type': 'int',
+        'is_required': True,
+        'container': 'body'
+    },
+]
+
+article_comment_get = []
+
+@info.route('/article/comment', methods=['OPTIONS'])
+def article_comment_info():
+    return json.dumps({'post': article_comment_post,
+                       'get': article_comment_get})
+
+article_comment_like_post = [
+    {
+        'name': 'username',
+        'type': 'str',
+        'is_required': True,
+        'container': 'body'
+    },
+    {
+        'name': 'comment_id',
+        'type': 'int',
+        'is_required': True,
+        'container': 'body'
+    }
+]
+
+article_comment_like_get = []
+
+@info.route('/article/comment/like', methods=['OPTIONS'])
+def article_comment_like_info():
+    return json.dumps({'post': article_comment_like_post,
+                       'get': article_comment_like_get})
+
+article_comment_dislike_post = [
+    {
+        'name': 'username',
+        'type': 'str',
+        'is_required': True,
+        'container': 'body'
+    },
+    {
+        'name': 'comment_id',
+        'type': 'int',
+        'is_required': True,
+        'container': 'body'
+    }
+]
+
+article_comment_dislike_get = []
+
+@info.route('/article/comment/dislike', methods=['OPTIONS'])
+def article_comment_dislike_info():
+    return json.dumps({'post': article_comment_dislike_post,
+                       'get': article_comment_dislike_get})
+
+article_comment_data_post = []
+
+article_comment_data_get = [
+        {
+            'name': 'username',
+            'type': 'str',
+            'is_required': True,
+            'container': 'body'
+        },
+        {
+            'name': 'comment_id',
+            'type': 'int',
+            'is_required': True,
+            'container': 'body'
+        },
+        {
+            'name': 'requested_data',
+            'type': 'list',
+            'is_required': True,
+            'container': 'body',
+            'structure': [
+                {
+                    'name': 'likes',
+                    'type': 'field',
+                    'is_required': True,
+                    'container': 'body'
+                },
+                {
+                    'name': 'dislikes',
+                    'type': 'field',
+                    'is_required': True,
+                    'container': 'body'
+                },
+                {
+                    'name': 'rating',
+                    'type': 'field',
+                    'is_required': True,
+                    'container': 'body'
+                },
+                {
+                    'name': 'creation_date',
+                    'type': 'field',
+                    'is_required': True,
+                    'container': 'body'
+                },
+                {
+                    'name': 'is_liked',
+                    'type': 'field',
+                    'is_required': True,
+                    'container': 'body'
+                },
+                {
+                    'name': 'is_disliked',
+                    'type': 'field',
+                    'is_required': True,
+                    'container': 'body'
+                },
+            ]
+        }
+    ]
+
+@info.route('/article/comment/data', methods=['OPTIONS'])
+def article_comment_data_info():
+    return json.dumps({'post': article_comment_data_post,
+                       'get': article_comment_data_get})
+
+
 article_data_post = [
         {
             'name': 'username',
@@ -440,7 +632,7 @@ users_data_get = [
             'container': 'body'
         },
         {
-            'name': 'requested-data',
+            'name': 'requested_data',
             'type': 'list',
             'is_required': True,
             'container': 'body',

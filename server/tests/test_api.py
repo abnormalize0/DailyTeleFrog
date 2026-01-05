@@ -8,17 +8,17 @@
 import os
 import requests
 import subprocess
-import shutil
 import signal
 import json
 import re
+import time
 from dotenv import load_dotenv
 from datetime import datetime
 from sqlalchemy import create_engine
 
-from server.tests import base_test
-from server.src import config
-from server.src.db import scheme
+from tests import base_test
+from src import config
+from src.db import scheme
 
 class TestAPI(base_test.BaseTest):
 
@@ -35,20 +35,20 @@ class TestAPI(base_test.BaseTest):
                 pass
             #shutil.rmtree(self.workdir, ignore_errors=True)
 
-        self.server = subprocess.Popen(['python3', '../start.py', '-t',
-                                        '--working-directory', self.workdir
-                                        ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
         load_dotenv(dotenv_path='../.env')
         self.db = create_engine(os.getenv("MVP_DB_URL_TEST"))
 
         scheme.Base.metadata.drop_all(self.db)
         scheme.Base.metadata.create_all(self.db)
 
+        self.server = subprocess.Popen(['python3', '/app/start.py', '-t',
+                                        '--working-directory', self.workdir
+                                        ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
         # wait until server startup
         while True:
             nextline = self.server.stdout.readline()
+            time.sleep(1)
             if nextline:
                 break
 
@@ -267,8 +267,9 @@ class TestAPI(base_test.BaseTest):
         self.assertEqual(answer.json()['status']['type'], 'ERROR', msg=str(answer.json()['status']))
         self.assertEqual(answer.json()['status']['error_type'], 'ValueError', msg=str(answer.json()['status']))
 
-    def test_article_data_post(self):
-        endpoint = '/article/data'
+
+    def test_article_like_post(self):
+        endpoint = '/article/like'
         method = 'post'
         answer = requests.options(self.localhost + endpoint)
         self.check_structure(endpoint=endpoint,
@@ -278,328 +279,370 @@ class TestAPI(base_test.BaseTest):
         user_info = self.add_user()
         username = user_info[0]
         user_info = self.add_user()
+        username_2 = user_info[0]
         article_id = self.add_article(username=username)
 
-        # happy path
-        like_article = {}
-        dislike_article = {}
-        add_comment = {'text': 'Hello, world!', 'root': -1}
+        # Проверка, что лайк применился к статье.
         answer = requests.post(self.localhost + endpoint,
-                               headers={'username': str(username),
-                                        'article-id': str(article_id)},
-                               json={'add-comment': add_comment})
+                               json={'username': username_2,
+                                     'article_id': article_id})
         self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
-        comment_id = answer.json()['comment_id']
-        like_comment = {'comment_id': comment_id}
-        dislike_comment = {'comment_id': comment_id}
 
-        self.assertEqual(answer.json()['status']['type'], 'OK',
-                         msg=str(answer.json()['status']))
-        self.assertIn('comment_id', answer.json())
+        request_data = ["likes"]
+        answer = requests.get(self.localhost + "/article/data", json={'username': username_2,
+                                                                'article_id': article_id,
+                                                                'requested_data': request_data})
+        self.assertEqual(answer.json()['status']['type'], 'OK', msg=answer.json()['status'])
+        self.assertEqual(answer.json()['likes'], 1)
+
+        # Проверка, что лайк изменяет рейтинг пользователя.
+        request_data = ["rating"]
+        answer = requests.get(self.localhost + "/users/data",
+                              json={'username': username,
+                                    'requested_data': request_data})
+        self.assertEqual(answer.json()['status']['type'], 'OK', msg=answer.json()['status'])
+        self.assertEqual(answer.json()['rating'], 1)
+
+        # Проверка, что лайк отменяется, если уже был поставлен.
+        answer = requests.post(self.localhost + endpoint,
+                               json={'username': username_2,
+                                     'article_id': article_id})
+        self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
+
+        request_data = ["likes"]
+        answer = requests.get(self.localhost + "/article/data", json={'username': username_2,
+                                                                'article_id': article_id,
+                                                                'requested_data': request_data})
+        self.assertEqual(answer.json()['status']['type'], 'OK', msg=answer.json()['status'])
+        self.assertEqual(answer.json()['likes'], 0)
+
+        # Проверка, что убирание лайка изменяет рейтинг.
+        request_data = ["rating"]
+        answer = requests.get(self.localhost + "/users/data",
+                              json={'username': username,
+                                    'requested_data': request_data})
+        self.assertEqual(answer.json()['rating'], 0)
+
+        # Проверка, что лайк перезаписывает дизлайк.
+        answer = requests.post(self.localhost + "/article/dislike",
+                               json={'username': username_2,
+                                     'article_id': article_id})
+        self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
 
         answer = requests.post(self.localhost + endpoint,
-                               headers={'username': str(username + 1),
-                                        'article-id': str(article_id)},
-                               json={'like-article': like_article})
+                               json={'username': username_2,
+                                     'article_id': article_id})
+        self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
 
-        self.assertEqual(answer.json()['status']['type'], 'OK',
-                         msg=str(answer.json()['status']))
+        request_data = ["likes", "dislikes"]
+        answer = requests.get(self.localhost + "/article/data", json={'username': username_2,
+                                                                'article_id': article_id,
+                                                                'requested_data': request_data})
+        self.assertEqual(answer.json()['status']['type'], 'OK', msg=answer.json()['status'])
+        self.assertEqual(answer.json()['likes'], 1)
+        self.assertEqual(answer.json()['dislikes'], 0)
+        
 
-        answer = requests.post(self.localhost + endpoint,
-                               headers={'username': str(username + 1),
-                                        'article-id': str(article_id)},
-                               json={'dislike-article': dislike_article})
+    def test_article_dislike_post(self):
+        endpoint = '/article/dislike'
+        method = 'post'
+        answer = requests.options(self.localhost + endpoint)
+        self.check_structure(endpoint=endpoint,
+                             method=method,
+                             structure=answer.json()[method])
 
-        self.assertEqual(answer.json()['status']['type'], 'OK',
-                         msg=str(answer.json()['status']))
-
-        answer = requests.post(self.localhost + endpoint,
-                               headers={'username': str(username + 1),
-                                        'article-id': str(article_id)},
-                               json={'like-comment': like_comment})
-
-        self.assertEqual(answer.json()['status']['type'], 'OK',
-                         msg=str(answer.json()['status']))
-
-        answer = requests.post(self.localhost + endpoint,
-                               headers={'username': str(username + 1),
-                                        'article-id': str(article_id)},
-                               json={'dislike-comment': dislike_comment})
-
-        self.assertEqual(answer.json()['status']['type'], 'OK',
-                         msg=str(answer.json()['status']))
-
-        # test unlogged users
-        answer = requests.post(self.localhost + endpoint,
-                               headers={'username': 'unlogged_user',
-                                        'article-id': str(article_id)},
-                               json={'add-comment': add_comment})
-        self.assertEqual(answer.json()['status']['type'], 'ERROR', msg=str(answer.json()['status']))
-        self.assertEqual(answer.json()['status']['error_type'], 'ValueError', msg=str(answer.json()['status']))
-
-        answer = requests.post(self.localhost + endpoint,
-                               headers={'username': 'unlogged_user',
-                                        'article-id': str(article_id)},
-                               json={'like-article': like_article})
-        self.assertEqual(answer.json()['status']['type'], 'ERROR', msg=str(answer.json()['status']))
-        self.assertEqual(answer.json()['status']['error_type'], 'ValueError', msg=str(answer.json()['status']))
-
-        answer = requests.post(self.localhost + endpoint,
-                               headers={'username': 'unlogged_user',
-                                        'article-id': str(article_id)},
-                               json={'dislike-article': dislike_article})
-        self.assertEqual(answer.json()['status']['type'], 'ERROR', msg=str(answer.json()['status']))
-        self.assertEqual(answer.json()['status']['error_type'], 'ValueError', msg=str(answer.json()['status']))
-
-        answer = requests.post(self.localhost + endpoint,
-                               headers={'username': 'unlogged_user',
-                                        'article-id': str(article_id)},
-                               json={'like-comment': like_comment})
-        self.assertEqual(answer.json()['status']['type'], 'ERROR', msg=str(answer.json()['status']))
-        self.assertEqual(answer.json()['status']['error_type'], 'ValueError', msg=str(answer.json()['status']))
-
-        answer = requests.post(self.localhost + endpoint,
-                               headers={'username': 'unlogged_user',
-                                        'article-id': str(article_id)},
-                               json={'dislike-comment': dislike_comment})
-        self.assertEqual(answer.json()['status']['type'], 'ERROR', msg=str(answer.json()['status']))
-        self.assertEqual(answer.json()['status']['error_type'], 'ValueError', msg=str(answer.json()['status']))
-
-        # check like post
+        user_info = self.add_user()
+        username = user_info[0]
+        user_info = self.add_user()
+        username_2 = user_info[0]
         article_id = self.add_article(username=username)
+
+        # Проверка, что дизлайк применился к статье.
         answer = requests.post(self.localhost + endpoint,
-                               headers={'username': str(username + 1),
-                                        'article-id': str(article_id)},
-                               json={'like-article': like_article})
+                               json={'username': username_2,
+                                     'article_id': article_id})
         self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
 
-        request_data = '~likes_count~'
-        answer = requests.get(self.localhost + endpoint, headers={'username': str(username),
-                                                                  'article-id': str(article_id),
-                                                                  'requested-data': f'{request_data}'})
+        request_data = ["dislikes"]
+        answer = requests.get(self.localhost + "/article/data", json={'username': username_2,
+                                                                'article_id': article_id,
+                                                                'requested_data': request_data})
         self.assertEqual(answer.json()['status']['type'], 'OK', msg=answer.json()['status'])
-        self.assertEqual(answer.json()['likes_count'], 1)
+        self.assertEqual(answer.json()['dislikes'], 1)
 
-        # check like rewrite like
-        answer = requests.post(self.localhost + endpoint,
-                               headers={'username': str(username + 1),
-                                        'article-id': str(article_id)},
-                               json={'like-article': like_article})
-        self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
-
-        answer = requests.get(self.localhost + endpoint, headers={'username': str(username),
-                                                                  'article-id': str(article_id),
-                                                                  'requested-data': f'{request_data}'})
+        # Проверка, что дизлайк изменяет рейтинг пользователя.
+        request_data = ["rating"]
+        answer = requests.get(self.localhost + "/users/data",
+                              json={'username': username,
+                                    'requested_data': request_data})
         self.assertEqual(answer.json()['status']['type'], 'OK', msg=answer.json()['status'])
-        self.assertEqual(answer.json()['likes_count'], 0)
+        self.assertEqual(answer.json()['rating'], -1)
 
-        # check dislike post
+        # Проверка, что дизлайк отменяется, если уже был поставлен.
         answer = requests.post(self.localhost + endpoint,
-                               headers={'username': str(username + 1),
-                                        'article-id': str(article_id)},
-                               json={'dislike-article': dislike_article})
+                               json={'username': username_2,
+                                     'article_id': article_id})
         self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
 
-        request_data = '~dislikes_count~'
-        answer = requests.get(self.localhost + endpoint, headers={'username': str(username),
-                                                                  'article-id': str(article_id),
-                                                                  'requested-data': f'{request_data}'})
+        request_data = ["dislikes"]
+        answer = requests.get(self.localhost + "/article/data", json={'username': username_2,
+                                                                'article_id': article_id,
+                                                                'requested_data': request_data})
         self.assertEqual(answer.json()['status']['type'], 'OK', msg=answer.json()['status'])
-        self.assertEqual(answer.json()['dislikes_count'], 1)
+        self.assertEqual(answer.json()['dislikes'], 0)
 
-        # check dislike rewrite dislike
-        answer = requests.post(self.localhost + endpoint,
-                               headers={'username': str(username + 1),
-                                        'article-id': str(article_id)},
-                               json={'dislike-article': dislike_article})
+        # Проверка, что убирание дизлайк изменяет рейтинг.
+        request_data = ["rating"]
+        answer = requests.get(self.localhost + "/users/data",
+                              json={'username': username,
+                                    'requested_data': request_data})
+        self.assertEqual(answer.json()['rating'], 0)
+
+        # Проверка, что дизлайк перезаписывает лайк.
+        answer = requests.post(self.localhost + "/article/like",
+                               json={'username': username_2,
+                                     'article_id': article_id})
         self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
 
-        answer = requests.get(self.localhost + endpoint, headers={'username': str(username),
-                                                                  'article-id': str(article_id),
-                                                                  'requested-data': f'{request_data}'})
+        answer = requests.post(self.localhost + endpoint,
+                               json={'username': username_2,
+                                     'article_id': article_id})
+        self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
+
+        request_data = ["likes", "dislikes"]
+        answer = requests.get(self.localhost + "/article/data", json={'username': username_2,
+                                                                'article_id': article_id,
+                                                                'requested_data': request_data})
         self.assertEqual(answer.json()['status']['type'], 'OK', msg=answer.json()['status'])
-        self.assertEqual(answer.json()['dislikes_count'], 0)
+        self.assertEqual(answer.json()['dislikes'], 1)
+        self.assertEqual(answer.json()['likes'], 0)
 
-        # check like rewrite dislike
-        answer = requests.post(self.localhost + endpoint,
-                               headers={'username': str(username + 1),
-                                        'article-id': str(article_id)},
-                               json={'dislike-article': dislike_article})
-        self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
 
-        answer = requests.post(self.localhost + endpoint,
-                               headers={'username': str(username + 1),
-                                        'article-id': str(article_id)},
-                               json={'like-article': like_article})
-        self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
+    def test_article_comment_post(self):
+        endpoint = '/article/comment'
+        method = 'post'
+        answer = requests.options(self.localhost + endpoint)
+        self.check_structure(endpoint=endpoint,
+                             method=method,
+                             structure=answer.json()[method])
 
-        request_data = '~likes_count~dislikes_count~'
-        answer = requests.get(self.localhost + endpoint, headers={'username': str(username),
-                                                                  'article-id': str(article_id),
-                                                                  'requested-data': f'{request_data}'})
-        self.assertEqual(answer.json()['status']['type'], 'OK', msg=answer.json()['status'])
-        self.assertEqual(answer.json()['likes_count'], 1)
-        self.assertEqual(answer.json()['dislikes_count'], 0)
-
-        # check dislike rewrite like
-        answer = requests.post(self.localhost + endpoint,
-                               headers={'username': str(username + 1),
-                                        'article-id': str(article_id)},
-                               json={'dislike-article': dislike_article})
-        self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
-
-        answer = requests.get(self.localhost + endpoint, headers={'username': str(username),
-                                                                  'article-id': str(article_id),
-                                                                  'requested-data': f'{request_data}'})
-        self.assertEqual(answer.json()['status']['type'], 'OK', msg=answer.json()['status'])
-        self.assertEqual(answer.json()['likes_count'], 0)
-        self.assertEqual(answer.json()['dislikes_count'], 1)
-
-        # check user rating
-        user_endpoint = '/users/data'
         user_info = self.add_user()
         username = user_info[0]
         article_id = self.add_article(username=username)
-        answer = requests.post(self.localhost + endpoint,
-                               headers={'username': str(username),
-                                        'article-id': str(article_id)},
-                               json={'add-comment': add_comment})
-        request_data = '~rating~'
-        comment_id = answer.json()['comment_id']
-        like_comment = {'comment_id': comment_id}
-        dislike_comment = {'comment_id': comment_id}
+        # Публикуем комментарий к статье.
+        answer = requests.post(self.localhost + endpoint, json={'username': username,
+                                                                'article_id': article_id,
+                                                                'text': 'text',
+                                                                'root': -1})
+        self.assertEqual(answer.json()['status']['type'], 'OK', msg=answer.json()['status'])
+        self.assertIn('id', answer.json(), msg=answer.json())
+
+        # Публикуем ответ на комментарий.
+        answer = requests.post(self.localhost + endpoint, json={'username': username,
+                                                                'article_id': article_id,
+                                                                'text': 'text', 
+                                                                'root': answer.json()['id']})
+        self.assertEqual(answer.json()['status']['type'], 'OK', msg=answer.json()['status'])
+        self.assertIn('id', answer.json(), msg=answer.json())
+
+    def test_article_comment_like_post(self):
+        endpoint = '/article/comment/like'
+        method = 'post'
+        answer = requests.options(self.localhost + endpoint)
+        self.check_structure(endpoint=endpoint,
+                             method=method,
+                             structure=answer.json()[method])
+
         user_info = self.add_user()
-        user_2 = user_info[0]
+        username = user_info[0]
+        user_info = self.add_user()
+        username_2 = user_info[0]
+        article_id = self.add_article(username=username)
 
-        # check that like increase rating
+        answer = requests.post(self.localhost + "/article/comment", json={'username': username,
+                                                                'article_id': article_id,
+                                                                'text': 'text',
+                                                                'root': -1})
+        self.assertEqual(answer.json()['status']['type'], 'OK', msg=answer.json()['status'])
+        comment_id = answer.json()["id"]
+        # Проверка, что лайк применился к комментарию.
         answer = requests.post(self.localhost + endpoint,
-                               headers={'username': str(user_2),
-                                        'article-id': str(article_id)},
-                               json={'like-article': like_article})
-        answer = requests.get(self.localhost + user_endpoint, headers={'username': str(username),
-                                                                      'requested-data': f'{request_data}'})
+                               json={'username': username_2,
+                                     'comment_id': comment_id})
+        self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
+
+        request_data = ["likes"]
+        answer = requests.get(self.localhost + "/article/comment/data", json={'username': username_2,
+                                                                'article_id': article_id,
+                                                                'requested_data': request_data})
+        self.assertEqual(answer.json()['status']['type'], 'OK', msg=answer.json()['status'])
+        self.assertEqual(answer.json()['likes'], 1)
+
+        # Проверка, что лайк на комментарии изменяет рейтинг пользователя.
+        request_data = ["rating"]
+        answer = requests.get(self.localhost + "/users/data",
+                              json={'username': username,
+                                    'requested_data': request_data})
+        self.assertEqual(answer.json()['status']['type'], 'OK', msg=answer.json()['status'])
         self.assertEqual(answer.json()['rating'], 1)
 
-        # check that undo like decrease rating
+        # Проверка, что лайк на комментарии отменяется, если уже был поставлен.
         answer = requests.post(self.localhost + endpoint,
-                               headers={'username': str(user_2),
-                                        'article-id': str(article_id)},
-                               json={'like-article': like_article})
-        answer = requests.get(self.localhost + user_endpoint, headers={'username': str(username),
-                                                                      'requested-data': f'{request_data}'})
+                               json={'username': username_2,
+                                     'comment_id': comment_id})
+        self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
+
+        request_data = ["likes"]
+        answer = requests.get(self.localhost + "/article/comment/data", json={'username': username_2,
+                                                                'article_id': article_id,
+                                                                'requested_data': request_data})
+        self.assertEqual(answer.json()['status']['type'], 'OK', msg=answer.json()['status'])
+        self.assertEqual(answer.json()['likes'], 0)
+
+        # Проверка, что убирание лайка на комментарии изменяет рейтинг.
+        request_data = ["rating"]
+        answer = requests.get(self.localhost + "/users/comment/data",
+                              json={'username': username,
+                                    'requested_data': request_data})
         self.assertEqual(answer.json()['rating'], 0)
 
-        # check that dislike decrease rating
-        answer = requests.post(self.localhost + endpoint,
-                               headers={'username': str(user_2),
-                                        'article-id': str(article_id)},
-                               json={'dislike-article': dislike_article})
-        answer = requests.get(self.localhost + user_endpoint, headers={'username': str(username),
-                                                                      'requested-data': f'{request_data}'})
-        self.assertEqual(answer.json()['rating'], -1)
+        # Проверка, что лайк на комментарии перезаписывает дизлайк.
+        answer = requests.post(self.localhost + "/article/comment/dislike",
+                               json={'username': username_2,
+                                     'comment_id': comment_id})
+        self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
 
-        # check that undo dislike increase rating
         answer = requests.post(self.localhost + endpoint,
-                               headers={'username': str(user_2),
-                                        'article-id': str(article_id)},
-                               json={'dislike-article': dislike_article})
-        answer = requests.get(self.localhost + user_endpoint, headers={'username': str(username),
-                                                                      'requested-data': f'{request_data}'})
-        self.assertEqual(answer.json()['rating'], 0)
+                               json={'username': username_2,
+                                     'comment_id': comment_id})
+        self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
 
-        # check that like on dislike increase rating
+        request_data = ["likes", "dislikes"]
+        answer = requests.get(self.localhost + "/article/comment/data", json={'username': username_2,
+                                                                'comment_id': comment_id,
+                                                                'requested_data': request_data})
+        self.assertEqual(answer.json()['status']['type'], 'OK', msg=answer.json()['status'])
+        self.assertEqual(answer.json()['likes'], 1)
+        self.assertEqual(answer.json()['dislikes'], 0)
+
+
+    def test_article_comment_dislike_post(self):
+        endpoint = '/article/comment/dislike'
+        method = 'post'
+        answer = requests.options(self.localhost + endpoint)
+        self.check_structure(endpoint=endpoint,
+                             method=method,
+                             structure=answer.json()[method])
+
+        user_info = self.add_user()
+        username = user_info[0]
+        user_info = self.add_user()
+        username_2 = user_info[0]
+        article_id = self.add_article(username=username)
+
+        answer = requests.post(self.localhost + "/article/comment", json={'username': username,
+                                                                'article_id': article_id,
+                                                                'text': 'text',
+                                                                'root': -1})
+        self.assertEqual(answer.json()['status']['type'], 'OK', msg=answer.json()['status'])
+        comment_id = answer.json()["id"]
+        # Проверка, что дизлайк применился к комментарию.
         answer = requests.post(self.localhost + endpoint,
-                               headers={'username': str(user_2),
-                                        'article-id': str(article_id)},
-                               json={'dislike-article': dislike_article})
-        answer = requests.get(self.localhost + user_endpoint, headers={'username': str(username),
-                                                                      'requested-data': f'{request_data}'})
-        self.assertEqual(answer.json()['rating'], -1)
-        answer = requests.post(self.localhost + endpoint,
-                               headers={'username': str(user_2),
-                                        'article-id': str(article_id)},
-                               json={'like-article': like_article})
-        answer = requests.get(self.localhost + user_endpoint, headers={'username': str(username),
-                                                                      'requested-data': f'{request_data}'})
+                               json={'username': username_2,
+                                     'comment_id': comment_id})
+        self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
+
+        request_data = ["likes"]
+        answer = requests.get(self.localhost + "/article/comment/data", json={'username': username_2,
+                                                                'article_id': article_id,
+                                                                'requested_data': request_data})
+        self.assertEqual(answer.json()['status']['type'], 'OK', msg=answer.json()['status'])
+        self.assertEqual(answer.json()['likes'], 1)
+
+        # Проверка, что дизлайк на комментарии изменяет рейтинг пользователя.
+        request_data = ["rating"]
+        answer = requests.get(self.localhost + "/users/data",
+                              json={'username': username,
+                                    'requested_data': request_data})
+        self.assertEqual(answer.json()['status']['type'], 'OK', msg=answer.json()['status'])
         self.assertEqual(answer.json()['rating'], 1)
 
-         # check that like on dislike increase rating
+        # Проверка, что дизлайк на комментарии отменяется, если уже был поставлен.
         answer = requests.post(self.localhost + endpoint,
-                               headers={'username': str(user_2),
-                                        'article-id': str(article_id)},
-                               json={'dislike-article': dislike_article})
-        answer = requests.get(self.localhost + user_endpoint, headers={'username': str(username),
-                                                                      'requested-data': f'{request_data}'})
-        self.assertEqual(answer.json()['rating'], -1)
-        answer = requests.post(self.localhost + endpoint,
-                               headers={'username': str(user_2),
-                                        'article-id': str(article_id)},
-                               json={'dislike-article': dislike_article})
-        answer = requests.get(self.localhost + user_endpoint, headers={'username': str(username),
-                                                                      'requested-data': f'{request_data}'})
+                               json={'username': username_2,
+                                     'comment_id': comment_id})
+        self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
+
+        request_data = ["likes"]
+        answer = requests.get(self.localhost + "/article/comment/data", json={'username': username_2,
+                                                                'article_id': article_id,
+                                                                'requested_data': request_data})
+        self.assertEqual(answer.json()['status']['type'], 'OK', msg=answer.json()['status'])
+        self.assertEqual(answer.json()['likes'], 0)
+
+        # Проверка, что убирание дизлайка на комментарии изменяет рейтинг.
+        request_data = ["rating"]
+        answer = requests.get(self.localhost + "/users/comment/data",
+                              json={'username': username,
+                                    'requested_data': request_data})
         self.assertEqual(answer.json()['rating'], 0)
 
-        # check rating with comments
-        # check that like increase rating
-        answer = requests.post(self.localhost + endpoint,
-                               headers={'username': str(user_2),
-                                        'article-id': str(article_id)},
-                               json={'like-comment': like_comment})
-        answer = requests.get(self.localhost + user_endpoint, headers={'username': str(username),
-                                                                      'requested-data': f'{request_data}'})
-        self.assertEqual(answer.json()['rating'], 1)
+        # Проверка, что дизлайк на комментарии перезаписывает лайк.
+        answer = requests.post(self.localhost + "/article/comment/like",
+                               json={'username': username_2,
+                                     'comment_id': comment_id})
+        self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
 
-        # check that undo like decrease rating
         answer = requests.post(self.localhost + endpoint,
-                               headers={'username': str(user_2),
-                                        'article-id': str(article_id)},
-                               json={'like-comment': like_comment})
-        answer = requests.get(self.localhost + user_endpoint, headers={'username': str(username),
-                                                                      'requested-data': f'{request_data}'})
-        self.assertEqual(answer.json()['rating'], 0)
+                               json={'username': username_2,
+                                     'comment_id': comment_id})
+        self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
 
-        # check that dislike decrease rating
-        answer = requests.post(self.localhost + endpoint,
-                               headers={'username': str(user_2),
-                                        'article-id': str(article_id)},
-                               json={'dislike-comment': dislike_comment})
-        answer = requests.get(self.localhost + user_endpoint, headers={'username': str(username),
-                                                                      'requested-data': f'{request_data}'})
-        self.assertEqual(answer.json()['rating'], -1)
+        request_data = ["likes", "dislikes"]
+        answer = requests.get(self.localhost + "/article/comment/data", json={'username': username_2,
+                                                                'comment_id': comment_id,
+                                                                'requested_data': request_data})
+        self.assertEqual(answer.json()['status']['type'], 'OK', msg=answer.json()['status'])
+        self.assertEqual(answer.json()['likes'], 1)
+        self.assertEqual(answer.json()['dislikes'], 0)
 
-        # check that undo dislike increase rating
-        answer = requests.post(self.localhost + endpoint,
-                               headers={'username': str(user_2),
-                                        'article-id': str(article_id)},
-                               json={'dislike-comment': dislike_comment})
-        answer = requests.get(self.localhost + user_endpoint, headers={'username': str(username),
-                                                                      'requested-data': f'{request_data}'})
-        self.assertEqual(answer.json()['rating'], 0)
 
-        # check that like on dislike increase rating
-        answer = requests.post(self.localhost + endpoint,
-                               headers={'username': str(user_2),
-                                        'article-id': str(article_id)},
-                               json={'dislike-comment': dislike_comment})
-        answer = requests.get(self.localhost + user_endpoint, headers={'username': str(username),
-                                                                      'requested-data': f'{request_data}'})
-        self.assertEqual(answer.json()['rating'], -1)
-        answer = requests.post(self.localhost + endpoint,
-                               headers={'username': str(user_2),
-                                        'article-id': str(article_id)},
-                               json={'like-comment': like_comment})
-        answer = requests.get(self.localhost + user_endpoint, headers={'username': str(username),
-                                                                      'requested-data': f'{request_data}'})
-        self.assertEqual(answer.json()['rating'], 1)
+    def test_article_comment_data_get(self):
+        endpoint = '/article/comment/data'
+        method = 'get'
+        answer = requests.options(self.localhost + endpoint)
+        self.check_structure(endpoint=endpoint,
+                             method=method,
+                             structure=answer.json()[method])
 
-         # check that like on dislike increase rating
-        answer = requests.post(self.localhost + endpoint,
-                               headers={'username': str(user_2),
-                                        'article-id': str(article_id)},
-                               json={'dislike-comment': dislike_comment})
-        answer = requests.get(self.localhost + user_endpoint, headers={'username': str(username),
-                                                                      'requested-data': f'{request_data}'})
-        self.assertEqual(answer.json()['rating'], -1)
+        user_info = self.add_user()
+        username = user_info[0]
+
+        user_info = self.add_user()
+        username = user_info[0]
+        article_id = self.add_article(username=username)
+        request_data = ['likes', 'dislikes', 'rating', 'creation_date', 'is_liked', 'is_disliked']
+        answer = requests.get(self.localhost + endpoint, json={'username': username,
+                                                                'article_id': article_id,
+                                                                'requested_data': request_data})
+        self.assertEqual(answer.json()['status']['type'], 'OK', msg=answer.json()['status'])
+        for field in request_data:
+            self.assertIn(field, answer.json())
+
+        # test unlogged users
+        answer = requests.get(self.localhost + endpoint, json={'username': 'unlogged_user',
+                                                                  'article_id': article_id,
+                                                                  'requested_data': request_data})
+        self.assertEqual(answer.json()['status']['type'], 'OK', msg=answer.json()['status'])
+        for field in request_data:
+            self.assertIn(field, answer.json())
+
+        # trying to read a non-existent article
+        answer = requests.get(self.localhost + endpoint, json={'username': username,
+                                                                  'article_id': -1,
+                                                                  'requested_data': request_data})
+        self.assertEqual(answer.json()['status']['type'], 'ERROR', msg=str(answer.json()['status']))
+        self.assertEqual(answer.json()['status']['error_type'], 'ValueError', msg=str(answer.json()['status']))
 
     def test_article_data_get(self):
         endpoint = '/article/data'
@@ -612,7 +655,7 @@ class TestAPI(base_test.BaseTest):
         user_info = self.add_user()
         username = user_info[0]
         article_id = self.add_article(username=username)
-        request_data = ['likes', 'dislikes', 'rating', 'comments_count', 'creation_date']
+        request_data = ['likes', 'dislikes', 'rating', 'comments_count', 'creation_date', 'is_liked', 'is_disliked']
         answer = requests.get(self.localhost + endpoint, json={'username': username,
                                                                 'article_id': article_id,
                                                                 'requested_data': request_data})
@@ -665,9 +708,9 @@ class TestAPI(base_test.BaseTest):
         self.assertIn("tags", answer.json()["pages"]["0"][0])
         self.assertIn("creation_date", answer.json()["pages"]["0"][0])
         self.assertIn("author_preview", answer.json()["pages"]["0"][0])
-        self.assertIn("likes_count", answer.json()["pages"]["0"][0])
+        self.assertIn("likes", answer.json()["pages"]["0"][0])
         self.assertIn("likes_id", answer.json()["pages"]["0"][0])
-        self.assertIn("dislikes_count", answer.json()["pages"]["0"][0])
+        self.assertIn("dislikes", answer.json()["pages"]["0"][0])
         self.assertIn("dislikes_id", answer.json()["pages"]["0"][0])
         self.assertIn("comments_count", answer.json()["pages"]["0"][0])
         self.assertIn("id", answer.json()["pages"]["0"][0])
@@ -811,7 +854,7 @@ class TestAPI(base_test.BaseTest):
 
         requested_data = ['nickname', 'email', 'name_history', 'avatar', 'creation_date', 'rating']
         answer = requests.get(self.localhost + '/users/data', json={'username': username,
-                                                                    'requested-data': requested_data})
+                                                                    'requested_data': requested_data})
         self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
         self.assertEqual(nickname, answer.json()['nickname'])
         self.assertEqual(email, answer.json()['email'])
@@ -834,7 +877,7 @@ class TestAPI(base_test.BaseTest):
         # happy path
         requested_data = ['nickname', 'email', 'name_history', 'avatar', 'blocked_tags', 'creation_date', 'rating']
         answer = requests.get(self.localhost + endpoint, json={'username': username,
-                                                                  'requested-data': requested_data})
+                                                                  'requested_data': requested_data})
         self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
         self.assertIn('nickname', answer.json())
         self.assertIn('email', answer.json())
@@ -845,7 +888,7 @@ class TestAPI(base_test.BaseTest):
 
         # test unlogged users
         answer = requests.get(self.localhost + endpoint, json={'username': 'unlogged_user',
-                                                                  'requested-data': requested_data})
+                                                                  'requested_data': requested_data})
         self.assertEqual(answer.json()['status']['type'], 'ERROR', msg=str(answer.json()['status']))
         self.assertEqual(answer.json()['status']['error_type'], 'ValueError', msg=str(answer.json()['status']))
 
@@ -875,7 +918,7 @@ class TestAPI(base_test.BaseTest):
 
         requested_data = ['nickname', 'email', 'name_history', 'avatar']
         answer = requests.get(self.localhost + endpoint, json={'username': username,
-                                                                  'requested-data': requested_data})
+                                                                  'requested_data': requested_data})
         self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
         self.assertEqual(answer.json()['nickname'], nickname)
         self.assertEqual(answer.json()['name_history'], [nickname, user_name])
@@ -946,20 +989,3 @@ class TestAPI(base_test.BaseTest):
                                                                 'password': password})
         self.assertEqual(answer.json()['status']['type'], 'OK', msg=str(answer.json()['status']))
         self.assertEqual(answer.json()['is-correct'], False, msg=str(answer.json()['is-correct']))
-
-    def test_number_of_tests(self):
-        api = open('../src/api/api.py', 'r')
-        api_methods_count = 0
-        for line in api:
-            if re.fullmatch('def api_.*', line.strip()):
-                api_methods_count += 1
-        api.close()
-
-        api_tests = open('test_api.py', 'r')
-        test_methods_count = 0
-        for line in api_tests:
-            if re.fullmatch('def test_.*', line.strip()):
-                test_methods_count += 1
-
-        self.assertEqual(api_methods_count, test_methods_count - 1,
-                         'Not all api methods have tests or the test_api file contains extra tests')

@@ -4,10 +4,10 @@
 
 import unittest
 import requests
-import json
+import os
 
 class BaseTest(unittest.TestCase):
-    workdir = 'test_tmp'
+    workdir = os.getenv("MVP_PATH") + '/test_tmp'
     localhost = 'http://127.0.0.1:5000'
     user_count = 0
 

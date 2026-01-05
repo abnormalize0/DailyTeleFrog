@@ -56,7 +56,6 @@ def check_list_elements(data, pattern):
     return True
 
 def check_structure(data, pattern):
-    import sys
     for element in pattern:
         if element['is_required'] == False:
             if element['name'] not in data:
@@ -131,68 +130,148 @@ def api_article_get():
         session.commit()
         return json.dumps({'status': dict(request_status.Status(request_status.StatusType.OK)), 'article': article})
 
-@app.route('/article/data', methods=['POST'])
+
+@app.route('/article/like', methods=['POST'])
 @log.safe_api
 @log.log_request
 @log.timer(config.log_server_api)
-def api_article_data_post():
-    status, headers = api_types.parse_structure(request.headers, [api_types.Parameter('username', 'str', True),
-                                                                  api_types.Parameter('article-id', 'int', True)])
-    if status.is_error:
-        return json.dumps({'status': dict(status)})
-
-    if headers['username'] == 'unlogged_user':
+def api_article_like_post():
+    is_right_structure, error = check_structure(request.json, api_info.article_like_post)
+    if not is_right_structure:
         return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
-                                          error_type=request_status.ErrorType.ValueError,
-                                          msg='Unlogged user cannot use this method'))})
-
-    status, command = api_types.parse_structure(request.json, [api_types.Parameter('like-article', 'json', False),
-                                                               api_types.Parameter('dislike-article', 'json', False),
-                                                               api_types.Parameter('like-comment', 'json', False),
-                                                               api_types.Parameter('dislike-comment', 'json', False),
-                                                               api_types.Parameter('add-comment', 'json', False)])
-    if status.is_error:
-        return json.dumps({'status': dict(status)})
-
-    if 'like-comment' in command:
-        status, _ = api_types.parse_structure(command['like-comment'], [api_types.Parameter('comment_id', 'int', True)])
+                                          error_type=error,
+                                          msg='Wrong request parameters structure.'))})
+    parameters = fill_default(request.json, api_info.article_like_post)
+    global db_url
+    engine = create_engine(db_url)
+    with Session(engine) as session:
+        status = backend.article_like(session, parameters['article_id'], parameters['username'])
         if status.is_error:
+            session.rollback()
             return json.dumps({'status': dict(status)})
 
-    if 'dislike-comment' in command:
-        status, _ = api_types.parse_structure(command['dislike-comment'],
-                                              [api_types.Parameter('comment_id', 'int', True)])
+        session.commit()
+        return json.dumps({'status': dict(request_status.Status(request_status.StatusType.OK))})
+
+
+@app.route('/article/dislike', methods=['POST'])
+@log.safe_api
+@log.log_request
+@log.timer(config.log_server_api)
+def api_article_dislike_post():
+    is_right_structure, error = check_structure(request.json, api_info.article_dislike_post)
+    if not is_right_structure:
+        return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
+                                          error_type=error,
+                                          msg='Wrong request parameters structure.'))})
+    parameters = fill_default(request.json, api_info.article_dislike_post)
+    global db_url
+    engine = create_engine(db_url)
+    with Session(engine) as session:
+        status = backend.article_dislike(session, parameters['article_id'], parameters['username'])
         if status.is_error:
+            session.rollback()
             return json.dumps({'status': dict(status)})
 
-    if 'add-comment' in command:
-        status, _ = api_types.parse_structure(command['add-comment'], [api_types.Parameter('root', 'int', True),
-                                                                       api_types.Parameter('text', 'str', True)])
+        session.commit()
+        return json.dumps({'status': dict(request_status.Status(request_status.StatusType.OK))})
+
+
+@app.route('/article/comment', methods=['POST'])
+@log.safe_api
+@log.log_request
+@log.timer(config.log_server_api)
+def api_article_comment_post():
+    is_right_structure, error = check_structure(request.json, api_info.article_comment_post)
+    if not is_right_structure:
+        return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
+                                          error_type=error,
+                                          msg='Wrong request parameters structure.'))})
+    parameters = fill_default(request.json, api_info.article_comment_post)
+    global db_url
+    engine = create_engine(db_url)
+    with Session(engine) as session:
+        status, id = backend.add_comment(session=session,
+                                     article_id=parameters['article_id'],
+                                     username=parameters['username'],
+                                     comment_text=parameters['text'],
+                                     root=parameters['root'])
         if status.is_error:
+            session.rollback()
             return json.dumps({'status': dict(status)})
 
-    if 'like-article' in command:
-        status = backend.like_article(headers['article-id'], headers['username'])
-        return json.dumps({'status': dict(status)})
+        session.commit()
+        return json.dumps({'status': dict(request_status.Status(request_status.StatusType.OK)), 'id': id})
 
-    if 'dislike-article' in command:
-        status = backend.dislike_article(headers['article-id'], headers['username'])
-        return json.dumps({'status': dict(status)})
 
-    if 'like-comment' in command:
-        status = backend.like_comment(command['like-comment']['comment_id'], headers['username'])
-        return json.dumps({'status': dict(status)})
+@app.route('/article/comment/like', methods=['POST'])
+@log.safe_api
+@log.log_request
+@log.timer(config.log_server_api)
+def api_article_comment_like_post():
+    is_right_structure, error = check_structure(request.json, api_info.article_comment_like_post)
+    if not is_right_structure:
+        return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
+                                          error_type=error,
+                                          msg='Wrong request parameters structure.'))})
+    parameters = fill_default(request.json, api_info.article_comment_like_post)
+    global db_url
+    engine = create_engine(db_url)
+    with Session(engine) as session:
+        status = backend.comment_like(session, parameters['comment_id'], parameters['username'])
+        if status.is_error:
+            session.rollback()
+            return json.dumps({'status': dict(status)})
 
-    if 'dislike-comment' in command:
-        status = backend.dislike_comment(command['dislike-comment']['comment_id'], headers['username'])
-        return json.dumps({'status': dict(status)})
+        session.commit()
+        return json.dumps({'status': dict(request_status.Status(request_status.StatusType.OK))})
 
-    if 'add-comment' in command:
-        status, comment_id = backend.add_comment(headers['article-id'],
-                                                 command['add-comment']['root'],
-                                                 command['add-comment']['text'],
-                                                 headers['username'])
-        return json.dumps({'status': dict(status), 'comment_id': comment_id})
+
+@app.route('/article/comment/dislike', methods=['POST'])
+@log.safe_api
+@log.log_request
+@log.timer(config.log_server_api)
+def api_article_comment_dislike_post():
+    is_right_structure, error = check_structure(request.json, api_info.article_comment_dislike_post)
+    if not is_right_structure:
+        return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
+                                          error_type=error,
+                                          msg='Wrong request parameters structure.'))})
+    parameters = fill_default(request.json, api_info.article_comment_dislike_post)
+    global db_url
+    engine = create_engine(db_url)
+    with Session(engine) as session:
+        status = backend.comment_dislike(session, parameters['comment_id'], parameters['username'])
+        if status.is_error:
+            session.rollback()
+            return json.dumps({'status': dict(status)})
+
+        session.commit()
+        return json.dumps({'status': dict(request_status.Status(request_status.StatusType.OK))})
+
+@app.route('/article/comment/data', methods=['GET'])
+@log.safe_api
+@log.log_request
+@log.timer(config.log_server_api)
+def api_article_comment_data_get():
+    is_right_structure, error = check_structure(request.json, api_info.article_comment_data_get)
+    if not is_right_structure:
+        return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
+                                          error_type=error,
+                                          msg='Wrong request parameters structure.'))})
+    parameters = fill_default(request.json, api_info.article_comment_data_get)
+    global db_url
+    engine = create_engine(db_url)
+    with Session(engine) as session:
+        status, data = backend.get_comment_data(session, parameters['comment_id'], parameters['username'], parameters['requested_data'])
+        if status.is_error:
+            session.rollback()
+            return json.dumps({'status': dict(status)})
+
+        session.commit()
+        answer = {'status': dict(status)}
+        answer.update(data)
+        return json.dumps(answer)
 
 @app.route('/article/data', methods=['GET'])
 @log.safe_api
@@ -223,71 +302,55 @@ def api_article_data_get():
 @log.log_request
 @log.timer(config.log_server_api)
 def api_pages_get():
-    status, headers = api_types.parse_structure(request.headers,
-                                                [api_types.Parameter('username', 'str', True),
-                                                 api_types.Parameter('indexes', 'list_of_int', True),
-                                                 api_types.Parameter('include-nonsub', 'bool', True),
-                                                 api_types.Parameter('sort-column', 'str', True),
-                                                 api_types.Parameter('sort-direction', 'str', True)])
-    if status.is_error:
-        return json.dumps({'status': dict(status)})
+    is_right_structure, error = check_structure(request.json, api_info.article_data_get)
+    if not is_right_structure:
+        return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
+                                          error_type=error,
+                                          msg='Wrong request parameters structure.'))})
 
-    status, include = api_types.parse_structure(request.headers,
-                                               [api_types.Parameter('include-tags', 'list', False),
-                                                api_types.Parameter('include-authors', 'list', False),
-                                                api_types.Parameter('include-communities', 'list', False)])
-    if status.is_error and status._error_type == request_status.ErrorType.ValueError:
-        return json.dumps({'status': dict(status)})
+    parameters = fill_default(request.json, api_info.article_data_get)
 
-    status, exclude = api_types.parse_structure(request.headers,
-                                               [api_types.Parameter('exclude-tags', 'list', False),
-                                                api_types.Parameter('exclude-authors', 'list', False),
-                                                api_types.Parameter('exclude-communities', 'list', False)])
-    if status.is_error and status._error_type == request_status.ErrorType.ValueError:
-        return json.dumps({'status': dict(status)})
-
-    status, bound = api_types.parse_structure(request.headers,
-                                               [api_types.Parameter('upper-date', 'int', False),
-                                                api_types.Parameter('lower-date', 'int', False),
-                                                api_types.Parameter('upper-rating', 'int', False),
-                                                api_types.Parameter('lower-rating', 'int', False)])
-    if status.is_error and status._error_type == request_status.ErrorType.ValueError:
-        return json.dumps({'status': dict(status)})
-
-    if headers['sort-column'] not in ['creation_date', 'rating']:
+    sort_column = parameters.get('sort_column')
+    if sort_column and sort_column not in ['creation_date', 'rating']:
         return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
                                           error_type=request_status.ErrorType.ValueError,
                                           msg='Header "type" must have value "creation_date" or "rating"'))})
 
-    if headers['sort-direction'] not in ['descending', 'ascending']:
+    sort_direction = parameters.get("sort_direction")
+    if sort_direction and sort_direction not in ['descending', 'ascending']:
         return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
                                           error_type=request_status.ErrorType.ValueError,
                                           msg='Header "sort" must have value "descending" or "ascending"'))})
 
-    if include:
-        if 'include-tags' in include.keys():
-            include['tags'] = include.pop('include-tags')
-        if 'include-authors' in include.keys():
-            include['authors'] = include.pop('include-authors')
-        if 'include-community' in include.keys():
-            include['community'] = include.pop('include-community')
+    include = {}
+    if parameters.pop("include-tags"):
+        include['tags'] = parameters.pop('include-tags')
+    if parameters.pop("include-authors"):
+        include['authors'] = parameters.pop('include-authors')
+    if parameters.pop("include-community"):
+        include['community'] = parameters.pop('include-community')
 
-    if exclude:
-        if 'exclude-tags' in exclude.keys():
-            exclude['tags'] = exclude.pop('exclude-tags')
-        if 'exclude-authors' in exclude.keys():
-            exclude['authors'] = exclude.pop('exclude-authors')
-        if 'exclude-community' in exclude.keys():
-            exclude['community'] = exclude.pop('exclude-community')
+    exclude = {}
+    if parameters.pop("exclude-tags"):
+        exclude['tags'] = parameters.pop('exclude-tags')
+    if parameters.pop("exclude-authors"):
+        exclude['authors'] = parameters.pop('exclude-authors')
+    if parameters.pop("exclude-community"):
+        exclude['community'] = parameters.pop('exclude-community')
 
-    status, pages = backend.get_pages(headers['indexes'],
-                                      headers['username'],
-                                      headers['include-nonsub'],
-                                      headers['sort-column'],
-                                      headers['sort-direction'],
+    bounds = {
+        "lower": parameters.get("lower_bounds"),
+        "upper": parameters.get("upper_bounds"),
+    }
+
+    status, pages = backend.get_pages(parameters["indexes"],
+                                      parameters['username'],
+                                      parameters['include-nonsub'],
+                                      sort_column,
+                                      sort_direction,
                                       include,
                                       exclude,
-                                      bound)
+                                      bounds)
     return json.dumps({'status': dict(status), 'pages': pages})
 
 @app.route('/users', methods=['POST'])
@@ -331,7 +394,7 @@ def api_users_data_get():
     global db_url
     engine = create_engine(db_url)
     with Session(engine) as session:
-        status, data = backend.get_user_data(session, parameters['username'], parameters['requested-data'])
+        status, data = backend.get_user_data(session, parameters['username'], parameters['requested_data'])
         if status.is_error:
             session.rollback()
             return json.dumps({'status': dict(status)})
@@ -428,12 +491,9 @@ def api_login_get():
         return json.dumps({'status': dict(status), 'is-correct': is_password_correct})
 
 def run_server(server_mode='production'):
-    # used in test_api to startup check
-    load_dotenv(dotenv_path='../../.env')
     global db_url
     if server_mode == 'test':
         db_url = os.getenv("MVP_DB_URL_TEST")
     else:
         db_url = os.getenv('MVP_DB_URL_PRODUCTION')
-    print('Running...')
     app.run(host='0.0.0.0', port=5000)

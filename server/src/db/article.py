@@ -7,14 +7,12 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from sqlalchemy import select, update, delete
 
-from sqlalchemy import create_engine
-
 
 def is_article_not_exist(session:Session, article_id):
     article = session.query(scheme.Article).where(scheme.Article.id == article_id).scalar()
     return article is None
 
-def add_article(session, title, body, author, preview):
+def post(session, title, body, author, preview):
     article = scheme.Article(
         title=title,
         body=body,
@@ -28,7 +26,7 @@ def add_article(session, title, body, author, preview):
         preview_content=preview,
     )
     session.add(article_preview)
-    session.commit()
+    session.flush()
     return article.id
 
 
@@ -36,7 +34,7 @@ def add_tags(session, tags, article_id):
     for tag in tags:
         article_tag = scheme.ArticleTag(tag_name=tag, article_id=article_id)
         session.add(article_tag)
-    session.commit()
+    session.flush()
 
 
 def is_liked(session:Session, article_id, username):
@@ -52,7 +50,7 @@ def is_disliked(session:Session, article_id, username):
 
 
 
-def get_likes(session:Session, article_id):
+def likes_count(session:Session, article_id):
     if is_article_not_exist(session, article_id):
         return request_status.Status(request_status.StatusType.ERROR,
                                      error_type=request_status.ErrorType.ValueError,
@@ -64,7 +62,7 @@ def get_likes(session:Session, article_id):
     )
     return request_status.Status(request_status.StatusType.OK), likes
 
-def get_dislikes(session:Session, article_id):
+def dislikes_count(session:Session, article_id):
     if is_article_not_exist(session, article_id):
         return request_status.Status(request_status.StatusType.ERROR,
                                      error_type=request_status.ErrorType.ValueError,
@@ -76,7 +74,7 @@ def get_dislikes(session:Session, article_id):
     )
     return request_status.Status(request_status.StatusType.OK), dislikes
 
-def get_rating(session:Session, article_id):
+def rating(session:Session, article_id):
     if is_article_not_exist(session, article_id):
         return request_status.Status(request_status.StatusType.ERROR,
                                      error_type=request_status.ErrorType.ValueError,
@@ -94,7 +92,7 @@ def get_rating(session:Session, article_id):
     return request_status.Status(request_status.StatusType.OK), likes - dislikes
 
 
-def get_comments_count(session:Session, article_id):
+def comments_count(session:Session, article_id):
     if is_article_not_exist(session, article_id):
         return request_status.Status(request_status.StatusType.ERROR,
                                      error_type=request_status.ErrorType.ValueError,
@@ -107,7 +105,7 @@ def get_comments_count(session:Session, article_id):
     return request_status.Status(request_status.StatusType.OK), comments_count
 
 
-def get_article(session:Session, article_id):
+def get(session:Session, article_id):
     if is_article_not_exist(session, article_id):
         return request_status.Status(request_status.StatusType.ERROR,
                                      error_type=request_status.ErrorType.ValueError,
@@ -116,7 +114,7 @@ def get_article(session:Session, article_id):
     return request_status.Status(request_status.StatusType.OK), article
 
 
-def get_preview(session:Session, article_id):
+def preview(session:Session, article_id):
     if is_article_not_exist(session, article_id):
         return request_status.Status(request_status.StatusType.ERROR,
                                      error_type=request_status.ErrorType.ValueError,
@@ -125,7 +123,7 @@ def get_preview(session:Session, article_id):
     return request_status.Status(request_status.StatusType.OK), preview
 
 
-def get_tags(session:Session, article_id):
+def tags(session:Session, article_id):
     if is_article_not_exist(session, article_id):
         return request_status.Status(request_status.StatusType.ERROR,
                                      error_type=request_status.ErrorType.ValueError,
@@ -134,57 +132,65 @@ def get_tags(session:Session, article_id):
     return request_status.Status(request_status.StatusType.OK), [tag[0] for tag in tags]
 
 
-def like_article(article_id, username):
-    engine = create_engine(config.db_url)
-    with Session(engine) as session:
-        existing_like = (
-            session.query(scheme.ArticleLike)
-            .where(
-                scheme.ArticleLike.article_id == article_id
-                and scheme.ArticleLike.author_username == username
-            )
-            .scalar()
+def like(session:Session, article_id, username):
+    if is_article_not_exist(session, article_id):
+        return request_status.Status(request_status.StatusType.ERROR,
+                                     error_type=request_status.ErrorType.ValueError,
+                                     msg=f'Cannot find article with id: {article_id}'), None
+    existing_like = (
+        session.query(scheme.ArticleLike)
+        .where(
+            scheme.ArticleLike.article_id == article_id
+            and scheme.ArticleLike.author_username == username
         )
-        existing_dislike = (
-            session.query(scheme.ArticleDislike)
-            .where(
-                scheme.ArticleDislike.article_id == article_id
-                and scheme.ArticleDislike.author_username == username
-            )
-            .scalar()
+        .scalar()
+    )
+    existing_dislike = (
+        session.query(scheme.ArticleDislike)
+        .where(
+            scheme.ArticleDislike.article_id == article_id
+            and scheme.ArticleDislike.author_username == username
         )
-        if existing_like:
-            session.delete(existing_like)
-        else:
-            like = scheme.ArticleLike(article_id=article_id, author_username=username)
-            session.add(like)
-        session.delete(existing_dislike)
-        session.commit()
-
-
-def dislike_article(article_id, username):
-    engine = create_engine(config.db_url)
-    with Session(engine) as session:
-        existing_like = (
-            session.query(scheme.ArticleLike)
-            .where(
-                scheme.ArticleLike.article_id == article_id
-                and scheme.ArticleLike.author_username == username
-            )
-            .scalar()
-        )
-        existing_dislike = (
-            session.query(scheme.ArticleDislike)
-            .where(
-                scheme.ArticleDislike.article_id == article_id
-                and scheme.ArticleDislike.author_username == username
-            )
-            .scalar()
-        )
-        if existing_dislike:
-            session.delete(existing_dislike)
-        else:
-            dislike = scheme.ArticleDislike(article_id=article_id, author_username=username)
-            session.add(dislike)
+        .scalar()
+    )
+    if existing_like:
         session.delete(existing_like)
-        session.commit()
+    else:
+        like = scheme.ArticleLike(article_id=article_id, author_username=username)
+        session.add(like)
+    if existing_dislike:
+        session.delete(existing_dislike)
+    session.flush()
+    return request_status.Status(request_status.StatusType.OK)
+
+
+def dislike(session:Session, article_id, username):
+    if is_article_not_exist(session, article_id):
+        return request_status.Status(request_status.StatusType.ERROR,
+                                     error_type=request_status.ErrorType.ValueError,
+                                     msg=f'Cannot find article with id: {article_id}'), None
+    existing_like = (
+        session.query(scheme.ArticleLike)
+        .where(
+            scheme.ArticleLike.article_id == article_id
+            and scheme.ArticleLike.author_username == username
+        )
+        .scalar()
+    )
+    existing_dislike = (
+        session.query(scheme.ArticleDislike)
+        .where(
+            scheme.ArticleDislike.article_id == article_id
+            and scheme.ArticleDislike.author_username == username
+        )
+        .scalar()
+    )
+    if existing_dislike:
+        session.delete(existing_dislike)
+    else:
+        dislike = scheme.ArticleDislike(article_id=article_id, author_username=username)
+        session.add(dislike)
+    if existing_like:
+        session.delete(existing_like)
+    session.commit()
+    return request_status.Status(request_status.StatusType.OK)

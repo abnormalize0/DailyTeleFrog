@@ -218,28 +218,31 @@ def get_rating(session:Session, username):
                                      msg=f'Cannot find user with username: {username}'), None
     user_articles = session.query(scheme.Article.id).where(
         scheme.Article.author_username == username
-    )
+    ).all()
+    user_articles = [row[0] for row in user_articles]
+
     article_likes = (
         session.query(scheme.ArticleLike)
-        .where(scheme.ArticleLike.article_id in user_articles)
+        .where(scheme.ArticleLike.article_id.in_(user_articles))
         .count()
     )
     article_dislikes = (
         session.query(scheme.ArticleDislike)
-        .where(scheme.ArticleDislike.article_id in user_articles)
+        .where(scheme.ArticleDislike.article_id.in_(user_articles))
         .count()
     )
     user_comments = session.query(scheme.Comment.id).where(
         scheme.Comment.author_username == username
-    )
+    ).all()
+    user_comments = [row[0] for row in user_comments]
     comment_likes = (
         session.query(scheme.CommentLike)
-        .where(scheme.CommentLike.comment_id in user_comments)
+        .where(scheme.CommentLike.comment_id.in_(user_comments))
         .count()
     )
     comment_dislikes = (
         session.query(scheme.CommentDislike)
-        .where(scheme.CommentDislike.comment_id in user_comments)
+        .where(scheme.CommentDislike.comment_id.in_(user_comments))
         .count()
     )
     return request_status.Status(request_status.StatusType.OK), article_likes - article_dislikes + comment_likes + comment_dislikes
@@ -378,3 +381,19 @@ def get_creation_date(session:Session, username):
         .scalar()
     )
     return request_status.Status(request_status.StatusType.OK), creation_date
+
+def preview(session:Session, username):
+    if is_user_not_exist(session=session, username=username):
+        return request_status.Status(request_status.StatusType.ERROR,
+                                     error_type=request_status.ErrorType.ValueError,
+                                     msg=f'Cannot find user with username: {username}'), None
+
+    user_preview = session.query(
+        scheme.User.avatar,
+        scheme.User.nickname,
+        scheme.User.description,
+        scheme.User.username
+    ).where(
+        scheme.User.username == username
+    ).scalar()
+    return request_status.Status(request_status.StatusType.OK), user_preview

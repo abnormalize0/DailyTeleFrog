@@ -81,7 +81,7 @@ class Comment(Base):
     article_id: Mapped[int] = mapped_column(ForeignKey("articles.id"), )
     author_username: Mapped[int] = mapped_column(ForeignKey("users.username"), )
     text: Mapped[str] = mapped_column(String(512))
-    creation_date: Mapped[int]
+    creation_date: Mapped[int] = mapped_column(BigInteger)
     root_id: Mapped[int]
 
 class CommentLike(Base):

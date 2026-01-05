@@ -4,3 +4,5 @@ Sphinx
 sphinx-rtd-theme
 SQLAlchemy
 python-dotenv
+requests
+mysqlclient
