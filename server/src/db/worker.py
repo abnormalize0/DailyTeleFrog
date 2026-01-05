@@ -232,7 +232,7 @@ def remove_nonsub_from_select(id):
 
 def create_select_request(requested_fields_name, table_name,
                           id_name=None, id_value=None, include_nonsub=None, include=None, exclude=None,
-                          bounds=None, sort_column=None, sort_direction=None, user_id=None):
+                          bounds=None, sort_column=None, sort_direction=None, username=None):
     request = f'SELECT {requested_fields_name} FROM {table_name}'
 
     if id_value or include or exclude or bounds or not include_nonsub:
@@ -246,7 +246,7 @@ def create_select_request(requested_fields_name, table_name,
         if bounds:
             request += add_bounds_select_part(bounds) + ' AND '
         if include_nonsub is not None and not include_nonsub:
-            request += remove_nonsub_from_select(user_id) + ' AND '
+            request += remove_nonsub_from_select(username) + ' AND '
         request = request[:-5]
     if sort_column and sort_direction:
         request += ' ' + add_sort(sort_column, sort_direction)
@@ -256,7 +256,7 @@ def create_select_request(requested_fields_name, table_name,
 @log.timer(config.log_db_api)
 def get_entry_data(db, table_name, fields_name,
                    id_name=None, id_value=None, include=None, exclude=None,
-                   include_nonsub=None, bounds=None, sort_column=None, sort_direction=None, user_id=None):
+                   include_nonsub=None, bounds=None, sort_column=None, sort_direction=None, username=None):
     connection = sqlite3.connect(db)
     cursor = connection.cursor()
 
@@ -279,7 +279,7 @@ def get_entry_data(db, table_name, fields_name,
                                    bounds,
                                    sort_column,
                                    sort_direction,
-                                   user_id)
+                                   username)
     select = cursor.execute(select)
     select = select.fetchall()
     connection.close()

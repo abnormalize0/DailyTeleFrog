@@ -29,7 +29,7 @@ log_db_api = DynamicPath('log', 'db_api.log')
 delimiter = '~'
 articles_per_page = 5
 
-user_id_name = 'user_id'
+user_id_name = 'username'
 user_table_name = 'users'
 
 article_id_name = 'article_id'
@@ -37,3 +37,5 @@ article_table_name = 'articles'
 
 comment_id_name = 'comment_id'
 comment_table_name = 'comments'
+
+db_url = "mysql://server:4321@127.0.0.1/db"

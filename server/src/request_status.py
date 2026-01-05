@@ -8,7 +8,7 @@ import enum
 class ErrorType(enum.Enum):
     ValueError = 0
     OptionError = 1
-    UnexceptedError = 2
+    UnexpectedError = 2
 
 class StatusType(enum.Enum):
     ERROR = 0

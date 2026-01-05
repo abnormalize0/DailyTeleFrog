@@ -6,12 +6,12 @@ import json
 import os
 import time
 
-from .db import api
+from .db import api, user, article, comment
 from . import config
 from . import request_status
 
-def get_page_articles(index, user_id, include_nonsub, sort_column, sort_direction, include, exclude, bounds):
-    status, articles = api.get_unblocked_articles(user_id, include_nonsub, sort_column, sort_direction,
+def get_page_articles(index, username, include_nonsub, sort_column, sort_direction, include, exclude, bounds):
+    status, articles = api.get_unblocked_articles(username, include_nonsub, sort_column, sort_direction,
                                                   include, exclude, bounds)
     if status.is_error:
         return status, None
@@ -23,21 +23,21 @@ def get_page_articles(index, user_id, include_nonsub, sort_column, sort_directio
     return status, page_articles
 
 def select_preview(article):
-    preview = {}
-    preview['name'] = article['name']
-    preview['preview_content'] = article['preview_content']
-    preview['tags'] = article['tags']
-    preview['creation_date'] = article['creation_date']
-    preview['author_preview'] = article['author_preview']
-    preview['likes_count'] = article['likes_count']
-    preview['likes_id'] = article['likes_id']
-    preview['dislikes_count'] = article['dislikes_count']
-    preview['dislikes_id'] = article['dislikes_id']
-    preview['comments_count'] = article['comments_count']
-    return preview
+    return {
+        "name": article['name'],
+        "preview_content": article['preview_content'],
+        "creation_date": article['creation_date'],
+        "author_preview": article['author_preview'],
+        "likes_count": article['likes_count'],
+        "likes_id": article['likes_id'],
+        "dislikes_count": article['dislikes_count'],
+        "dislikes_id": article['dislikes_id'],
+        "comments_count": article['comments_count'],
+        "tags": article['tags'],
+    }
 
-def get_page(index, user_id, include_nonsub, sort_column, sort_direction, include, exclude, bounds):
-    status, page_articles = get_page_articles(index, user_id, include_nonsub, sort_column, sort_direction,
+def get_page(index, username, include_nonsub, sort_column, sort_direction, include, exclude, bounds):
+    status, page_articles = get_page_articles(index, username, include_nonsub, sort_column, sort_direction,
                                               include, exclude, bounds)
     if status.is_error:
         return status, None
@@ -52,135 +52,280 @@ def get_page(index, user_id, include_nonsub, sort_column, sort_direction, includ
             previews.append(preview)
     return status, previews
 
-def get_pages(indexes, user_id, include_nonsub, sort_column, sort_direction, include, exclude, bounds):
+def get_pages(indexes, username, include_nonsub, sort_column, sort_direction, include, exclude, bounds):
     pages = {}
     for index in indexes:
-        status, page = get_page(index, user_id, include_nonsub, sort_column, sort_direction, include, exclude, bounds)
+        status, page = get_page(index, username, include_nonsub, sort_column, sort_direction, include, exclude, bounds)
         if status.is_error:
             return status, None
         pages[index] = page
     return request_status.Status(request_status.StatusType.OK), pages
 
-def get_article(id):
-    article = None
-    try:
-        with open(os.path.join(config.db_article_directory.path,
-                            f'{id}.json'), encoding="utf-8") as file:
-            article = json.load(file)
-    except FileNotFoundError:
-        return None
-    return article
-
-def create_article_file(article_id, article):
-    with open(os.path.join(config.db_article_directory.path,
-                           f'{article_id}.json'), 'w+', encoding='utf-8') as file:
-        json.dump(article, file, ensure_ascii=False, indent=4)
-
-def post_article(article, user_id):
-    status, author_preview = api.user_get_data(user_id, ['name', 'avatar'])
+def get_article(session, article_id, username):
+    status, article_info = article.get(session, article_id)
     if status.is_error:
         return status, None
-    article['author_preview'] = author_preview
-    article['author_id'] = user_id
-    article['creation_date'] = round(time.time() * 1000)
-    article['answers'] = []
-    article['rating'] = 0
-    article['likes_count'] = 0
-    article['likes_id'] = ''
-    article['dislikes_count'] = 0
-    article['dislikes_id'] = ''
-    article['comments_count'] = 0
-    data = select_preview(article)
-    data['author_id'] = article['author_id']
-    data['creation_date'] = article['creation_date']
-    data['rating'] = article['rating']
-    data['likes_id'] = article['likes_id']
-    data['dislikes_id'] = article['dislikes_id']
-    status, article_id = api.post_article_to_db(data)
+    status, author_preview = user.preview(session, username)
     if status.is_error:
         return status, None
-    create_article_file(article_id, article)
-    return status, article_id
+    status, preview = article.preview(session, article_id)
+    if status.is_error:
+        return status, None
+    status, likes = article.likes_count(session, article_id)
+    if status.is_error:
+        return status, None
+    status, dislikes = article.dislikes_count(session, article_id)
+    if status.is_error:
+        return status, None
+    status, rating = article.rating(session, article_id)
+    if status.is_error:
+        return status, None
+    status, comments_count = article.comments_count(session, article_id)
+    if status.is_error:
+        return status, None
+    status, comments = comment.from_article(session, article_id)
+    if status.is_error:
+        return status, None
+    status, is_liked = article.is_liked(session, article_id, username)
+    if status.is_error:
+        return status, None
+    status, is_disliked = article.is_disliked(session, article_id, username)
+    if status.is_error:
+        return status, None
+    status, tags = article.tags(session, article_id)
+    if status.is_error:
+        return status, None
+    return request_status.Status(request_status.StatusType.OK), {
+        "creation_date": article_info.creation_date,
+        "author_preview": author_preview,
+        "title": article_info.title,
+        "body": article_info.body,
+        "preview": preview,
+        "likes": likes,
+        "dislikes": dislikes,
+        "rating": rating,
+        "comments_count": comments_count,
+        "comments": comments,
+        "is_liked": is_liked,
+        "is_disliked": is_disliked,
+        "tags": tags,
+    }
 
-def add_user(user_info):
-    user_info['name_history'] = config.delimiter + user_info['name'] + config.delimiter
-    user_info['creation_date'] = round(time.time() * 1000)
-    user_info['rating'] = 0
-    return api.add_user(user_info)
 
-def update_user_info(user_info, user_id):
-    exluded_fields = ['user-id', 'password']
-    for field in user_info.keys():
-        if field not in exluded_fields:
-            status = api.user_update_info(field, user_info[field], user_id)
-        else:
-            return request_status.Status(request_status.StatusType.ERROR,
-                                         error_type=request_status.ErrorType.OptionError,
-                                         msg=f'Wrong user parameter {field}.\
-                                         You can not update this parameter by this method')
-        if field == 'name' and not status.is_error:
-            status, data = api.user_get_data(user_id, ['name_history'])
-            name_history = data['name_history']
-            name_history += user_info[field] + config.delimiter
-            _ = api.user_update_info('name_history', name_history, user_id)
+def post_article(session, author, title, body, preview, tags):
+    article_id = article.post(
+        session=session,
+        title=title,
+        body=body,
+        author=author,
+        preview=preview)
+    article.add_tags(session=session, tags=tags, article_id=article_id)
+    return request_status.Status(request_status.StatusType.OK), article_id
+
+def add_user(session, user_info):
+    user.add_user(
+        session=session,
+        username=user_info["username"],
+        nickname=user_info["nickname"],
+        password=user_info["password"],
+        creation_date=round(time.time() * 1000),
+        email=user_info["email"],
+        avatar=user_info["avatar"],
+        description=user_info["description"]
+    )
+    status = request_status.Status(request_status.StatusType.OK)
     return status
 
-def login(password, email=None, user_id=None):
-    return api.check_password(password, user_id=user_id, email=email)
+def update_user_info(session, username, data):
+    for key in data:
+        match key:
+            case "avatar":
+                status = user.update_avatar(session, username, data[key])
+                if status.is_error:
+                    return status
+            case "sub-tags":
+                status = user.sub_tag(session, username, data[key])
+                if status.is_error:
+                    return status
+            case "blocked-tags":
+                status = user.block_tag(session, username, data[key])
+                if status.is_error:
+                    return status
+            case "sub-users":
+                status = user.sub_user(session, username, data[key])
+                if status.is_error:
+                    return status
+            case "blocked-users":
+                status = user.block_user(session, username, data[key])
+                if status.is_error:
+                    return status
+            case "nickname":
+                status = user.update_nickname(session, username, data[key])
+                if status.is_error:
+                    return status
+            case "email":
+                status = user.update_email(session, username, data[key])
+                if status.is_error:
+                    return status
+            case "description":
+                status = user.update_description(session, username, data[key])
+                if status.is_error:
+                    return status
+    return request_status.Status(request_status.StatusType.OK)
 
-def change_password(previous_password, new_password, user_id):
-    status, is_same = api.check_password(previous_password, user_id)
-    if status.is_error:
-        return status
+def login(session, parameters):
+    password = parameters['password']
+    username = parameters['username']
+    email = parameters['email']
+    status, is_password_correct = user.check_password(session=session, password=password, username=username, email=email)
+    return status, is_password_correct
+
+def change_password(session, previous_password, new_password, username):
+    is_same = user.check_password(session, previous_password, username=username)
     if not is_same:
         return request_status.Status(request_status.StatusType.ERROR,
                                      error_type=request_status.ErrorType.ValueError,
-                                     msg='Incorrect password. Password check failed!')
-    status = api.change_password(new_password, user_id)
+                                     msg='Incorrect password!')
+    user.change_password(session, new_password, username)
+    return request_status.Status(request_status.StatusType.OK)
+
+def article_dislike(session, article_id, username):
+    status = article.dislike(session, article_id, username)
     return status
 
-def dislike_article(article_id, user_id):
-    status = api.vote(config.db_article.path,
-                      config.article_table_name,
-                      config.article_id_name,
-                      article_id,
-                      user_id,
-                      'dislikes')
+def article_like(session, article_id, username):
+    status = article.like(session, article_id, username)
     return status
 
-def like_article(article_id, user_id):
-    status = api.vote(config.db_article.path,
-                      config.article_table_name,
-                      config.article_id_name,
-                      article_id,
-                      user_id,
-                      'likes')
+def comment_like(session, comment_id, username):
+    status = comment.like(session, comment_id, username)
     return status
 
-def dislike_comment(comment_id, user_id):
-    status = api.vote(config.db_comment.path,
-                      config.comment_table_name,
-                      config.comment_id_name,
-                      comment_id,
-                      user_id,
-                      'dislikes')
+def comment_dislike(session, comment_id, username):
+    status = comment.dislike(session, comment_id, username)
     return status
 
-def like_comment(comment_id, user_id):
-    status = api.vote(config.db_comment.path,
-                      config.comment_table_name,
-                      config.comment_id_name,
-                      comment_id,
-                      user_id,
-                      'likes')
-    return status
-
-def add_comment(article_id, root, cooment_text, user_id):
-    status, id = api.add_comment(article_id, root, cooment_text, user_id)
+def add_comment(session, article_id, root, comment_text, username):
+    status, id = comment.add(session, article_id, root, comment_text, username)
     return status, id
 
-def get_article_data(article_id, requested_data):
-    return api.article_get_data(article_id, requested_data)
+def get_comment_data(session, comment_id, username, requested_data):
+    data: dict = {}
+    for key in requested_data:
+        match key:
+            case "likes":
+                status, data[key] = comment.likes_count(session, comment_id)
+                if status.is_error:
+                    return status, None
+            case "dislikes":
+                status, data[key] = comment.dislikes_count(session, comment_id)
+                if status.is_error:
+                    return status, None
+            case "rating":
+                status, data[key] = comment.rating(session, comment_id)
+                if status.is_error:
+                    return status, None
+            case "creation_date":
+                status, data[key] = comment.creation_date(session, comment_id)
+                if status.is_error:
+                    return status, None
+            case "is_liked":
+                status, data[key] = comment.is_liked(session, comment_id, username)
+                if status.is_error:
+                    return status, None
+            case "is_disliked":
+                status, data[key] = comment.is_disliked(session, comment_id, username)
+                if status.is_error:
+                    return status, None
+    return request_status.Status(request_status.StatusType.OK), data
 
-def get_user_data(user_id, requested_data):
-    return api.user_get_data(user_id, requested_data)
+def get_article_data(session, article_id, username, requested_data):
+    data: dict = {}
+    for key in requested_data:
+        match key:
+            case "likes":
+                status, data[key] = article.likes_count(session, article_id)
+                if status.is_error:
+                    return status, None
+            case "dislikes":
+                status, data[key] = article.dislikes_count(session, article_id)
+                if status.is_error:
+                    return status, None
+            case "rating":
+                status, data[key] = article.rating(session, article_id)
+                if status.is_error:
+                    return status, None
+            case "comments_count":
+                status, data[key] = article.comments_count(session, article_id)
+                if status.is_error:
+                    return status, None
+            case "creation_date":
+                status, article_info = article.get(session, article_id)
+                if status.is_error:
+                    return status, None
+                data[key] = article_info.creation_date
+            case "tags":
+                status, data[key] = article.tags(session, article_id)
+                if status.is_error:
+                    return status, None
+            case "is_liked":
+                status, data[key] = article.is_liked(session, article_id, username)
+                if status.is_error:
+                    return status, None
+            case "is_disliked":
+                status, data[key] = article.is_disliked(session, article_id, username)
+                if status.is_error:
+                    return status, None
+    return request_status.Status(request_status.StatusType.OK), data
+
+def get_user_data(session, username, requested_data):
+    data: dict = {}
+    for key in requested_data:
+        match key:
+            case "avatar":
+                status, data[key] = user.get_avatar(session, username)
+                if status.is_error:
+                    return status, None
+            case "name_history":
+                status, data[key] = user.get_name_history(session, username)
+                if status.is_error:
+                    return status, None
+            case "sub_tags":
+                status, data[key] = user.get_sub_tag(session, username)
+                if status.is_error:
+                    return status, None
+            case "blocked_tags":
+                status, data[key] = user.get_blacklist_tag(session, username)
+                if status.is_error:
+                    return status, None
+            case "sub_users":
+                status, data[key] = user.get_sub_user(session, username)
+                if status.is_error:
+                    return status, None
+            case "blocked_users":
+                status, data[key] = user.get_blacklist_user(session, username)
+                if status.is_error:
+                    return status, None
+            case "nickname":
+                status, data[key] = user.get_nickname(session, username)
+                if status.is_error:
+                    return status, None
+            case "email":
+                status, data[key] = user.get_email(session, username)
+                if status.is_error:
+                    return status, None
+            case "description":
+                status, data[key] = user.get_description(session, username)
+                if status.is_error:
+                    return status, None
+            case "creation_date":
+                status, data[key] = user.get_creation_date(session, username)
+                if status.is_error:
+                    return status, None
+            case "rating":
+                status, data[key] = user.get_rating(session, username)
+                if status.is_error:
+                    return status, None
+            case _:
+                pass
+    return request_status.Status(request_status.StatusType.OK), data
