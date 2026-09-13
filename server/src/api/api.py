@@ -1,4 +1,4 @@
-'''
+"""
 Этот файл служит для хранения логики предобработки пользовательских запросов.
 В предобработку входит проверка необходимых заголовков, параметров запроса и тела запроса при наличии.
 В рамках предобработки этих полей выполняется преобразования к необходимым типам данных.
@@ -9,7 +9,7 @@
 Остальная часть названия метода позволяет избежать дублирования названий функций.
 2. Для каждого метода должен присутствовать тест в файле /server/test/test_api.py
 и ответ на запрос OPTIONS в файле /server/src/api_info.py
-3. Каждый запрос должен принимать на вход user-id заголовок.
+3. Каждый запрос должен принимать на вход username заголовок.
 По договоренности считаем, что в этом заголвке указан автор запроса.
 Значение -1 характеризует неавторизванного пользователя.
 4. Каждый API метод обязан возвращать статус операции.
@@ -19,412 +19,1207 @@
 Таймер позволит иметь конкретные значения времени выполнения запроса, что облегчит решение проблем аля "ВСЕ ТОРМОЗИТ!!!"
 7. Для API методов типа POST обязательно должно присутсвовать тело запроса.
 В этом теле располагаются данные, которые будут добавлены на сервер. Остальные параметры перечислены в заголовках.
-'''
+"""
 
 from flask import Flask, request
 from flask_cors import CORS
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session
 import json
+import os
+import builtins
 
 from .. import backend
 from .. import request_status
 from .. import config
 from .. import log
 from . import api_info
-from . import api_types
 
 app = Flask(__name__)
 app.register_blueprint(api_info.info)
 cors = CORS(app)
 
+global db_url
 
-@app.route('/article', methods=['POST'])
+
+def check_list_elements(data, pattern):
+    """Проверяет, что каждый элемент data есть среди допустимых имен в pattern.
+
+    Args:
+        data: список значений из запроса.
+        pattern: список допустимых элементов вида {"name": ...}.
+
+    Returns:
+        `True`, если все элементы data найдены в pattern, иначе `False`.
+    """
+    for element in data:
+        is_found = False
+        for requested_element in pattern:
+            if element != requested_element["name"]:
+                continue
+            else:
+                is_found = True
+        if is_found == False:
+            return False
+    return True
+
+
+def check_structure(data, pattern):
+    """Проверяет тело запроса data на соответствие ожидаемой структуре pattern.
+
+    Args:
+        data: тело запроса.
+        pattern: описание ожидаемых полей из api_info.
+
+    Returns:
+        Кортеж (bool, `ErrorType`):
+            - (`True`, `None`) — data соответствует pattern.
+            - (`False`, OptionError) — отсутствует обязательное поле.
+            - (`False`, ValueError) — у поля неверный тип значения.
+    """
+    for element in pattern:
+        if element["is_required"] == False:
+            if element["name"] not in data:
+                continue
+        if element["name"] not in data:
+            return False, request_status.ErrorType.OptionError
+        if not type(data[element["name"]]) == getattr(builtins, element["type"], None):
+            return False, request_status.ErrorType.ValueError
+        if element["type"] == "json":
+            is_ok, error = check_structure(data[element["name"]], element["structure"])
+            if not is_ok:
+                return False, error
+        if element["type"] == "list":
+            if element["structure"]:
+                is_ok = check_list_elements(data[element["name"]], element["structure"])
+                if not is_ok:
+                    return False, request_status.ErrorType.ValueError
+    return True, None
+
+
+def fill_default(data, pattern):
+    """Дополняет data значениями по умолчанию для отсутствующих полей.
+
+    Args:
+        data: тело запроса.
+        pattern: описание полей из api_info.
+
+    Returns:
+        data, дополненный значениями из api_info.type_defaults там, где поле
+        отсутствовало.
+    """
+    for value in pattern:
+        if value["name"] not in data:
+            data[value["name"]] = api_info.type_defaults[value["type"]]
+    return data
+
+
+@app.route("/article", methods=["POST"])
 @log.safe_api
 @log.log_request
 @log.timer(config.log_server_api)
 def api_article_post():
-    status, headers = api_types.parse_structure(request.headers, [api_types.Parameter('user-id', 'int', True)])
-    if status.is_error:
-        return json.dumps({'status': dict(status)})
+    """Публикует новую статью от имени указанного пользователя.
 
-    if headers['user-id'] == 0:
-        return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
-                                          error_type=request_status.ErrorType.ValueError,
-                                          msg='Unlogged user cannot use this method'))})
+    Принимает (JSON-тело запроса, см. api_info.article_post):
+        - username (str, обязательно) — автор статьи.
+        - title (str, обязательно) — заголовок статьи.
+        - body (dict, обязательно) — тело статьи в произвольной, определяемой
+          frontend'ом структуре. Сервер не заглядывает внутрь и не меняет её,
+          только сериализует в JSON-строку для хранения и разбирает обратно
+          при чтении.
+        - preview (dict, обязательно) — контент для предпоказа статьи в ленте,
+          также произвольной структуры и без интерпретации сервером.
+        - tags (list, опционально, по умолчанию []) — список тегов статьи.
 
-    status, article = api_types.parse_structure(request.json, [api_types.Parameter('article-body', 'json', True),
-                                                               api_types.Parameter('preview-content', 'json', True),
-                                                               api_types.Parameter('name', 'str', True),
-                                                               api_types.Parameter('tags', 'str', True)])
-    if status.is_error:
-        return json.dumps({'status': dict(status)})
+    Отдает (JSON):
+        - status (dict) — статус операции.
+        - article_id (int) — id созданной статьи (присутствует только при status.type == "OK").
 
-    # replace "-" with "_" because field in db named with "_"
-    article['article_body'] = article.pop('article-body')
-    article['preview_content'] = article.pop('preview-content')
+    Ошибки:
+        - OptionError/ValueError "Wrong request parameters structure." — если в теле
+          запроса отсутствует обязательное поле или у присутствующего поля неверный тип.
+        - ValueError "Unlogged user cannot use this method" — если username == "unlogged_user":
+          неавторизованный пользователь не может публиковать статьи.
 
-    status, article_id = backend.post_article(article, headers['user-id'])
-    return json.dumps({'status': dict(status), 'article_id': article_id})
+    Контракт:
+        Статья создается в таблице articles с author_username = username и
+        creation_date, выставленным сервером (текущее время в миллисекундах с 1970 года).
+        preview сохраняется в отдельной таблице article_preview. Для каждого тега из
+        tags создается отдельная строка в article_tags; порядок тегов не сохраняется.
+        Метод ничего не проверяет насчет уникальности title и не ограничивает
+        количество статей на пользователя.
+    """
+    is_right_structure, error = check_structure(request.json, api_info.article_post)
+    if not is_right_structure:
+        return json.dumps(
+            {
+                "status": dict(
+                    request_status.Status(
+                        request_status.StatusType.ERROR,
+                        error_type=error,
+                        msg="Wrong request parameters structure.",
+                    )
+                )
+            }
+        )
+    if request.json["username"] == "unlogged_user":
+        return json.dumps(
+            {
+                "status": dict(
+                    request_status.Status(
+                        request_status.StatusType.ERROR,
+                        error_type=request_status.ErrorType.ValueError,
+                        msg="Unlogged user cannot use this method",
+                    )
+                )
+            }
+        )
+    parameters = fill_default(request.json, api_info.article_post)
+    global db_url
+    engine = create_engine(db_url)
+    with Session(engine) as session:
+        status, article_id = backend.post_article(
+            session,
+            parameters["username"],
+            parameters["title"],
+            parameters["body"],
+            parameters["preview"],
+            parameters["tags"],
+        )
+        if status.is_error:
+            session.rollback()
+            return json.dumps({"status": dict(status)})
 
-@app.route('/article', methods=['GET'])
+        session.commit()
+        return json.dumps(
+            {
+                "status": dict(request_status.Status(request_status.StatusType.OK)),
+                "article_id": article_id,
+            }
+        )
+
+
+@app.route("/article", methods=["GET"])
 @log.safe_api
 @log.log_request
 @log.timer(config.log_server_api)
 def api_article_get():
-    status, headers = api_types.parse_structure(request.headers, [api_types.Parameter('article-id', 'int', True)])
-    if status.is_error:
-        return json.dumps({'status': dict(status)})
+    """Возвращает полную информацию о статье для отображения страницы статьи.
 
-    article = backend.get_article(headers['article-id'])
-    if not article:
-        return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
-                                                                error_type=request_status.ErrorType.ValueError,
-                                                                msg=f"Article does not exist"))})
-    return json.dumps({'status': dict(request_status.Status(request_status.StatusType.OK)), 'article': article})
+    Принимает (JSON-тело запроса, см. api_info.article_get):
+        - username (str, обязательно) — пользователь, от чьего имени просматривается
+          статья (используется для полей is_liked/is_disliked); для неавторизованного
+          пользователя передается "unlogged_user".
+        - article_id (int, обязательно) — id запрашиваемой статьи.
 
-@app.route('/article/data', methods=['POST'])
+    Отдает (JSON):
+        - status (dict) — статус операции.
+        - article (dict, только при status.type == "OK") со следующими ключами:
+            - creation_date (int) — дата публикации, мс с 1970 года.
+            - author_preview (dict) — предпоказ автора: avatar, nickname, description, username.
+            - title (str), body (dict) — заголовок и тело статьи (структура тела —
+              как было передано при публикации).
+            - preview (dict) — контент предпоказа (как было передано при публикации).
+            - likes (int), dislikes (int), rating (int = likes - dislikes).
+            - comments_count (int).
+            - comments (list) — дерево комментариев статьи (см. article/comment).
+            - is_liked (bool), is_disliked (bool) — лайкнул/дизлайкнул ли статью username.
+            - tags (list[str]).
+
+    Ошибки:
+        - OptionError/ValueError "Wrong request parameters structure." — при некорректном теле запроса.
+        - ValueError "Cannot find article with id: {article_id}" — если статьи с таким id не существует.
+
+    Контракт:
+        Метод только читает данные, побочных эффектов не имеет. Если username не лайкал/не
+        дизлайкал статью, соответствующие поля будут False, включая случай
+        username == "unlogged_user" (для него is_liked/is_disliked всегда False).
+    """
+    is_right_structure, error = check_structure(request.json, api_info.article_get)
+    if not is_right_structure:
+        return json.dumps(
+            {
+                "status": dict(
+                    request_status.Status(
+                        request_status.StatusType.ERROR,
+                        error_type=error,
+                        msg="Wrong request parameters structure.",
+                    )
+                )
+            }
+        )
+    parameters = fill_default(request.json, api_info.article_get)
+    global db_url
+    engine = create_engine(db_url)
+    with Session(engine) as session:
+        status, article = backend.get_article(
+            session, parameters["article_id"], parameters["username"]
+        )
+        if status.is_error:
+            session.rollback()
+            return json.dumps({"status": dict(status)})
+
+        session.commit()
+        return json.dumps(
+            {
+                "status": dict(request_status.Status(request_status.StatusType.OK)),
+                "article": article,
+            }
+        )
+
+
+@app.route("/article/like", methods=["POST"])
 @log.safe_api
 @log.log_request
 @log.timer(config.log_server_api)
-def api_article_data_post():
-    status, headers = api_types.parse_structure(request.headers, [api_types.Parameter('user-id', 'int', True),
-                                                                  api_types.Parameter('article-id', 'int', True)])
-    if status.is_error:
-        return json.dumps({'status': dict(status)})
+def api_article_like_post():
+    """Ставит или убирает лайк пользователя на статье (toggle).
 
-    if headers['user-id'] == 0:
-        return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
-                                          error_type=request_status.ErrorType.ValueError,
-                                          msg='Unlogged user cannot use this method'))})
+    Принимает (JSON-тело запроса, см. api_info.article_like_post):
+        - username (str, обязательно) — кто ставит лайк.
+        - article_id (int, обязательно) — id статьи.
 
-    status, command = api_types.parse_structure(request.json, [api_types.Parameter('like-article', 'json', False),
-                                                               api_types.Parameter('dislike-article', 'json', False),
-                                                               api_types.Parameter('like-comment', 'json', False),
-                                                               api_types.Parameter('dislike-comment', 'json', False),
-                                                               api_types.Parameter('add-comment', 'json', False)])
-    if status.is_error:
-        return json.dumps({'status': dict(status)})
+    Отдает (JSON):
+        - status (dict) — статус операции. Других полей нет.
 
-    if 'like-comment' in command:
-        status, _ = api_types.parse_structure(command['like-comment'], [api_types.Parameter('comment_id', 'int', True)])
+    Ошибки:
+        - OptionError/ValueError "Wrong request parameters structure." — при некорректном теле запроса.
+        - ValueError "Cannot find article with id: {article_id}" — если статьи не существует.
+        - ValueError "User tries to like or dislike their own article" — если username
+          является автором статьи.
+
+    Контракт:
+        Если username уже лайкал статью — лайк снимается. Если нет — лайк ставится,
+        а существующий дизлайк этого же пользователя на этой статье автоматически
+        снимается (лайк и дизлайк взаимоисключающие).
+    """
+    is_right_structure, error = check_structure(
+        request.json, api_info.article_like_post
+    )
+    if not is_right_structure:
+        return json.dumps(
+            {
+                "status": dict(
+                    request_status.Status(
+                        request_status.StatusType.ERROR,
+                        error_type=error,
+                        msg="Wrong request parameters structure.",
+                    )
+                )
+            }
+        )
+    parameters = fill_default(request.json, api_info.article_like_post)
+    global db_url
+    engine = create_engine(db_url)
+    with Session(engine) as session:
+        status = backend.article_like(
+            session, parameters["article_id"], parameters["username"]
+        )
         if status.is_error:
-            return json.dumps({'status': dict(status)})
+            session.rollback()
+            return json.dumps({"status": dict(status)})
 
-    if 'dislike-comment' in command:
-        status, _ = api_types.parse_structure(command['dislike-comment'],
-                                              [api_types.Parameter('comment_id', 'int', True)])
+        session.commit()
+        return json.dumps(
+            {"status": dict(request_status.Status(request_status.StatusType.OK))}
+        )
+
+
+@app.route("/article/dislike", methods=["POST"])
+@log.safe_api
+@log.log_request
+@log.timer(config.log_server_api)
+def api_article_dislike_post():
+    """Ставит или убирает дизлайк пользователя на статье (toggle).
+
+    Принимает (JSON-тело запроса, см. api_info.article_dislike_post):
+        - username (str, обязательно) — кто ставит дизлайк.
+        - article_id (int, обязательно) — id статьи.
+
+    Отдает (JSON):
+        - status (dict) — статус операции. Других полей нет.
+
+    Ошибки:
+        - OptionError/ValueError "Wrong request parameters structure." — при некорректном теле запроса.
+        - ValueError "Cannot find article with id: {article_id}" — если статьи не существует.
+        - ValueError "User tries to like or dislike their own article" — если username
+          является автором статьи.
+
+    Контракт:
+        Если username уже дизлайкал статью — дизлайк снимается. Если нет — дизлайк
+        ставится, а существующий лайк этого же пользователя на этой статье автоматически
+        снимается (лайк и дизлайк взаимоисключающие).
+    """
+    is_right_structure, error = check_structure(
+        request.json, api_info.article_dislike_post
+    )
+    if not is_right_structure:
+        return json.dumps(
+            {
+                "status": dict(
+                    request_status.Status(
+                        request_status.StatusType.ERROR,
+                        error_type=error,
+                        msg="Wrong request parameters structure.",
+                    )
+                )
+            }
+        )
+    parameters = fill_default(request.json, api_info.article_dislike_post)
+    global db_url
+    engine = create_engine(db_url)
+    with Session(engine) as session:
+        status = backend.article_dislike(
+            session, parameters["article_id"], parameters["username"]
+        )
         if status.is_error:
-            return json.dumps({'status': dict(status)})
+            session.rollback()
+            return json.dumps({"status": dict(status)})
 
-    if 'add-comment' in command:
-        status, _ = api_types.parse_structure(command['add-comment'], [api_types.Parameter('root', 'int', True),
-                                                                       api_types.Parameter('text', 'str', True)])
+        session.commit()
+        return json.dumps(
+            {"status": dict(request_status.Status(request_status.StatusType.OK))}
+        )
+
+
+@app.route("/article/comment", methods=["POST"])
+@log.safe_api
+@log.log_request
+@log.timer(config.log_server_api)
+def api_article_comment_post():
+    """Добавляет комментарий (или ответ на комментарий) к статье.
+
+    Принимает (JSON-тело запроса, см. api_info.article_comment_post):
+        - username (str, обязательно) — автор комментария.
+        - article_id (int, обязательно) — id статьи, к которой оставляют комментарий.
+        - text (str, обязательно) — текст комментария.
+        - root (int, обязательно) — id комментария этой же статьи, на который отвечают,
+          либо -1, если это комментарий верхнего уровня (не ответ).
+
+    Отдает (JSON):
+        - status (dict) — статус операции.
+        - id (int) — id созданного комментария (присутствует только при status.type == "OK").
+
+    Ошибки:
+        - OptionError/ValueError "Wrong request parameters structure." — при некорректном теле запроса.
+        - ValueError "Cannot find comment with id: {root}" — если root не равен -1 и не
+          ссылается на существующий комментарий именно этой статьи.
+
+    Контракт:
+        Комментарий создается с creation_date, выставленным сервером (текущее время
+        в миллисекундах с 1970 года).
+    """
+    is_right_structure, error = check_structure(
+        request.json, api_info.article_comment_post
+    )
+    if not is_right_structure:
+        return json.dumps(
+            {
+                "status": dict(
+                    request_status.Status(
+                        request_status.StatusType.ERROR,
+                        error_type=error,
+                        msg="Wrong request parameters structure.",
+                    )
+                )
+            }
+        )
+    parameters = fill_default(request.json, api_info.article_comment_post)
+    global db_url
+    engine = create_engine(db_url)
+    with Session(engine) as session:
+        status, id = backend.add_comment(
+            session=session,
+            article_id=parameters["article_id"],
+            username=parameters["username"],
+            comment_text=parameters["text"],
+            root=parameters["root"],
+        )
         if status.is_error:
-            return json.dumps({'status': dict(status)})
+            session.rollback()
+            return json.dumps({"status": dict(status)})
 
-    if 'like-article' in command:
-        status = backend.like_article(headers['article-id'], headers['user-id'])
-        return json.dumps({'status': dict(status)})
+        session.commit()
+        return json.dumps(
+            {
+                "status": dict(request_status.Status(request_status.StatusType.OK)),
+                "id": id,
+            }
+        )
 
-    if 'dislike-article' in command:
-        status = backend.dislike_article(headers['article-id'], headers['user-id'])
-        return json.dumps({'status': dict(status)})
 
-    if 'like-comment' in command:
-        status = backend.like_comment(command['like-comment']['comment_id'], headers['user-id'])
-        return json.dumps({'status': dict(status)})
+@app.route("/article/comment/like", methods=["POST"])
+@log.safe_api
+@log.log_request
+@log.timer(config.log_server_api)
+def api_article_comment_like_post():
+    """Ставит или убирает лайк пользователя на комментарии (toggle).
 
-    if 'dislike-comment' in command:
-        status = backend.dislike_comment(command['dislike-comment']['comment_id'], headers['user-id'])
-        return json.dumps({'status': dict(status)})
+    Принимает (JSON-тело запроса, см. api_info.article_comment_like_post):
+        - username (str, обязательно) — кто ставит лайк.
+        - comment_id (int, обязательно) — id комментария.
 
-    if 'add-comment' in command:
-        status, comment_id = backend.add_comment(headers['article-id'],
-                                                 command['add-comment']['root'],
-                                                 command['add-comment']['text'],
-                                                 headers['user-id'])
-        return json.dumps({'status': dict(status), 'comment_id': comment_id})
+    Отдает (JSON):
+        - status (dict) — статус операции. Других полей нет.
 
-@app.route('/article/data', methods=['GET'])
+    Ошибки:
+        - OptionError/ValueError "Wrong request parameters structure." — при некорректном теле запроса.
+        - ValueError "Cannot find comment with id: {comment_id}" — если комментария не существует.
+        - ValueError "User tries to like or dislike their own comment" — если username
+          является автором комментария.
+
+    Контракт:
+        Если username уже лайкал комментарий — лайк снимается. Если нет — лайк ставится,
+        а существующий дизлайк этого же пользователя на этом комментарии автоматически
+        снимается (лайк и дизлайк взаимоисключающие).
+    """
+    is_right_structure, error = check_structure(
+        request.json, api_info.article_comment_like_post
+    )
+    if not is_right_structure:
+        return json.dumps(
+            {
+                "status": dict(
+                    request_status.Status(
+                        request_status.StatusType.ERROR,
+                        error_type=error,
+                        msg="Wrong request parameters structure.",
+                    )
+                )
+            }
+        )
+    parameters = fill_default(request.json, api_info.article_comment_like_post)
+    global db_url
+    engine = create_engine(db_url)
+    with Session(engine) as session:
+        status = backend.comment_like(
+            session, parameters["comment_id"], parameters["username"]
+        )
+        if status.is_error:
+            session.rollback()
+            return json.dumps({"status": dict(status)})
+
+        session.commit()
+        return json.dumps(
+            {"status": dict(request_status.Status(request_status.StatusType.OK))}
+        )
+
+
+@app.route("/article/comment/dislike", methods=["POST"])
+@log.safe_api
+@log.log_request
+@log.timer(config.log_server_api)
+def api_article_comment_dislike_post():
+    """Ставит или убирает дизлайк пользователя на комментарии (toggle).
+
+    Принимает (JSON-тело запроса, см. api_info.article_comment_dislike_post):
+        - username (str, обязательно) — кто ставит дизлайк.
+        - comment_id (int, обязательно) — id комментария.
+
+    Отдает (JSON):
+        - status (dict) — статус операции. Других полей нет.
+
+    Ошибки:
+        - OptionError/ValueError "Wrong request parameters structure." — при некорректном теле запроса.
+        - ValueError "Cannot find comment with id: {comment_id}" — если комментария не существует.
+        - ValueError "User tries to like or dislike their own comment" — если username
+          является автором комментария.
+
+    Контракт:
+        Если username уже дизлайкал комментарий — дизлайк снимается. Если нет — дизлайк
+        ставится, а существующий лайк этого же пользователя на этом комментарии
+        автоматически снимается (лайк и дизлайк взаимоисключающие).
+    """
+    is_right_structure, error = check_structure(
+        request.json, api_info.article_comment_dislike_post
+    )
+    if not is_right_structure:
+        return json.dumps(
+            {
+                "status": dict(
+                    request_status.Status(
+                        request_status.StatusType.ERROR,
+                        error_type=error,
+                        msg="Wrong request parameters structure.",
+                    )
+                )
+            }
+        )
+    parameters = fill_default(request.json, api_info.article_comment_dislike_post)
+    global db_url
+    engine = create_engine(db_url)
+    with Session(engine) as session:
+        status = backend.comment_dislike(
+            session, parameters["comment_id"], parameters["username"]
+        )
+        if status.is_error:
+            session.rollback()
+            return json.dumps({"status": dict(status)})
+
+        session.commit()
+        return json.dumps(
+            {"status": dict(request_status.Status(request_status.StatusType.OK))}
+        )
+
+
+@app.route("/article/comment/data", methods=["GET"])
+@log.safe_api
+@log.log_request
+@log.timer(config.log_server_api)
+def api_article_comment_data_get():
+    """Возвращает выбранные поля данных о комментарии.
+
+    Принимает (JSON-тело запроса, см. api_info.article_comment_data_get):
+        - username (str, обязательно) — пользователь, от чьего имени запрашиваются
+          данные (используется для is_liked/is_disliked).
+        - comment_id (int, обязательно) — id комментария.
+        - requested_data (list, обязательно) — список запрашиваемых полей. Допустимые
+          значения: likes, dislikes, rating, creation_date, is_liked, is_disliked.
+
+    Отдает (JSON):
+        - status (dict) — статус операции.
+        - по одному ключу для каждого поля из requested_data (присутствуют только
+          при status.type == "OK"): likes (int), dislikes (int), rating (int = likes -
+          dislikes), creation_date (int, мс с 1970 года), is_liked (bool), is_disliked (bool).
+
+    Ошибки:
+        - OptionError/ValueError "Wrong request parameters structure." — при некорректном
+          теле запроса или если requested_data содержит имя поля не из допустимого списка.
+        - ValueError "Cannot find comment with id: {comment_id}" — если комментария не существует.
+
+    Контракт:
+        Метод только читает данные, побочных эффектов не имеет. Поле возвращается в
+        ответе, только если оно явно запрошено в requested_data.
+    """
+    is_right_structure, error = check_structure(
+        request.json, api_info.article_comment_data_get
+    )
+    if not is_right_structure:
+        return json.dumps(
+            {
+                "status": dict(
+                    request_status.Status(
+                        request_status.StatusType.ERROR,
+                        error_type=error,
+                        msg="Wrong request parameters structure.",
+                    )
+                )
+            }
+        )
+    parameters = fill_default(request.json, api_info.article_comment_data_get)
+    global db_url
+    engine = create_engine(db_url)
+    with Session(engine) as session:
+        status, data = backend.get_comment_data(
+            session,
+            parameters["comment_id"],
+            parameters["username"],
+            parameters["requested_data"],
+        )
+        if status.is_error:
+            session.rollback()
+            return json.dumps({"status": dict(status)})
+
+        session.commit()
+        answer = {"status": dict(status)}
+        answer.update(data)
+        return json.dumps(answer)
+
+
+@app.route("/article/data", methods=["GET"])
 @log.safe_api
 @log.log_request
 @log.timer(config.log_server_api)
 def api_article_data_get():
-    status, headers = api_types.parse_structure(request.headers, [api_types.Parameter('article-id', 'int', True),
-                                                                  api_types.Parameter('requested-data', 'list', True)])
-    if status.is_error:
-        return json.dumps({'status': dict(status)})
+    """Возвращает выбранные поля данных о статье.
 
-    status, requested_data = api_types.parse_fields(headers['requested-data'],
-                                                    [api_types.Parameter('rating', 'field', False),
-                                                     api_types.Parameter('likes_count', 'field', False),
-                                                     api_types.Parameter('likes_id', 'field', False),
-                                                     api_types.Parameter('dislikes_count', 'field', False),
-                                                     api_types.Parameter('dislikes_id', 'field', False),
-                                                     api_types.Parameter('comments_count', 'field', False),
-                                                     api_types.Parameter('creation_date', 'field', False)])
-    if status.is_error:
-        return json.dumps({'status': dict(status)})
+    Принимает (JSON-тело запроса, см. api_info.article_data_get):
+        - username (str, обязательно) — пользователь, от чьего имени запрашиваются
+          данные (используется для is_liked/is_disliked).
+        - article_id (int, обязательно) — id статьи.
+        - requested_data (list, обязательно) — список запрашиваемых полей. Допустимые
+          значения: likes, dislikes, rating, comments_count, creation_date, is_liked, is_disliked.
 
-    status, data = backend.get_article_data(headers['article-id'], requested_data)
+    Отдает (JSON):
+        - status (dict) — статус операции.
+        - по одному ключу для каждого поля из requested_data (присутствуют только
+          при status.type == "OK"): likes (int), dislikes (int), rating (int = likes -
+          dislikes), comments_count (int), creation_date (int, мс с 1970 года),
+          is_liked (bool), is_disliked (bool).
 
-    if status.is_error:
-        return json.dumps({'status': dict(status)})
+    Ошибки:
+        - OptionError/ValueError "Wrong request parameters structure." — при некорректном
+          теле запроса или если requested_data содержит имя поля не из допустимого списка.
+        - ValueError "Cannot find article with id: {article_id}" — если статьи не существует.
 
-    answer = {'status': dict(status)}
-    answer.update(data)
-    return json.dumps(answer)
+    Контракт:
+        Метод только читает данные, побочных эффектов не имеет. Поле возвращается в
+        ответе, только если оно явно запрошено в requested_data.
+    """
+    is_right_structure, error = check_structure(request.json, api_info.article_data_get)
+    if not is_right_structure:
+        return json.dumps(
+            {
+                "status": dict(
+                    request_status.Status(
+                        request_status.StatusType.ERROR,
+                        error_type=error,
+                        msg="Wrong request parameters structure.",
+                    )
+                )
+            }
+        )
+    parameters = fill_default(request.json, api_info.article_data_get)
+    global db_url
+    engine = create_engine(db_url)
+    with Session(engine) as session:
+        status, data = backend.get_article_data(
+            session,
+            parameters["article_id"],
+            parameters["username"],
+            parameters["requested_data"],
+        )
+        if status.is_error:
+            session.rollback()
+            return json.dumps({"status": dict(status)})
 
-@app.route('/pages', methods=['GET'])
+        session.commit()
+        answer = {"status": dict(status)}
+        answer.update(data)
+        return json.dumps(answer)
+
+
+@app.route("/pages", methods=["GET"])
 @log.safe_api
 @log.log_request
 @log.timer(config.log_server_api)
 def api_pages_get():
-    status, headers = api_types.parse_structure(request.headers,
-                                                [api_types.Parameter('user-id', 'int', True),
-                                                 api_types.Parameter('indexes', 'list_of_int', True),
-                                                 api_types.Parameter('include-nonsub', 'bool', True),
-                                                 api_types.Parameter('sort-column', 'str', True),
-                                                 api_types.Parameter('sort-direction', 'str', True)])
-    if status.is_error:
-        return json.dumps({'status': dict(status)})
+    """Возвращает одну или несколько страниц ленты статей с превью каждой статьи.
 
-    status, include = api_types.parse_structure(request.headers,
-                                               [api_types.Parameter('include-tags', 'list', False),
-                                                api_types.Parameter('include-authors', 'list', False),
-                                                api_types.Parameter('include-communities', 'list', False)])
-    if status.is_error and status._error_type == request_status.ErrorType.ValueError:
-        return json.dumps({'status': dict(status)})
+    Принимает (JSON-тело запроса, см. api_info.pages_get):
+        - username (str, обязательно) — пользователь, для которого формируется лента;
+          для неавторизованного пользователя передается "unlogged_user". Влияет на
+          автоматическое исключение заблокированных тегов/авторов, на фильтр
+          include_nonsub и на поля is_liked/is_disliked в превью.
+        - indexes (list[int], обязательно) — номера запрашиваемых страниц (нумерация
+          с 0), каждая страница содержит до config.articles_per_page статей.
+        - include_nonsub (bool, опционально, по умолчанию True) — если явно передано
+          False, в выборку попадают только статьи от авторов/с тегами, на которые
+          username подписан (см. Контракт).
+        - sort_column (str, опционально) — "creation_date" или "rating"; по умолчанию
+          "creation_date".
+        - sort_direction (str, опционально) — "descending" или "ascending"; по умолчанию
+          "descending".
+        - upper_date, lower_date (int, опционально) — верхняя/нижняя граница
+          creation_date (мс с 1970 года), применяются только когда sort_column == "creation_date".
+        - upper_rating, lower_rating (int, опционально) — верхняя/нижняя граница rating,
+          применяются только когда sort_column == "rating".
+        - include_tags, include_authors (list, опционально) — ограничивают выборку:
+          include_tags — статья должна содержать ВСЕ перечисленные теги;
+          include_authors — автор статьи должен быть одним из перечисленных.
+        - exclude_tags, exclude_authors (list, опционально) — исключают из выборки статьи
+          с любым из перечисленных тегов или любым из перечисленных авторов.
 
-    status, exclude = api_types.parse_structure(request.headers,
-                                               [api_types.Parameter('exclude-tags', 'list', False),
-                                                api_types.Parameter('exclude-authors', 'list', False),
-                                                api_types.Parameter('exclude-communities', 'list', False)])
-    if status.is_error and status._error_type == request_status.ErrorType.ValueError:
-        return json.dumps({'status': dict(status)})
+    Отдает (JSON):
+        - status (dict) — статус операции.
+        - pages (dict, только при status.type == "OK") — ключи совпадают с запрошенными
+          indexes (в виде строк, так как это JSON), значение — список превью статей
+          страницы в порядке сортировки. Превью статьи содержит: id, title,
+          creation_date, author_preview (avatar, nickname, description, username),
+          preview_content, likes, dislikes, rating, comments_count, tags, is_liked, is_disliked.
 
-    status, bound = api_types.parse_structure(request.headers,
-                                               [api_types.Parameter('upper-date', 'int', False),
-                                                api_types.Parameter('lower-date', 'int', False),
-                                                api_types.Parameter('upper-rating', 'int', False),
-                                                api_types.Parameter('lower-rating', 'int', False)])
-    if status.is_error and status._error_type == request_status.ErrorType.ValueError:
-        return json.dumps({'status': dict(status)})
+    Ошибки:
+        - OptionError/ValueError "Wrong request parameters structure." — при некорректном теле запроса.
+        - ValueError "Parameter \"sort_column\" must have value \"creation_date\" or \"rating\"" —
+          если sort_column передан и не равен одному из этих двух значений.
+        - ValueError "Parameter \"sort_direction\" must have value \"descending\" or \"ascending\"" —
+          если sort_direction передан и не равен одному из этих двух значений.
 
-    if headers['sort-column'] not in ['creation_date', 'rating']:
-        return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
-                                          error_type=request_status.ErrorType.ValueError,
-                                          msg='Header "type" must have value "creation_date" or "rating"'))})
+    Контракт:
+        Для авторизованного username (не "unlogged_user") из выборки всегда убираются
+        статьи от заблокированных им авторов и статьи с заблокированными им тегами
+        (это происходит независимо от exclude_tags/exclude_authors и не отключается).
+        Если include_nonsub == False, дополнительно остаются только статьи, автор
+        которых или хотя бы один тег которых входит в подписки username; если у
+        username вообще нет подписок, выборка будет пустой. Страница с индексом,
+        для которого не хватает статей (или который выходит за пределы отфильтрованной
+        выборки), возвращается как пустой список, а не как ошибка.
+    """
+    is_right_structure, error = check_structure(request.json, api_info.pages_get)
+    if not is_right_structure:
+        return json.dumps(
+            {
+                "status": dict(
+                    request_status.Status(
+                        request_status.StatusType.ERROR,
+                        error_type=error,
+                        msg="Wrong request parameters structure.",
+                    )
+                )
+            }
+        )
+    parameters = fill_default(request.json, api_info.pages_get)
 
-    if headers['sort-direction'] not in ['descending', 'ascending']:
-        return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
-                                          error_type=request_status.ErrorType.ValueError,
-                                          msg='Header "sort" must have value "descending" or "ascending"'))})
+    sort_column = parameters.get("sort_column")
+    if sort_column and sort_column not in ["creation_date", "rating"]:
+        return json.dumps(
+            {
+                "status": dict(
+                    request_status.Status(
+                        request_status.StatusType.ERROR,
+                        error_type=request_status.ErrorType.ValueError,
+                        msg='Parameter "sort_column" must have value "creation_date" or "rating"',
+                    )
+                )
+            }
+        )
 
-    if include:
-        if 'include-tags' in include.keys():
-            include['tags'] = include.pop('include-tags')
-        if 'include-authors' in include.keys():
-            include['authors'] = include.pop('include-authors')
-        if 'include-community' in include.keys():
-            include['community'] = include.pop('include-community')
+    sort_direction = parameters.get("sort_direction")
+    if sort_direction and sort_direction not in ["descending", "ascending"]:
+        return json.dumps(
+            {
+                "status": dict(
+                    request_status.Status(
+                        request_status.StatusType.ERROR,
+                        error_type=request_status.ErrorType.ValueError,
+                        msg='Parameter "sort_direction" must have value "descending" or "ascending"',
+                    )
+                )
+            }
+        )
 
-    if exclude:
-        if 'exclude-tags' in exclude.keys():
-            exclude['tags'] = exclude.pop('exclude-tags')
-        if 'exclude-authors' in exclude.keys():
-            exclude['authors'] = exclude.pop('exclude-authors')
-        if 'exclude-community' in exclude.keys():
-            exclude['community'] = exclude.pop('exclude-community')
+    include = {}
+    if parameters.get("include_tags"):
+        include["tags"] = parameters["include_tags"]
+    if parameters.get("include_authors"):
+        include["authors"] = parameters["include_authors"]
 
-    status, pages = backend.get_pages(headers['indexes'],
-                                      headers['user-id'],
-                                      headers['include-nonsub'],
-                                      headers['sort-column'],
-                                      headers['sort-direction'],
-                                      include,
-                                      exclude,
-                                      bound)
-    return json.dumps({'status': dict(status), 'pages': pages})
+    exclude = {}
+    if parameters.get("exclude_tags"):
+        exclude["tags"] = parameters["exclude_tags"]
+    if parameters.get("exclude_authors"):
+        exclude["authors"] = parameters["exclude_authors"]
 
-@app.route('/users', methods=['POST'])
+    if sort_column == "rating":
+        bounds = {
+            "upper": parameters.get("upper_rating"),
+            "lower": parameters.get("lower_rating"),
+        }
+    else:
+        bounds = {
+            "upper": parameters.get("upper_date"),
+            "lower": parameters.get("lower_date"),
+        }
+
+    global db_url
+    engine = create_engine(db_url)
+    with Session(engine) as session:
+        status, pages = backend.pages_get(
+            session,
+            parameters["username"],
+            parameters["indexes"],
+            parameters["include_nonsub"],
+            sort_column,
+            sort_direction,
+            include,
+            exclude,
+            bounds,
+        )
+        if status.is_error:
+            session.rollback()
+            return json.dumps({"status": dict(status)})
+
+        session.commit()
+        return json.dumps({"status": dict(status), "pages": pages})
+
+
+@app.route("/users", methods=["POST"])
 @log.safe_api
 @log.log_request
 @log.timer(config.log_server_api)
 def api_users_post():
-    status, user_info = api_types.parse_structure(request.json, 
-                                                  [api_types.Parameter('name', 'str', True),
-                                                   api_types.Parameter('email', 'str', True),
-                                                   api_types.Parameter('password', 'str', True),
-                                                   api_types.Parameter('avatar', 'str', False),
-                                                   api_types.Parameter('sub-tags', 'list', False),
-                                                   api_types.Parameter('blocked-tags', 'list', False),
-                                                   api_types.Parameter('sub-users', 'list', False),
-                                                   api_types.Parameter('blocked-users', 'list', False),
-                                                   api_types.Parameter('sub-communities', 'list', False),
-                                                   api_types.Parameter('blocked-communities', 'list', False),
-                                                   api_types.Parameter('description', 'str', False)])
-    if status.is_error:
-        return json.dumps({'status': dict(status)})
+    """Регистрирует нового пользователя.
 
-    # replace "-" with "_" because field in db named with "_"
-    if 'sub-tags' in user_info.keys():
-        user_info['sub_tags'] = user_info.pop('sub-tags')
-    if 'blocked-tags' in user_info.keys():
-        user_info['blocked_tags'] = user_info.pop('blocked-tags')
-    if 'sub-users' in user_info.keys():
-        user_info['sub_users'] = user_info.pop('sub-users')
-    if 'blocked-users' in user_info.keys():
-        user_info['blocked_users'] = user_info.pop('blocked-users')
-    if 'sub-communities' in user_info.keys():
-        user_info['sub_communities'] = user_info.pop('sub-communities')
-    if 'blocked-communities' in user_info.keys():
-        user_info['blocked_communities'] = user_info.pop('blocked-communities')
+    Принимает (JSON-тело запроса, см. api_info.users_post):
+        - username (str, обязательно) — уникальный идентификатор пользователя,
+          используемый во всех остальных методах API.
+        - nickname (str, обязательно) — отображаемое имя.
+        - email (str, обязательно).
+        - password (str, обязательно) — хранится как есть, без хэширования.
+        - avatar (str, опционально) — ссылка на аватар.
+        - description (str, опционально) — текстовое описание профиля.
 
-    status, user_id = backend.add_user(user_info)
-    return json.dumps({'status': dict(status), 'user_id': user_id})
+    Отдает (JSON):
+        - status (dict) — статус операции. Других полей нет.
 
-@app.route('/users/data', methods=['GET'])
+    Ошибки:
+        - OptionError/ValueError "Wrong request parameters structure." — при некорректном теле запроса.
+        - ValueError "User with username {username} already exists" — если пользователь
+          с таким username уже зарегистрирован.
+        - ValueError "User with email {email} already exists" — если пользователь
+          с таким email уже зарегистрирован.
+
+    Контракт:
+        username уникален и является первичным ключом пользователя (используется
+        во всех внешних ключах, ссылающихся на пользователя). email также уникален.
+        При регистрации автоматически проставляются creation_date (текущее время в
+        миллисекундах с 1970 года) и запись в истории имен (name_history) с текущим
+        nickname. Рейтинг нового пользователя равен 0 (вычисляется на лету по лайкам/
+        дизлайкам его статей и комментариев, отдельно не хранится).
+    """
+    is_right_structure, error = check_structure(request.json, api_info.users_post)
+    if not is_right_structure:
+        return json.dumps(
+            {
+                "status": dict(
+                    request_status.Status(
+                        request_status.StatusType.ERROR,
+                        error_type=error,
+                        msg="Wrong request parameters structure.",
+                    )
+                )
+            }
+        )
+
+    parameters = fill_default(request.json, api_info.users_post)
+    global db_url
+    engine = create_engine(db_url)
+    with Session(engine) as session:
+        status = backend.add_user(session, parameters)
+        if status.is_error:
+            session.rollback()
+            return json.dumps({"status": dict(status)})
+
+        session.commit()
+        return json.dumps(
+            {"status": dict(request_status.Status(request_status.StatusType.OK))}
+        )
+
+
+@app.route("/users/data", methods=["GET"])
 @log.safe_api
 @log.log_request
 @log.timer(config.log_server_api)
 def api_users_data_get():
-    status, headers = api_types.parse_structure(request.headers, [api_types.Parameter('user-id', 'int', True),
-                                                                  api_types.Parameter('requested-data', 'list', True)])
-    if status.is_error:
-        return json.dumps({'status': dict(status)})
+    """Возвращает выбранные поля данных о пользователе (для страницы профиля).
 
-    if headers['user-id'] == 0:
-        return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
-                                          error_type=request_status.ErrorType.ValueError,
-                                          msg='Unlogged user cannot use this method'))})
+    Принимает (JSON-тело запроса, см. api_info.users_data_get):
+        - username (str, обязательно) — пользователь, чей профиль запрашивается.
+          Не может быть "unlogged_user".
+        - requested_data (list, обязательно) — список запрашиваемых полей. Допустимые
+          значения: nickname, email, name_history, avatar, sub_tags, blocked_tags,
+          sub_users, blocked_users, description, creation_date, rating.
 
-    status, requested_data = api_types.parse_fields(headers['requested-data'],
-                                                    [api_types.Parameter('name_history', 'str', False),
-                                                     api_types.Parameter('avatar', 'str', False),
-                                                     api_types.Parameter('sub_tags', 'list', False),
-                                                     api_types.Parameter('blocked_tags', 'list', False),
-                                                     api_types.Parameter('sub_users', 'list', False),
-                                                     api_types.Parameter('blocked_users', 'list', False),
-                                                     api_types.Parameter('sub_communities', 'list', False),
-                                                     api_types.Parameter('blocked_communities', 'list', False),
-                                                     api_types.Parameter('name', 'str', False),
-                                                     api_types.Parameter('email', 'str', False),
-                                                     api_types.Parameter('description', 'str', False),
-                                                     api_types.Parameter('creation_date', 'str', False),
-                                                     api_types.Parameter('rating', 'str', False)])
+    Отдает (JSON):
+        - status (dict) — статус операции.
+        - по одному ключу для каждого поля из requested_data (присутствуют только
+          при status.type == "OK"): nickname (str), email (str), name_history
+          (list[str] — все прежние nickname пользователя, включая текущий),
+          avatar (str), sub_tags/blocked_tags (list[str]), sub_users/blocked_users
+          (list[str] — username'ы), description (str), creation_date (int, мс с
+          1970 года), rating (int).
 
-    status, data = backend.get_user_data(headers['user-id'], requested_data)
+    Ошибки:
+        - OptionError/ValueError "Wrong request parameters structure." — при некорректном
+          теле запроса или если requested_data содержит имя поля не из допустимого списка.
+        - ValueError "Unlogged user cannot use this method" — если username == "unlogged_user".
 
-    if status.is_error:
-        return json.dumps({'status': dict(status)})
+    Контракт:
+        Метод только читает данные, побочных эффектов не имеет. Поле возвращается в
+        ответе, только если оно явно запрошено в requested_data.
+    """
+    is_right_structure, error = check_structure(request.json, api_info.users_data_get)
+    if not is_right_structure:
+        return json.dumps(
+            {
+                "status": dict(
+                    request_status.Status(
+                        request_status.StatusType.ERROR,
+                        error_type=error,
+                        msg="Wrong request parameters structure.",
+                    )
+                )
+            }
+        )
+    if request.json["username"] == "unlogged_user":
+        return json.dumps(
+            {
+                "status": dict(
+                    request_status.Status(
+                        request_status.StatusType.ERROR,
+                        error_type=request_status.ErrorType.ValueError,
+                        msg="Unlogged user cannot use this method",
+                    )
+                )
+            }
+        )
+    parameters = fill_default(request.json, api_info.users_data_get)
+    global db_url
+    engine = create_engine(db_url)
+    with Session(engine) as session:
+        status, data = backend.get_user_data(
+            session, parameters["username"], parameters["requested_data"]
+        )
+        if status.is_error:
+            session.rollback()
+            return json.dumps({"status": dict(status)})
 
-    answer = {'status': dict(status)}
-    answer.update(data)
-    return json.dumps(answer)
+        session.commit()
+        answer = {"status": dict(status)}
+        answer.update(data)
+        return json.dumps(answer)
 
-@app.route('/users/data', methods=['POST'])
+
+@app.route("/users/data", methods=["POST"])
 @log.safe_api
 @log.log_request
 @log.timer(config.log_server_api)
 def api_users_data_post():
-    status, user_id = api_types.parse_structure(request.headers, [api_types.Parameter('user-id', 'int', True)])
-    if status.is_error:
-        return json.dumps({'status': dict(status)})
-    user_id = user_id['user-id']
+    """Частично обновляет данные пользователя: только те поля, что переданы в запросе.
 
-    if user_id == 0:
-        return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
-                                          error_type=request_status.ErrorType.ValueError,
-                                          msg='Unlogged user cannot use this method'))})
+    Принимает (JSON-тело запроса, см. api_info.users_data_post):
+        - username (str, обязательно) — кого обновляем. Не может быть "unlogged_user".
+        - nickname (str, опционально).
+        - email (str, опционально).
+        - avatar (str, опционально).
+        - description (str, опционально).
+        - sub-tags (list[str], опционально) — теги, на которые username подписывается.
+        - blocked-tags (list[str], опционально) — теги, которые username блокирует.
+        - sub-users (list[str], опционально) — username'ы, на которых username подписывается.
+        - blocked-users (list[str], опционально) — username'ы, которых username блокирует.
 
-    status, fields = api_types.parse_structure(request.json, [api_types.Parameter('avatar', 'str', False),
-                                                              api_types.Parameter('sub-tags', 'str', False),
-                                                              api_types.Parameter('blocked-tags', 'str', False),
-                                                              api_types.Parameter('sub-users', 'str', False),
-                                                              api_types.Parameter('blocked-users', 'str', False),
-                                                              api_types.Parameter('sub-communities', 'str', False),
-                                                              api_types.Parameter('blocked-communities', 'str', False),
-                                                              api_types.Parameter('name', 'str', False),
-                                                              api_types.Parameter('email', 'str', False),
-                                                              api_types.Parameter('description', 'str', False)])
-    if status.is_error:
-        return json.dumps({'status': dict(status)})
+    Отдает (JSON):
+        - status (dict) — статус операции. Других полей нет.
 
-    # replace "-" with "_" because field in db named with "_"
-    if 'sub-tags' in fields.keys():
-        fields['sub_tags'] = fields.pop('sub-tags')
-    if 'blocked-tags' in fields.keys():
-        fields['blocked_tags'] = fields.pop('blocked-tags')
-    if 'sub-users' in fields.keys():
-        fields['sub_users'] = fields.pop('sub-users')
-    if 'blocked-users' in fields.keys():
-        fields['blocked_users'] = fields.pop('blocked-users')
-    if 'sub-communities' in fields.keys():
-        fields['sub_communities'] = fields.pop('sub-communities')
-    if 'blocked-communities' in fields.keys():
-        fields['blocked_communities'] = fields.pop('blocked-communities')
+    Ошибки:
+        - OptionError/ValueError "Wrong request parameters structure." — при некорректном теле запроса.
+        - ValueError "Unlogged user cannot use this method" — если username == "unlogged_user".
 
-    status = backend.update_user_info(fields,
-                                      user_id)
-    return json.dumps({'status': dict(status)})
+    Контракт:
+        Обрабатываются только переданные в запросе поля, остальные остаются без
+        изменений. Если передан nickname, он также добавляется в name_history
+        пользователя. Подписка на тег/автора из sub-tags/sub-users автоматически
+        снимает соответствующую блокировку (и наоборот для blocked-tags/blocked-users) —
+        подписка и блокировка одного и того же тега/автора взаимоисключающие.
+        Весь запрос применяется атомарно: если любое из полей (включая отдельный
+        элемент списков sub-tags/blocked-tags/sub-users/blocked-users) вызывает
+        ошибку, ни одно изменение из этого запроса не сохраняется.
+    """
+    is_right_structure, error = check_structure(request.json, api_info.users_data_post)
+    if not is_right_structure:
+        return json.dumps(
+            {
+                "status": dict(
+                    request_status.Status(
+                        request_status.StatusType.ERROR,
+                        error_type=error,
+                        msg="Wrong request parameters structure.",
+                    )
+                )
+            }
+        )
+    if request.json["username"] == "unlogged_user":
+        return json.dumps(
+            {
+                "status": dict(
+                    request_status.Status(
+                        request_status.StatusType.ERROR,
+                        error_type=request_status.ErrorType.ValueError,
+                        msg="Unlogged user cannot use this method",
+                    )
+                )
+            }
+        )
+    # parameters = fill_default(request.json, api_info.users_data_post)
+    global db_url
+    engine = create_engine(db_url)
+    with Session(engine) as session:
+        username = request.json.pop("username")
+        status = backend.update_user_info(session, username, request.json)
+        if status.is_error:
+            session.rollback()
+            return json.dumps({"status": dict(status)})
 
-@app.route('/users/password', methods=['POST'])
+        session.commit()
+        return json.dumps({"status": dict(status)})
+
+
+@app.route("/users/password", methods=["POST"])
 @log.safe_api
 @log.log_request
 @log.timer(config.log_server_api)
 def api_users_password_post():
-    status, headers = api_types.parse_structure(request.headers,
-                                                [api_types.Parameter('user-id', 'int', True),
-                                                 api_types.Parameter('previous-password', 'str', True)])
-    if status.is_error:
-        return json.dumps({'status': dict(status)})
+    """Меняет пароль пользователя.
 
-    if headers['user-id'] == 0:
-        return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
-                                          error_type=request_status.ErrorType.ValueError,
-                                          msg='Unlogged user cannot use this method'))})
+    Принимает (JSON-тело запроса, см. api_info.user_password_post):
+        - username (str, обязательно) — не может быть "unlogged_user".
+        - previous_password (str, обязательно) — текущий пароль пользователя.
+        - new_password (str, обязательно) — новый пароль.
 
-    status, new_password = api_types.parse_structure(request.json, [api_types.Parameter('new-password', 'str', True)])
-    if status.is_error:
-        return json.dumps({'status': dict(status)})
+    Отдает (JSON):
+        - status (dict) — статус операции. Других полей нет.
 
-    status = backend.change_password(headers['previous-password'],
-                                     new_password['new-password'],
-                                     headers['user-id'])
-    return json.dumps({'status': dict(status)})
+    Ошибки:
+        - OptionError/ValueError "Wrong request parameters structure." — при некорректном теле запроса.
+        - ValueError "Unlogged user cannot use this method" — если username == "unlogged_user".
+        - ValueError "Incorrect password!" — если previous_password не совпадает с текущим
+          паролем пользователя (в том числе если такого username вообще не существует).
 
-@app.route('/login', methods=['GET'])
+    Контракт:
+        Пароль обновляется, только если previous_password верно указан. Новый пароль
+        сохраняется как есть, без хэширования.
+    """
+    is_right_structure, error = check_structure(
+        request.json, api_info.user_password_post
+    )
+    if not is_right_structure:
+        return json.dumps(
+            {
+                "status": dict(
+                    request_status.Status(
+                        request_status.StatusType.ERROR,
+                        error_type=error,
+                        msg="Wrong request parameters structure.",
+                    )
+                )
+            }
+        )
+    if request.json["username"] == "unlogged_user":
+        return json.dumps(
+            {
+                "status": dict(
+                    request_status.Status(
+                        request_status.StatusType.ERROR,
+                        error_type=request_status.ErrorType.ValueError,
+                        msg="Unlogged user cannot use this method",
+                    )
+                )
+            }
+        )
+    global db_url
+    engine = create_engine(db_url)
+    with Session(engine) as session:
+        username = request.json.pop("username")
+        previous_password = request.json.pop("previous_password")
+        new_password = request.json.pop("new_password")
+        status = backend.change_password(
+            session, previous_password, new_password, username
+        )
+        if status.is_error:
+            session.rollback()
+            return json.dumps({"status": dict(status)})
+
+        session.commit()
+        return json.dumps({"status": dict(status)})
+
+
+@app.route("/login", methods=["GET"])
 @log.safe_api
 @log.log_request
 @log.timer(config.log_server_api)
 def api_login_get():
-    status, password = api_types.parse_structure(request.headers, [api_types.Parameter('password', 'str', True)])
-    if status.is_error:
-        return json.dumps({'status': dict(status)})
-    password = password['password']
+    """Проверяет пароль пользователя (используется при входе в систему).
 
-    status, login = api_types.parse_structure(request.headers, [api_types.Parameter('email', 'str', False),
-                                                                api_types.Parameter('user-id', 'int', False),])
-    if status.is_error:
-        return json.dumps({'status': dict(status)})
+    Принимает (JSON-тело запроса, см. api_info.login_get):
+        - username (str, опционально) — по кому искать пользователя.
+        - email (str, опционально) — по кому искать пользователя (альтернатива username).
+        - password (str, обязательно) — пароль для проверки.
 
-    if 'user-id' in login and 'email' in login:
-        return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
-                                          error_type=request_status.ErrorType.ValueError,
-                                          msg='User can login via user-id OR via email.'))})
+        Должно быть указано ровно одно из username/email.
 
-    if 'user-id' in login and login['user-id'] == 0:
-        return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
-                                          error_type=request_status.ErrorType.ValueError,
-                                          msg='Unlogged user cannot use this method'))})
+    Отдает (JSON):
+        - status (dict) — статус операции.
+        - is-correct (bool, только при status.type == "OK") — True, если password
+          совпадает с паролем найденного пользователя.
 
-    if 'user-id' in login:
-        status, is_password_correct = backend.login(password, user_id=login['user-id'])
+    Ошибки:
+        - OptionError/ValueError "Wrong request parameters structure." — при некорректном теле запроса.
+        - ValueError "User cant login via username and email." — если переданы и
+          username, и email одновременно.
+        - ValueError "User must login via username or email." — если не передано
+          ни username, ни email.
+        - ValueError "Unlogged user cannot use this method" — если username == "unlogged_user".
+
+    Контракт:
+        Если пользователь с указанным username/email не найден, метод не считается
+        ошибкой: status.type остается "OK", а is-correct — False.
+    """
+    is_right_structure, error = check_structure(request.json, api_info.login_get)
+    if not is_right_structure:
+        return json.dumps(
+            {
+                "status": dict(
+                    request_status.Status(
+                        request_status.StatusType.ERROR,
+                        error_type=error,
+                        msg="Wrong request parameters structure.",
+                    )
+                )
+            }
+        )
+
+    parameters = fill_default(request.json, api_info.login_get)
+    if request.json["username"] and request.json["email"]:
+        return json.dumps(
+            {
+                "status": dict(
+                    request_status.Status(
+                        request_status.StatusType.ERROR,
+                        error_type=request_status.ErrorType.ValueError,
+                        msg="User cant login via username and email.",
+                    )
+                )
+            }
+        )
+    if not request.json["username"] and not request.json["email"]:
+        return json.dumps(
+            {
+                "status": dict(
+                    request_status.Status(
+                        request_status.StatusType.ERROR,
+                        error_type=request_status.ErrorType.ValueError,
+                        msg="User must login via username or email.",
+                    )
+                )
+            }
+        )
+    if request.json["username"] == "unlogged_user":
+        return json.dumps(
+            {
+                "status": dict(
+                    request_status.Status(
+                        request_status.StatusType.ERROR,
+                        error_type=request_status.ErrorType.ValueError,
+                        msg="Unlogged user cannot use this method",
+                    )
+                )
+            }
+        )
+    global db_url
+    engine = create_engine(db_url)
+    with Session(engine) as session:
+        status, is_password_correct = backend.login(session, parameters)
+        if status.is_error:
+            session.rollback()
+            return json.dumps({"status": dict(status)})
+
+        session.commit()
+        return json.dumps({"status": dict(status), "is-correct": is_password_correct})
+
+
+def run_server(server_mode="production"):
+    """Запускает Flask-сервер, выбрав URL базы данных из переменных окружения.
+
+    Args:
+        server_mode: "production" или "test".
+
+    Returns:
+        None
+    """
+    global db_url
+    if server_mode == "test":
+        db_url = os.getenv("MVP_DB_URL_TEST")
     else:
-        status, is_password_correct = backend.login(password, email=login['email'])
-    return json.dumps({'status': dict(status), 'is-correct': is_password_correct})
-
-def run_server():
-    # used in test_api to startup check
-    print('Running...')
-    app.run(host='0.0.0.0', port=5000)
+        db_url = os.getenv("MVP_DB_URL_PRODUCTION")
+    app.run(host="0.0.0.0", port=5000)
