@@ -1,7 +1,5 @@
 Flask
 Flask-Cors
-Sphinx
-sphinx-rtd-theme
 SQLAlchemy
 python-dotenv
 requests

@@ -1,6 +1,6 @@
-'''
+"""
 Этот файл служит для хранения декораторов, которые используются для системы логгирования на сервере.
-'''
+"""
 
 import logging
 import traceback
@@ -11,7 +11,17 @@ from datetime import datetime
 from . import config
 from . import request_status
 
-def timer(log_file:config.DynamicPath):
+
+def timer(log_file: config.DynamicPath):
+    """Строит декоратор, логирующий время выполнения обернутой функции.
+
+    Args:
+        log_file: путь к файлу лога.
+
+    Returns:
+        Декоратор для функции.
+    """
+
     def decorator(func):
         def wrapper(*args, **kwargs):
             logger = logging.getLogger(log_file.path)
@@ -20,9 +30,9 @@ def timer(log_file:config.DynamicPath):
             result = func(*args, **kwargs)
 
             end = datetime.now()
-            exec_time = end-start
+            exec_time = end - start
             exec_time_str = str(exec_time)
-            logger.info(f'Processed request in {exec_time_str}: {func.__name__}')
+            logger.info(f"Processed request in {exec_time_str}: {func.__name__}")
             return result
 
         # timer used in server/api.py
@@ -32,34 +42,67 @@ def timer(log_file:config.DynamicPath):
 
     return decorator
 
+
 def log_request(func):
+    """Оборачивает func логированием тела, заголовков запроса и результата.
+
+    Args:
+        func: оборачиваемая функция.
+
+    Returns:
+        Обертка над func.
+    """
+
     def wrapper(*args, **kwargs):
         logger = logging.getLogger(config.log_server_api.path)
-        logger.info(f'Got request {func.__name__}')
+        logger.info(f"Got request {func.__name__}")
         if request.is_json:
-            logger.info(f'Body: {request.json}')
+            logger.info(f"Body: {request.json}")
         else:
-            logger.info(f'Body: Empty')
-        logger.info(f'Headers: {request.headers}')
+            logger.info(f"Body: Empty")
+        logger.info(f"Headers: {request.headers}")
         result = func(*args, **kwargs)
-        logger.info(f'Result: {result}\n\n\n\n')
+        logger.info(f"Result: {result}\n\n\n\n")
         return result
 
     # @app.route registers url path using wrapper name, so i change name to avoid name collision
     wrapper.__name__ = func.__name__
     return wrapper
 
-def log_args_kwargs(log_file:config.DynamicPath):
+
+def log_args_kwargs(log_file: config.DynamicPath):
+    """Строит декоратор, логирующий args и kwargs вызова обернутой функции.
+
+    Args:
+        log_file: путь к файлу лога.
+
+    Returns:
+        Декоратор для функции.
+    """
+
     def decorator(func):
         def wrapper(*args, **kwargs):
             logger = logging.getLogger(log_file.path)
-            logger.info(f'Got request {func.__name__}\nArgs: {args}\nKwargs: {kwargs}')
+            logger.info(f"Got request {func.__name__}\nArgs: {args}\nKwargs: {kwargs}")
             result = func(*args, **kwargs)
             return result
+
         return wrapper
+
     return decorator
 
+
 def safe_api(func):
+    """Оборачивает func перехватом исключений вместо падения запроса.
+
+    Args:
+        func: оборачиваемая функция.
+
+    Returns:
+        Обертка над func: при исключении логирует traceback и возвращает JSON
+        со `Status` UnexpectedError вместо повторного выброса исключения.
+    """
+
     def wrapper(*args, **kwargs):
         try:
             result = func(*args, **kwargs)
@@ -67,8 +110,17 @@ def safe_api(func):
         except Exception:
             logger = logging.getLogger(config.log_server_api.path)
             logger.error(traceback.format_exc())
-            return json.dumps({'status': dict(request_status.Status(request_status.StatusType.ERROR,
-                                              request_status.ErrorType.UnexpectedError,
-                                              msg='Unexpected error'))})
+            return json.dumps(
+                {
+                    "status": dict(
+                        request_status.Status(
+                            request_status.StatusType.ERROR,
+                            request_status.ErrorType.UnexpectedError,
+                            msg="Unexpected error",
+                        )
+                    )
+                }
+            )
+
     wrapper.__name__ = func.__name__
     return wrapper

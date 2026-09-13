@@ -33,6 +33,8 @@ restart-server: ## Обновляет код сервера и перезапу�
 test: ## Запуск end-to-end тестов.
 	docker rm db-test --force
 	docker rm server-test --force
+	docker network rm test-net --force
+	docker network create test-net
 	docker build -t code_mysql\:1.0 -f deployment/code_mysql.dockerfile .
 	docker build -t code_server\:1.0 -f deployment/code_server.dockerfile .
 	docker run --env-file .env -dp 127.0.0.1:3306:3306 --name=db-test --network=test-net mysql\:1.0
@@ -41,11 +43,11 @@ test: ## Запуск end-to-end тестов.
 	-dp 127.0.0.1:5000:5000 \
 	--name=server-test \
 	--network=test-net \
-	server\:1.0
+	code_server\:1.0
 	# Контейнеру с бд нужно время, чтобы завестись после того, как он
 	# запустился. Если убрать задержку, то будет ошибка "connection
 	# refused".
-	sleep 60s
+	sleep 30s
 	docker cp ./tests server-test:/app/tests
 	docker exec -t server-test python3 /app/tests/run_tests.py
 	rm -rf test_logs

@@ -7,4 +7,6 @@ RUN ["apt-get", "install", "-y", "python3-pip"]
 # Нужно для установки mysqlclient.
 RUN ["apt-get", "install", "-y", "python3-dev", "default-libmysqlclient-dev", "build-essential", "pkg-config"]
 
+COPY deployment/requirements.txt /app/requirements.txt
+
 RUN ["pip3", "install", "-r", "/app/requirements.txt"]
