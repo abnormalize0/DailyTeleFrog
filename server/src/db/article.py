@@ -1,15 +1,19 @@
+"""
+Этот файл служит для хранения логики работы со статьями: публикация, лайки/дизлайки,
+теги, превью и построение отфильтрованной/отсортированной ленты (pages_get).
+"""
+
 from . import scheme
-from .. import config
 from .. import request_status
 import json
 import time
-from typing import Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import func as sqlfunc
-from sqlalchemy import select, update, delete, or_, false
+from sqlalchemy import ColumnElement, select, or_, false
+from sqlalchemy.exc import IntegrityError
 
 
-def is_article_not_exist(session: Session, article_id):
+def is_article_not_exist(session: Session, article_id: int) -> bool:
     """Проверяет, существует ли статья с указанным id.
 
     Args:
@@ -25,7 +29,7 @@ def is_article_not_exist(session: Session, article_id):
     return article is None
 
 
-def post(session, title, body, author, preview):
+def post(session: Session, title: str, body: dict, author: str, preview: dict) -> int:
     """Создает статью и её предпоказ.
 
     Args:
@@ -55,8 +59,14 @@ def post(session, title, body, author, preview):
     return article.id
 
 
-def add_tags(session, tags, article_id):
+def add_tags(
+    session: Session, tags: list[str], article_id: int
+) -> request_status.Status:
     """Создает по строке в article_tags для каждого тега из tags.
+
+    Дубликаты ловятся по первичному ключу, а не сравнением в Python: одинаковость
+    тегов определяет правило сравнения колонки в БД (например, без учёта регистра),
+    и повторять его в коде значило бы рано или поздно разойтись с ним.
 
     Args:
         session: сессия SQLAlchemy.
@@ -64,15 +74,29 @@ def add_tags(session, tags, article_id):
         article_id: id статьи, которой принадлежат теги.
 
     Returns:
-        None
+        `Status`:
+            - OK — теги созданы.
+            - InvalidParameters — в tags есть одинаковые теги. Откат транзакции,
+              в том числе самой статьи, делает API-метод.
     """
-    for tag in tags:
-        article_tag = scheme.ArticleTag(tag_name=tag, article_id=article_id)
-        session.add(article_tag)
-    session.flush()
+    session.add_all(
+        scheme.ArticleTag(tag_name=tag, article_id=article_id) for tag in tags
+    )
+    try:
+        session.flush()
+    except IntegrityError:
+        return request_status.Status(
+            request_status.StatusType.ERROR,
+            error_type=request_status.ErrorType.InvalidParameters,
+            msg="Article tags must be unique",
+            errors=[{"name": "tags", "reason": "must not contain duplicates"}],
+        )
+    return request_status.Status(request_status.StatusType.OK)
 
 
-def is_liked(session: Session, article_id, username):
+def is_liked(
+    session: Session, article_id: int, username: str
+) -> tuple[request_status.Status, bool]:
     """Проверяет, лайкнул ли username статью.
 
     Args:
@@ -99,7 +123,9 @@ def is_liked(session: Session, article_id, username):
     )
 
 
-def is_disliked(session: Session, article_id, username):
+def is_disliked(
+    session: Session, article_id: int, username: str
+) -> tuple[request_status.Status, bool]:
     """Проверяет, дизлайкнул ли username статью.
 
     Args:
@@ -126,7 +152,43 @@ def is_disliked(session: Session, article_id, username):
     )
 
 
-def likes_count(session: Session, article_id):
+def _count_likes(session: Session, article_id: int) -> int:
+    """Считает лайки статьи без проверки существования (для внутреннего переиспользования).
+
+    Args:
+        session: сессия SQLAlchemy.
+        article_id: id статьи.
+
+    Returns:
+        Количество лайков.
+    """
+    return (
+        session.query(scheme.ArticleLike)
+        .where(scheme.ArticleLike.article_id == article_id)
+        .count()
+    )
+
+
+def _count_dislikes(session: Session, article_id: int) -> int:
+    """Считает дизлайки статьи без проверки существования (для внутреннего переиспользования).
+
+    Args:
+        session: сессия SQLAlchemy.
+        article_id: id статьи.
+
+    Returns:
+        Количество дизлайков.
+    """
+    return (
+        session.query(scheme.ArticleDislike)
+        .where(scheme.ArticleDislike.article_id == article_id)
+        .count()
+    )
+
+
+def likes_count(
+    session: Session, article_id: int
+) -> tuple[request_status.Status, int | None]:
     """Считает количество лайков статьи.
 
     Args:
@@ -136,26 +198,18 @@ def likes_count(session: Session, article_id):
     Returns:
         Кортеж (`Status`, int):
             - OK и количество лайков — если статья найдена.
-            - ValueError и `None` — если статья не найдена.
+            - NotFound и `None` — если статья не найдена.
     """
     if is_article_not_exist(session, article_id):
-        return (
-            request_status.Status(
-                request_status.StatusType.ERROR,
-                error_type=request_status.ErrorType.ValueError,
-                msg=f"Cannot find article with id: {article_id}",
-            ),
-            None,
-        )
-    likes = (
-        session.query(scheme.ArticleLike)
-        .where(scheme.ArticleLike.article_id == article_id)
-        .count()
+        return request_status.not_found("article with id", article_id), None
+    return request_status.Status(request_status.StatusType.OK), _count_likes(
+        session, article_id
     )
-    return request_status.Status(request_status.StatusType.OK), likes
 
 
-def dislikes_count(session: Session, article_id):
+def dislikes_count(
+    session: Session, article_id: int
+) -> tuple[request_status.Status, int | None]:
     """Считает количество дизлайков статьи.
 
     Args:
@@ -165,26 +219,18 @@ def dislikes_count(session: Session, article_id):
     Returns:
         Кортеж (`Status`, int):
             - OK и количество дизлайков — если статья найдена.
-            - ValueError и `None` — если статья не найдена.
+            - NotFound и `None` — если статья не найдена.
     """
     if is_article_not_exist(session, article_id):
-        return (
-            request_status.Status(
-                request_status.StatusType.ERROR,
-                error_type=request_status.ErrorType.ValueError,
-                msg=f"Cannot find article with id: {article_id}",
-            ),
-            None,
-        )
-    dislikes = (
-        session.query(scheme.ArticleDislike)
-        .where(scheme.ArticleDislike.article_id == article_id)
-        .count()
+        return request_status.not_found("article with id", article_id), None
+    return request_status.Status(request_status.StatusType.OK), _count_dislikes(
+        session, article_id
     )
-    return request_status.Status(request_status.StatusType.OK), dislikes
 
 
-def rating(session: Session, article_id):
+def rating(
+    session: Session, article_id: int
+) -> tuple[request_status.Status, int | None]:
     """Вычисляет рейтинг статьи (лайки минус дизлайки).
 
     Args:
@@ -194,31 +240,19 @@ def rating(session: Session, article_id):
     Returns:
         Кортеж (`Status`, int):
             - OK и рейтинг — если статья найдена.
-            - ValueError и `None` — если статья не найдена.
+            - NotFound и `None` — если статья не найдена.
     """
     if is_article_not_exist(session, article_id):
-        return (
-            request_status.Status(
-                request_status.StatusType.ERROR,
-                error_type=request_status.ErrorType.ValueError,
-                msg=f"Cannot find article with id: {article_id}",
-            ),
-            None,
-        )
-    likes = (
-        session.query(scheme.ArticleLike)
-        .where(scheme.ArticleLike.article_id == article_id)
-        .count()
+        return request_status.not_found("article with id", article_id), None
+    rating_value = _count_likes(session, article_id) - _count_dislikes(
+        session, article_id
     )
-    dislikes = (
-        session.query(scheme.ArticleDislike)
-        .where(scheme.ArticleDislike.article_id == article_id)
-        .count()
-    )
-    return request_status.Status(request_status.StatusType.OK), likes - dislikes
+    return request_status.Status(request_status.StatusType.OK), rating_value
 
 
-def comments_count(session: Session, article_id):
+def comments_count(
+    session: Session, article_id: int
+) -> tuple[request_status.Status, int | None]:
     """Считает количество комментариев статьи.
 
     Args:
@@ -228,17 +262,10 @@ def comments_count(session: Session, article_id):
     Returns:
         Кортеж (`Status`, int):
             - OK и количество комментариев — если статья найдена.
-            - ValueError и `None` — если статья не найдена.
+            - NotFound и `None` — если статья не найдена.
     """
     if is_article_not_exist(session, article_id):
-        return (
-            request_status.Status(
-                request_status.StatusType.ERROR,
-                error_type=request_status.ErrorType.ValueError,
-                msg=f"Cannot find article with id: {article_id}",
-            ),
-            None,
-        )
+        return request_status.not_found("article with id", article_id), None
     comments_count = (
         session.query(scheme.Comment)
         .where(scheme.Comment.article_id == article_id)
@@ -247,7 +274,9 @@ def comments_count(session: Session, article_id):
     return request_status.Status(request_status.StatusType.OK), comments_count
 
 
-def get(session: Session, article_id):
+def get(
+    session: Session, article_id: int
+) -> tuple[request_status.Status, scheme.Article | None]:
     """Возвращает ORM-объект статьи.
 
     Args:
@@ -257,24 +286,19 @@ def get(session: Session, article_id):
     Returns:
         Кортеж (`Status`, Article):
             - OK и объект статьи — если статья найдена.
-            - ValueError и `None` — если статья не найдена.
+            - NotFound и `None` — если статья не найдена.
     """
     if is_article_not_exist(session, article_id):
-        return (
-            request_status.Status(
-                request_status.StatusType.ERROR,
-                error_type=request_status.ErrorType.ValueError,
-                msg=f"Cannot find article with id: {article_id}",
-            ),
-            None,
-        )
+        return request_status.not_found("article with id", article_id), None
     article = (
         session.query(scheme.Article).where(scheme.Article.id == article_id).scalar()
     )
     return request_status.Status(request_status.StatusType.OK), article
 
 
-def preview(session: Session, article_id):
+def preview(
+    session: Session, article_id: int
+) -> tuple[request_status.Status, dict | None]:
     """Возвращает содержимое предпоказа статьи.
 
     Args:
@@ -284,17 +308,10 @@ def preview(session: Session, article_id):
     Returns:
         Кортеж (`Status`, dict):
             - OK и содержимое предпоказа — если статья найдена.
-            - ValueError и `None` — если статья не найдена.
+            - NotFound и `None` — если статья не найдена.
     """
     if is_article_not_exist(session, article_id):
-        return (
-            request_status.Status(
-                request_status.StatusType.ERROR,
-                error_type=request_status.ErrorType.ValueError,
-                msg=f"Cannot find article with id: {article_id}",
-            ),
-            None,
-        )
+        return request_status.not_found("article with id", article_id), None
     preview = (
         session.query(scheme.ArticlePreview.preview_content)
         .where(scheme.ArticlePreview.article_id == article_id)
@@ -303,7 +320,9 @@ def preview(session: Session, article_id):
     return request_status.Status(request_status.StatusType.OK), json.loads(preview)
 
 
-def tags(session: Session, article_id):
+def tags(
+    session: Session, article_id: int
+) -> tuple[request_status.Status, list[str] | None]:
     """Возвращает теги статьи.
 
     Args:
@@ -313,17 +332,10 @@ def tags(session: Session, article_id):
     Returns:
         Кортеж (`Status`, list[str]):
             - OK и список тегов — если статья найдена.
-            - ValueError и `None` — если статья не найдена.
+            - NotFound и `None` — если статья не найдена.
     """
     if is_article_not_exist(session, article_id):
-        return (
-            request_status.Status(
-                request_status.StatusType.ERROR,
-                error_type=request_status.ErrorType.ValueError,
-                msg=f"Cannot find article with id: {article_id}",
-            ),
-            None,
-        )
+        return request_status.not_found("article with id", article_id), None
     tags = (
         session.query(scheme.ArticleTag.tag_name)
         .where(scheme.ArticleTag.article_id == article_id)
@@ -332,9 +344,9 @@ def tags(session: Session, article_id):
     return request_status.Status(request_status.StatusType.OK), [tag[0] for tag in tags]
 
 
-def like(session: Session, article_id, username):
-    """Ставит лайк username на статью или снимает его, если он уже стоял
-    (заодно снимая дизлайк того же пользователя).
+def like(session: Session, article_id: int, username: str) -> request_status.Status:
+    """Ставит лайк username на статью, заодно снимая его дизлайк. Идемпотентно
+    (это PUT): повторный вызов ничего не меняет.
 
     Args:
         session: сессия SQLAlchemy.
@@ -343,15 +355,12 @@ def like(session: Session, article_id, username):
 
     Returns:
         `Status`:
-            - OK — лайк успешно поставлен/снят.
-            - ValueError — статья не найдена или username — её автор.
+            - OK — лайк стоит.
+            - NotFound — статья не найдена.
+            - Forbidden — username является её автором.
     """
     if is_article_not_exist(session, article_id):
-        return request_status.Status(
-            request_status.StatusType.ERROR,
-            error_type=request_status.ErrorType.ValueError,
-            msg=f"Cannot find article with id: {article_id}",
-        )
+        return request_status.not_found("article with id", article_id)
     author_username = (
         session.query(scheme.Article.author_username)
         .where(scheme.Article.id == article_id)
@@ -360,7 +369,7 @@ def like(session: Session, article_id, username):
     if author_username == username:
         return request_status.Status(
             request_status.StatusType.ERROR,
-            error_type=request_status.ErrorType.ValueError,
+            error_type=request_status.ErrorType.Forbidden,
             msg="User tries to like or dislike their own article",
         )
     existing_like = (
@@ -379,20 +388,17 @@ def like(session: Session, article_id, username):
         )
         .scalar()
     )
-    if existing_like:
-        session.delete(existing_like)
-    else:
-        like = scheme.ArticleLike(article_id=article_id, author_username=username)
-        session.add(like)
+    if not existing_like:
+        session.add(scheme.ArticleLike(article_id=article_id, author_username=username))
     if existing_dislike:
         session.delete(existing_dislike)
     session.flush()
     return request_status.Status(request_status.StatusType.OK)
 
 
-def dislike(session: Session, article_id, username):
-    """Ставит дизлайк username на статью или снимает его, если он уже стоял
-    (заодно снимая лайк того же пользователя).
+def dislike(session: Session, article_id: int, username: str) -> request_status.Status:
+    """Ставит дизлайк username на статью, заодно снимая его лайк. Идемпотентно
+    (это PUT): повторный вызов ничего не меняет.
 
     Args:
         session: сессия SQLAlchemy.
@@ -401,15 +407,12 @@ def dislike(session: Session, article_id, username):
 
     Returns:
         `Status`:
-            - OK — дизлайк успешно поставлен/снят.
-            - ValueError — статья не найдена или username — её автор.
+            - OK — дизлайк стоит.
+            - NotFound — статья не найдена.
+            - Forbidden — username является её автором.
     """
     if is_article_not_exist(session, article_id):
-        return request_status.Status(
-            request_status.StatusType.ERROR,
-            error_type=request_status.ErrorType.ValueError,
-            msg=f"Cannot find article with id: {article_id}",
-        )
+        return request_status.not_found("article with id", article_id)
     author_username = (
         session.query(scheme.Article.author_username)
         .where(scheme.Article.id == article_id)
@@ -418,7 +421,7 @@ def dislike(session: Session, article_id, username):
     if author_username == username:
         return request_status.Status(
             request_status.StatusType.ERROR,
-            error_type=request_status.ErrorType.ValueError,
+            error_type=request_status.ErrorType.Forbidden,
             msg="User tries to like or dislike their own article",
         )
     existing_like = (
@@ -437,18 +440,68 @@ def dislike(session: Session, article_id, username):
         )
         .scalar()
     )
-    if existing_dislike:
-        session.delete(existing_dislike)
-    else:
-        dislike = scheme.ArticleDislike(article_id=article_id, author_username=username)
-        session.add(dislike)
+    if not existing_dislike:
+        session.add(
+            scheme.ArticleDislike(article_id=article_id, author_username=username)
+        )
     if existing_like:
         session.delete(existing_like)
     session.flush()
     return request_status.Status(request_status.StatusType.OK)
 
 
-def _rating_expression():
+def remove_like(
+    session: Session, article_id: int, username: str
+) -> request_status.Status:
+    """Снимает лайк username с статьи. Идемпотентно (это DELETE): если лайка
+    нет, это не ошибка. Проверка авторства не нужна: автор не может поставить
+    лайк, значит снимать ему нечего.
+
+    Args:
+        session: сессия SQLAlchemy.
+        article_id: id статьи.
+        username: чей лайк снимается.
+
+    Returns:
+        `Status`:
+            - OK — лайка больше нет.
+            - NotFound — статья не найдена.
+    """
+    if is_article_not_exist(session, article_id):
+        return request_status.not_found("article with id", article_id)
+    session.query(scheme.ArticleLike).where(
+        scheme.ArticleLike.article_id == article_id,
+        scheme.ArticleLike.author_username == username,
+    ).delete()
+    return request_status.Status(request_status.StatusType.OK)
+
+
+def remove_dislike(
+    session: Session, article_id: int, username: str
+) -> request_status.Status:
+    """Снимает дизлайк username с статьи. Идемпотентно (это DELETE): если
+    дизлайка нет, это не ошибка.
+
+    Args:
+        session: сессия SQLAlchemy.
+        article_id: id статьи.
+        username: чей дизлайк снимается.
+
+    Returns:
+        `Status`:
+            - OK — дизлайка больше нет.
+            - NotFound — статья не найдена.
+    """
+    if is_article_not_exist(session, article_id):
+        return request_status.not_found("article with id", article_id)
+    session.query(scheme.ArticleDislike).where(
+        scheme.ArticleDislike.article_id == article_id,
+        scheme.ArticleDislike.author_username == username,
+    ).delete()
+    return request_status.Status(request_status.StatusType.OK)
+
+
+def _rating_expression() -> ColumnElement:
     """Строит SQL-выражение рейтинга статьи (likes - dislikes).
 
     Args:
@@ -472,14 +525,14 @@ def _rating_expression():
 
 def pages_get(
     session: Session,
-    username,
-    include_nonsub,
-    sort_column,
-    sort_direction,
-    include,
-    exclude,
-    bounds,
-):
+    username: str,
+    include_nonsub: bool,
+    sort_column: str,
+    sort_direction: str,
+    include: dict,
+    exclude: dict,
+    bounds: dict,
+) -> list[int]:
     """Строит отсортированный и отфильтрованный список id статей для ленты.
 
     Args:
@@ -591,25 +644,19 @@ def pages_get(
         else "descending"
     )
 
+    order_expr = (
+        _rating_expression()
+        if effective_sort_column == "rating"
+        else scheme.Article.creation_date
+    )
+
     if bounds:
         upper = bounds.get("upper")
         lower = bounds.get("lower")
-        if effective_sort_column == "rating":
-            rating_expr = _rating_expression()
-            if upper is not None:
-                query = query.where(rating_expr < upper)
-            if lower is not None:
-                query = query.where(rating_expr > lower)
-        else:
-            if upper is not None:
-                query = query.where(scheme.Article.creation_date < upper)
-            if lower is not None:
-                query = query.where(scheme.Article.creation_date > lower)
-
-    if effective_sort_column == "rating":
-        order_expr = _rating_expression()
-    else:
-        order_expr = scheme.Article.creation_date
+        if upper is not None:
+            query = query.where(order_expr < upper)
+        if lower is not None:
+            query = query.where(order_expr > lower)
     query = query.order_by(
         order_expr.desc()
         if effective_sort_direction == "descending"

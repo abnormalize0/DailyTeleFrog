@@ -2,6 +2,10 @@
 
 Этот файл содержит инструкции для Claude Code (claude.ai/code) при работе с кодом в этом репозитории.
 
+## Стек технологий
+
+Flask (REST API, см. `decisions/0004-rest-api.md`), SQLAlchemy + MySQL (хранение данных), **pytest** (тестовый фреймворк, см. «Запуск тестов» ниже), `black` (форматирование, см. «Стиль кода» ниже).
+
 ## Запуск сервера
 
 ```bash
@@ -24,7 +28,7 @@ Docker: `make` без аргументов выводит список всех 
 
 ## Запуск тестов
 
-Отдельного слоя юнит-тестов/моков нет: каждый тест в `tests/test_api.py` в `setUp` поднимает настоящий серверный процесс `start.py -t` поверх настоящей базы данных, а перед каждым тестовым методом все таблицы удаляются и создаются заново из `scheme.Base.metadata`. Тесты общаются с сервером только по HTTP через `requests`.
+Тесты написаны на **pytest** (обычные функции/классы с `assert`, без `unittest.TestCase`). Отдельного слоя юнит-тестов/моков нет: перед каждым тестом из `tests/routes/*.py` fixture `server` из `tests/conftest.py` удаляет и заново создаёт все таблицы из `scheme.Base.metadata`, поднимает настоящий серверный процесс `start.py -t` поверх настоящей базы данных, а после теста останавливает его. Тесты общаются с сервером только по HTTP через `requests`.
 
 Запуск всего набора в docker (собирает образы, поднимает MySQL и сервер, копирует логи в `test_logs/`):
 
@@ -32,18 +36,18 @@ Docker: `make` без аргументов выводит список всех 
 make test
 ```
 
-Запуск подмножества или одного теста — флаги `run_tests.py` внутри контейнера:
+Запуск подмножества или одного теста — обычные флаги pytest внутри контейнера:
 
 ```bash
-docker exec -t server-test python3 /app/tests/run_tests.py -R test_login_get   # поиск по regexp в имени теста
-docker exec -t server-test python3 /app/tests/run_tests.py -N                 # показать подходящие тесты без запуска
-docker exec -t server-test python3 /app/tests/run_tests.py -E -R test_users    # запустить все, кроме подходящих
-docker exec -t server-test python3 /app/tests/run_tests.py --repeat 5          # повторить запуск N раз
+docker exec -w /app -t server-test python3 -m pytest tests -v                          # весь набор
+docker exec -w /app -t server-test python3 -m pytest tests -v -k test_auth_login_post       # один тест (подстрока имени)
+docker exec -w /app -t server-test python3 -m pytest tests --collect-only -q            # показать тесты без запуска
+docker exec -w /app -t server-test python3 -m pytest tests -v -k "not test_users"       # запустить все, кроме подходящих
 ```
 
-`-R` ищет через `re.search` по строке `module.ClassName.method_name`, поэтому достаточно голого имени метода. Для обнаружения тестов обязателен префикс `test_` и в имени файла, и в имени метода.
+Для обнаружения тестов обязателен префикс `test_` и в имени файла, и в имени метода (стандартное поведение pytest, дополнительно не настраивается).
 
-**Каждый API-метод должен иметь свой отдельный end-to-end тест** в `tests/test_api.py` (один `test_<метод>_<тип>` на каждый `api_<метод>_<тип>`), а не полагаться на то, что его затронет тест другого метода.
+**Каждый API-метод должен иметь свой отдельный end-to-end тест** в файле своего ресурса под `tests/routes/` (один `test_<метод>_<тип>` на каждый `api_<метод>_<тип>`, в том же файле, что и `src/api/routes/<ресурс>.py`), а не полагаться на то, что его затронет тест другого метода.
 
 ## Стиль кода
 

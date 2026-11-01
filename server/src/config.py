@@ -6,7 +6,7 @@ import os
 
 
 class DynamicPath:
-    def __init__(self, *args):
+    def __init__(self, *args: str) -> None:
         """Сохраняет сегменты пути для дальнейшей сборки в path.
 
         Args:
@@ -18,7 +18,7 @@ class DynamicPath:
         self.endpont = args
 
     @property
-    def path(self):
+    def path(self) -> str:
         """Собирает абсолютный путь из текущей директории и сегментов.
 
         Args:
@@ -46,6 +46,12 @@ log_db_api = DynamicPath("log", "db_api.log")
 
 delimiter = "~"
 articles_per_page = 5
+
+# Время жизни токенов авторизации, мс (см. db/auth.py). access — короткий,
+# летает в каждом запросе; refresh — длинный, но с ротацией при каждом
+# использовании (см. AccessToken/RefreshToken в db/scheme/).
+access_token_lifetime_ms = 60 * 60 * 1000  # 1 час
+refresh_token_lifetime_ms = 30 * 24 * 60 * 60 * 1000  # 30 дней
 
 user_id_name = "username"
 user_table_name = "users"

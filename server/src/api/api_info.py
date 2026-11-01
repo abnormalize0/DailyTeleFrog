@@ -1,445 +1,301 @@
 """
-Этот файл служит для хранения API методов, которые возвращают структуру входных данных.
-Для каждого пути, по которому сервер принимает запросы должен быть свой API метод.
-API методы обязаны обрабатывать запросы типа OPTIONS, так как это поведение используется в тестах.
-Название методов формируется следующим образом: %METHOD_NAME%_info. %METHOD_NAME% такой же как и в /server/src/api.py
-Таким образом имена не будут дублироваться для одних и тех же путей.
+Этот файл служит для хранения описаний параметров API-методов. check_structure и
+fill_default в shared.py проверяют по ним запросы, а обработчики OPTIONS отдают
+их наружу: так тесты сами узнают, какие параметры у метода.
+Название обработчика формируется так: %METHOD_NAME%_info, где %METHOD_NAME% такой
+же, как и в src/api/routes/. Таким образом имена не будут дублироваться для одних
+и тех же путей.
+
+Поле "container" говорит, откуда читается параметр: "body" (JSON-тело) или
+"query" (query-строка, для GET). Параметры из пути сюда не входят: их тип и
+наличие проверяет сам маршрут Flask (<int:...>).
+
+Ограничения, которые тоже уходят клиенту через OPTIONS:
+- "max_length": предел строки в символах, совпадает с длиной колонки String(n);
+- "max_bytes": предел значения в байтах, в виде, в котором оно хранится;
+- "item_type" и "item_max_length": тип и предел длины элементов списка.
 """
 
 import json
 from flask import Blueprint
 
+from ..db import scheme
+
 info = Blueprint("info", __name__)
+
+# Предел колонки TEXT в MySQL. Проверяем сами, потому что запись большего значения
+# падает с ошибкой БД (500). У String(n) предел свой, и он берётся прямо из схемы.
+TEXT_MAX_BYTES = 65_535
+_TAG_MAX_LENGTH = scheme.ArticleTag.tag_name.type.length
 
 type_defaults = {
     "int": None,
     "str": "",
-    "json": {},
     "list": [],
     "bool": True,
-    "date": "",
 }
 
-article_post = [
-    {"name": "username", "type": "str", "is_required": True, "container": "body"},
+
+def _requested_field(name: str) -> dict:
+    """Строит описание одного допустимого значения списка requested_data.
+
+    Args:
+        name: имя поля.
+
+    Returns:
+        dict-описание значения.
+    """
+    return {"name": name}
+
+
+articles_post = [
+    {
+        "name": "title",
+        "type": "str",
+        "is_required": True,
+        "container": "body",
+        "max_length": scheme.Article.title.type.length,
+    },
     {
         "name": "body",
         "type": "dict",
         "is_required": True,
         "container": "body",
-        "structure": [],
+        "max_bytes": TEXT_MAX_BYTES,
     },
     {
         "name": "preview",
         "type": "dict",
         "is_required": True,
         "container": "body",
-        "structure": [],
-    },
-    {
-        "name": "title",
-        "type": "str",
-        "is_required": True,
-        "container": "body",
+        "max_bytes": TEXT_MAX_BYTES,
     },
     {
         "name": "tags",
         "type": "list",
         "is_required": False,
         "container": "body",
-        "structure": [],
+        "item_type": "str",
+        "item_max_length": _TAG_MAX_LENGTH,
     },
 ]
 
-article_get = [
-    {"name": "username", "type": "str", "is_required": True, "container": "body"},
-    {"name": "article_id", "type": "int", "is_required": True, "container": "body"},
-]
-
-
-@info.route("/article", methods=["OPTIONS"])
-def article_info():
-    """Отвечает на OPTIONS /article.
-
-    Args:
-        None
-
-    Returns:
-        JSON-строка со схемами полей для POST и GET /article.
-    """
-    return json.dumps({"post": article_post, "get": article_get})
-
-
-article_like_post = [
-    {"name": "username", "type": "str", "is_required": True, "container": "body"},
-    {"name": "article_id", "type": "int", "is_required": True, "container": "body"},
-]
-
-article_like_get = []
-
-
-@info.route("/article/like", methods=["OPTIONS"])
-def article_like_info():
-    """Отвечает на OPTIONS /article/like.
-
-    Args:
-        None
-
-    Returns:
-        JSON-строка со схемами полей для POST и GET /article/like.
-    """
-    return json.dumps({"post": article_like_post, "get": article_like_get})
-
-
-article_dislike_post = [
-    {"name": "username", "type": "str", "is_required": True, "container": "body"},
-    {"name": "article_id", "type": "int", "is_required": True, "container": "body"},
-]
-
-article_dislike_get = []
-
-
-@info.route("/article/dislike", methods=["OPTIONS"])
-def article_dislike_info():
-    """Отвечает на OPTIONS /article/dislike.
-
-    Args:
-        None
-
-    Returns:
-        JSON-строка со схемами полей для POST и GET /article/dislike.
-    """
-    return json.dumps({"post": article_dislike_post, "get": article_dislike_get})
-
-
-article_comment_post = [
-    {"name": "username", "type": "str", "is_required": True, "container": "body"},
-    {"name": "article_id", "type": "int", "is_required": True, "container": "body"},
-    {"name": "text", "type": "str", "is_required": True, "container": "body"},
-    {"name": "root", "type": "int", "is_required": True, "container": "body"},
-]
-
-article_comment_get = []
-
-
-@info.route("/article/comment", methods=["OPTIONS"])
-def article_comment_info():
-    """Отвечает на OPTIONS /article/comment.
-
-    Args:
-        None
-
-    Returns:
-        JSON-строка со схемами полей для POST и GET /article/comment.
-    """
-    return json.dumps({"post": article_comment_post, "get": article_comment_get})
-
-
-article_comment_like_post = [
-    {"name": "username", "type": "str", "is_required": True, "container": "body"},
-    {"name": "comment_id", "type": "int", "is_required": True, "container": "body"},
-]
-
-article_comment_like_get = []
-
-
-@info.route("/article/comment/like", methods=["OPTIONS"])
-def article_comment_like_info():
-    """Отвечает на OPTIONS /article/comment/like.
-
-    Args:
-        None
-
-    Returns:
-        JSON-строка со схемами полей для POST и GET /article/comment/like.
-    """
-    return json.dumps(
-        {"post": article_comment_like_post, "get": article_comment_like_get}
-    )
-
-
-article_comment_dislike_post = [
-    {"name": "username", "type": "str", "is_required": True, "container": "body"},
-    {"name": "comment_id", "type": "int", "is_required": True, "container": "body"},
-]
-
-article_comment_dislike_get = []
-
-
-@info.route("/article/comment/dislike", methods=["OPTIONS"])
-def article_comment_dislike_info():
-    """Отвечает на OPTIONS /article/comment/dislike.
-
-    Args:
-        None
-
-    Returns:
-        JSON-строка со схемами полей для POST и GET /article/comment/dislike.
-    """
-    return json.dumps(
-        {"post": article_comment_dislike_post, "get": article_comment_dislike_get}
-    )
-
-
-article_comment_data_post = []
-
-article_comment_data_get = [
-    {"name": "username", "type": "str", "is_required": True, "container": "body"},
-    {"name": "comment_id", "type": "int", "is_required": True, "container": "body"},
-    {
-        "name": "requested_data",
-        "type": "list",
-        "is_required": True,
-        "container": "body",
-        "structure": [
-            {
-                "name": "likes",
-                "type": "field",
-                "is_required": True,
-                "container": "body",
-            },
-            {
-                "name": "dislikes",
-                "type": "field",
-                "is_required": True,
-                "container": "body",
-            },
-            {
-                "name": "rating",
-                "type": "field",
-                "is_required": True,
-                "container": "body",
-            },
-            {
-                "name": "creation_date",
-                "type": "field",
-                "is_required": True,
-                "container": "body",
-            },
-            {
-                "name": "is_liked",
-                "type": "field",
-                "is_required": True,
-                "container": "body",
-            },
-            {
-                "name": "is_disliked",
-                "type": "field",
-                "is_required": True,
-                "container": "body",
-            },
-        ],
-    },
-]
-
-
-@info.route("/article/comment/data", methods=["OPTIONS"])
-def article_comment_data_info():
-    """Отвечает на OPTIONS /article/comment/data.
-
-    Args:
-        None
-
-    Returns:
-        JSON-строка со схемами полей для POST и GET /article/comment/data.
-    """
-    return json.dumps(
-        {"post": article_comment_data_post, "get": article_comment_data_get}
-    )
-
-
-article_data_post = [
-    {"name": "username", "type": "str", "is_required": True, "container": "header"},
-    {"name": "article-id", "type": "int", "is_required": True, "container": "header"},
-    {
-        "name": "like-article",
-        "type": "json",
-        "is_required": False,
-        "container": "body",
-        "structure": [],
-    },
-    {
-        "name": "dislike-article",
-        "type": "json",
-        "is_required": False,
-        "container": "body",
-        "structure": [],
-    },
-    {
-        "name": "like-comment",
-        "type": "json",
-        "is_required": False,
-        "container": "body",
-        "structure": [{"name": "comment_id", "type": "int", "is_required": True}],
-    },
-    {
-        "name": "dislike-comment",
-        "type": "json",
-        "is_required": False,
-        "container": "body",
-        "structure": [{"name": "comment_id", "type": "int", "is_required": True}],
-    },
-    {
-        "name": "add-comment",
-        "type": "json",
-        "is_required": False,
-        "container": "body",
-        "structure": [
-            {"name": "root", "type": "int", "is_required": True},
-            {"name": "text", "type": "str", "is_required": True},
-        ],
-    },
-]
-
-article_data_get = [
-    {"name": "username", "type": "str", "is_required": True, "container": "body"},
-    {"name": "article_id", "type": "int", "is_required": True, "container": "body"},
-    {
-        "name": "requested_data",
-        "type": "list",
-        "is_required": True,
-        "container": "body",
-        "structure": [
-            {
-                "name": "likes",
-                "type": "field",
-                "is_required": True,
-                "container": "body",
-            },
-            {
-                "name": "dislikes",
-                "type": "field",
-                "is_required": True,
-                "container": "body",
-            },
-            {
-                "name": "rating",
-                "type": "field",
-                "is_required": True,
-                "container": "body",
-            },
-            {
-                "name": "comments_count",
-                "type": "field",
-                "is_required": True,
-                "container": "body",
-            },
-            {
-                "name": "creation_date",
-                "type": "field",
-                "is_required": True,
-                "container": "body",
-            },
-            {
-                "name": "is_liked",
-                "type": "field",
-                "is_required": True,
-                "container": "body",
-            },
-            {
-                "name": "is_disliked",
-                "type": "field",
-                "is_required": True,
-                "container": "body",
-            },
-        ],
-    },
-]
-
-
-@info.route("/article/data", methods=["OPTIONS"])
-def article_data_info():
-    """Отвечает на OPTIONS /article/data.
-
-    Args:
-        None
-
-    Returns:
-        JSON-строка со схемами полей для POST и GET /article/data.
-    """
-    return json.dumps({"post": article_data_post, "get": article_data_get})
-
-
-pages_post = []
-
-pages_get = [
-    {"name": "username", "type": "str", "is_required": True, "container": "body"},
+articles_get = [
     {
         "name": "indexes",
         "type": "list",
         "is_required": True,
-        "container": "body",
-        "structure": [],
+        "container": "query",
+        "item_type": "int",
     },
     {
         "name": "include_nonsub",
         "type": "bool",
         "is_required": False,
-        "container": "body",
+        "container": "query",
     },
-    {"name": "sort_column", "type": "str", "is_required": False, "container": "body"},
+    {"name": "sort_column", "type": "str", "is_required": False, "container": "query"},
     {
         "name": "sort_direction",
         "type": "str",
         "is_required": False,
-        "container": "body",
+        "container": "query",
     },
-    {"name": "upper_date", "type": "int", "is_required": False, "container": "body"},
-    {"name": "lower_date", "type": "int", "is_required": False, "container": "body"},
-    {
-        "name": "upper_rating",
-        "type": "int",
-        "is_required": False,
-        "container": "body",
-    },
-    {
-        "name": "lower_rating",
-        "type": "int",
-        "is_required": False,
-        "container": "body",
-    },
+    {"name": "upper_date", "type": "int", "is_required": False, "container": "query"},
+    {"name": "lower_date", "type": "int", "is_required": False, "container": "query"},
+    {"name": "upper_rating", "type": "int", "is_required": False, "container": "query"},
+    {"name": "lower_rating", "type": "int", "is_required": False, "container": "query"},
     {
         "name": "include_tags",
         "type": "list",
         "is_required": False,
-        "container": "body",
-        "structure": [],
+        "container": "query",
     },
     {
         "name": "exclude_tags",
         "type": "list",
         "is_required": False,
-        "container": "body",
-        "structure": [],
+        "container": "query",
     },
     {
         "name": "include_authors",
         "type": "list",
         "is_required": False,
-        "container": "body",
-        "structure": [],
+        "container": "query",
     },
     {
         "name": "exclude_authors",
         "type": "list",
         "is_required": False,
-        "container": "body",
-        "structure": [],
+        "container": "query",
     },
 ]
 
 
-@info.route("/pages", methods=["OPTIONS"])
-def pages_info():
-    """Отвечает на OPTIONS /pages.
+@info.route("/articles", methods=["OPTIONS"])
+def articles_info() -> str:
+    """Отвечает на OPTIONS /articles.
 
     Args:
         None
 
     Returns:
-        JSON-строка со схемами полей для POST и GET /pages.
+        JSON-строка со схемами полей методов этого пути.
     """
-    return json.dumps({"post": pages_post, "get": pages_get})
+    return json.dumps({"post": articles_post, "get": articles_get})
+
+
+@info.route("/articles/<int:article_id>", methods=["OPTIONS"])
+def articles_item_info(article_id: int) -> str:
+    """Отвечает на OPTIONS /articles/{id}.
+
+    Args:
+        article_id: id из пути, в ответе не используется.
+
+    Returns:
+        JSON-строка со схемами полей методов этого пути.
+    """
+    return json.dumps({"get": []})
+
+
+articles_data_get = [
+    {
+        "name": "requested_data",
+        "type": "list",
+        "is_required": True,
+        "container": "query",
+        "structure": [
+            _requested_field("likes"),
+            _requested_field("dislikes"),
+            _requested_field("rating"),
+            _requested_field("comments_count"),
+            _requested_field("creation_date"),
+            _requested_field("is_liked"),
+            _requested_field("is_disliked"),
+        ],
+    },
+]
+
+
+@info.route("/articles/<int:article_id>/data", methods=["OPTIONS"])
+def articles_data_info(article_id: int) -> str:
+    """Отвечает на OPTIONS /articles/{id}/data.
+
+    Args:
+        article_id: id из пути, в ответе не используется.
+
+    Returns:
+        JSON-строка со схемами полей методов этого пути.
+    """
+    return json.dumps({"get": articles_data_get})
+
+
+@info.route("/articles/<int:article_id>/like", methods=["OPTIONS"])
+def articles_like_info(article_id: int) -> str:
+    """Отвечает на OPTIONS /articles/{id}/like.
+
+    Args:
+        article_id: id из пути, в ответе не используется.
+
+    Returns:
+        JSON-строка со схемами полей методов этого пути.
+    """
+    return json.dumps({"put": [], "delete": []})
+
+
+@info.route("/articles/<int:article_id>/dislike", methods=["OPTIONS"])
+def articles_dislike_info(article_id: int) -> str:
+    """Отвечает на OPTIONS /articles/{id}/dislike.
+
+    Args:
+        article_id: id из пути, в ответе не используется.
+
+    Returns:
+        JSON-строка со схемами полей методов этого пути.
+    """
+    return json.dumps({"put": [], "delete": []})
+
+
+articles_comments_post = [
+    {
+        "name": "text",
+        "type": "str",
+        "is_required": True,
+        "container": "body",
+        "max_bytes": TEXT_MAX_BYTES,
+    },
+    {"name": "root", "type": "int", "is_required": True, "container": "body"},
+]
+
+
+@info.route("/articles/<int:article_id>/comments", methods=["OPTIONS"])
+def articles_comments_info(article_id: int) -> str:
+    """Отвечает на OPTIONS /articles/{id}/comments.
+
+    Args:
+        article_id: id из пути, в ответе не используется.
+
+    Returns:
+        JSON-строка со схемами полей методов этого пути.
+    """
+    return json.dumps({"post": articles_comments_post})
+
+
+comments_item_get = [
+    {
+        "name": "requested_data",
+        "type": "list",
+        "is_required": True,
+        "container": "query",
+        "structure": [
+            _requested_field("likes"),
+            _requested_field("dislikes"),
+            _requested_field("rating"),
+            _requested_field("creation_date"),
+            _requested_field("is_liked"),
+            _requested_field("is_disliked"),
+        ],
+    },
+]
+
+
+@info.route("/comments/<int:comment_id>", methods=["OPTIONS"])
+def comments_item_info(comment_id: int) -> str:
+    """Отвечает на OPTIONS /comments/{id}.
+
+    Args:
+        comment_id: id из пути, в ответе не используется.
+
+    Returns:
+        JSON-строка со схемами полей методов этого пути.
+    """
+    return json.dumps({"get": comments_item_get})
+
+
+@info.route("/comments/<int:comment_id>/like", methods=["OPTIONS"])
+def comments_like_info(comment_id: int) -> str:
+    """Отвечает на OPTIONS /comments/{id}/like.
+
+    Args:
+        comment_id: id из пути, в ответе не используется.
+
+    Returns:
+        JSON-строка со схемами полей методов этого пути.
+    """
+    return json.dumps({"put": [], "delete": []})
+
+
+@info.route("/comments/<int:comment_id>/dislike", methods=["OPTIONS"])
+def comments_dislike_info(comment_id: int) -> str:
+    """Отвечает на OPTIONS /comments/{id}/dislike.
+
+    Args:
+        comment_id: id из пути, в ответе не используется.
+
+    Returns:
+        JSON-строка со схемами полей методов этого пути.
+    """
+    return json.dumps({"put": [], "delete": []})
 
 
 users_post = [
@@ -448,194 +304,151 @@ users_post = [
         "type": "str",
         "is_required": True,
         "container": "body",
+        "max_length": scheme.User.username.type.length,
     },
     {
         "name": "nickname",
         "type": "str",
         "is_required": True,
         "container": "body",
+        "max_length": scheme.User.nickname.type.length,
     },
     {
         "name": "email",
         "type": "str",
         "is_required": True,
         "container": "body",
+        "max_length": scheme.User.email.type.length,
     },
-    {
-        "name": "password",
-        "type": "str",
-        "is_required": True,
-        "container": "body",
-    },
+    {"name": "password", "type": "str", "is_required": True, "container": "body"},
     {
         "name": "avatar",
         "type": "str",
         "is_required": False,
         "container": "body",
+        "max_length": scheme.User.avatar.type.length,
     },
     {
         "name": "description",
         "type": "str",
         "is_required": False,
         "container": "body",
+        "max_bytes": TEXT_MAX_BYTES,
     },
 ]
 
-users_get = []
-
 
 @info.route("/users", methods=["OPTIONS"])
-def users_info():
+def users_info() -> str:
     """Отвечает на OPTIONS /users.
 
     Args:
         None
 
     Returns:
-        JSON-строка со схемами полей для POST и GET /users.
+        JSON-строка со схемами полей методов этого пути.
     """
-    return json.dumps({"post": users_post, "get": users_get})
+    return json.dumps({"post": users_post})
 
 
-users_data_post = [
-    {"name": "username", "type": "str", "is_required": True, "container": "body"},
+users_me_get = [
+    {
+        "name": "requested_data",
+        "type": "list",
+        "is_required": True,
+        "container": "query",
+        "structure": [
+            _requested_field("nickname"),
+            _requested_field("email"),
+            _requested_field("name_history"),
+            _requested_field("avatar"),
+            _requested_field("sub_tags"),
+            _requested_field("blocked_tags"),
+            _requested_field("sub_users"),
+            _requested_field("blocked_users"),
+            _requested_field("description"),
+            _requested_field("creation_date"),
+            _requested_field("rating"),
+        ],
+    },
+]
+
+users_me_patch = [
     {
         "name": "nickname",
         "type": "str",
         "is_required": False,
         "container": "body",
+        "max_length": scheme.User.nickname.type.length,
     },
     {
         "name": "email",
         "type": "str",
         "is_required": False,
         "container": "body",
+        "max_length": scheme.User.email.type.length,
     },
     {
         "name": "avatar",
         "type": "str",
         "is_required": False,
         "container": "body",
-    },
-    {
-        "name": "sub-tags",
-        "type": "list",
-        "is_required": False,
-        "container": "body",
-        "structure": [],
-    },
-    {
-        "name": "blocked-tags",
-        "type": "list",
-        "is_required": False,
-        "container": "body",
-        "structure": [],
-    },
-    {
-        "name": "sub-users",
-        "type": "list",
-        "is_required": False,
-        "container": "body",
-        "structure": [],
-    },
-    {
-        "name": "blocked-users",
-        "type": "list",
-        "is_required": False,
-        "container": "body",
-        "structure": [],
+        "max_length": scheme.User.avatar.type.length,
     },
     {
         "name": "description",
         "type": "str",
         "is_required": False,
         "container": "body",
+        "max_bytes": TEXT_MAX_BYTES,
     },
-]
-
-users_data_get = [
-    {"name": "username", "type": "str", "is_required": True, "container": "body"},
     {
-        "name": "requested_data",
+        "name": "sub-tags",
         "type": "list",
-        "is_required": True,
+        "is_required": False,
         "container": "body",
-        "structure": [
-            {
-                "name": "nickname",
-                "type": "field",
-                "is_required": False,
-            },
-            {
-                "name": "email",
-                "type": "field",
-                "is_required": False,
-            },
-            {
-                "name": "name_history",
-                "type": "field",
-                "is_required": False,
-            },
-            {
-                "name": "avatar",
-                "type": "field",
-                "is_required": False,
-            },
-            {
-                "name": "sub_tags",
-                "type": "field",
-                "is_required": False,
-            },
-            {
-                "name": "blocked_tags",
-                "type": "field",
-                "is_required": False,
-            },
-            {
-                "name": "sub_users",
-                "type": "field",
-                "is_required": False,
-            },
-            {
-                "name": "blocked_users",
-                "type": "field",
-                "is_required": False,
-            },
-            {
-                "name": "description",
-                "type": "field",
-                "is_required": False,
-            },
-            {
-                "name": "creation_date",
-                "type": "field",
-                "is_required": False,
-            },
-            {
-                "name": "rating",
-                "type": "field",
-                "is_required": False,
-            },
-        ],
+        "item_type": "str",
+        "item_max_length": _TAG_MAX_LENGTH,
+    },
+    {
+        "name": "blocked-tags",
+        "type": "list",
+        "is_required": False,
+        "container": "body",
+        "item_type": "str",
+        "item_max_length": _TAG_MAX_LENGTH,
+    },
+    {
+        "name": "sub-users",
+        "type": "list",
+        "is_required": False,
+        "container": "body",
+        "item_type": "str",
+    },
+    {
+        "name": "blocked-users",
+        "type": "list",
+        "is_required": False,
+        "container": "body",
+        "item_type": "str",
     },
 ]
 
 
-@info.route("/users/data", methods=["OPTIONS"])
-def users_data_info():
-    """Отвечает на OPTIONS /users/data.
+@info.route("/users/me", methods=["OPTIONS"])
+def users_me_info() -> str:
+    """Отвечает на OPTIONS /users/me.
 
     Args:
         None
 
     Returns:
-        JSON-строка со схемами полей для POST и GET /users/data.
+        JSON-строка со схемами полей методов этого пути.
     """
-    return json.dumps({"post": users_data_post, "get": users_data_get})
+    return json.dumps({"get": users_me_get, "patch": users_me_patch})
 
 
-user_password_post = [
-    {"name": "username", "type": "str", "is_required": True, "container": "body"},
+users_me_password_put = [
     {
         "name": "previous_password",
         "type": "str",
@@ -645,54 +458,71 @@ user_password_post = [
     {"name": "new_password", "type": "str", "is_required": True, "container": "body"},
 ]
 
-user_password_get = []
 
-
-@info.route("/users/password", methods=["OPTIONS"])
-def users_password_info():
-    """Отвечает на OPTIONS /users/password.
+@info.route("/users/me/password", methods=["OPTIONS"])
+def users_me_password_info() -> str:
+    """Отвечает на OPTIONS /users/me/password.
 
     Args:
         None
 
     Returns:
-        JSON-строка со схемами полей для POST и GET /users/password.
+        JSON-строка со схемами полей методов этого пути.
     """
-    return json.dumps({"post": user_password_post, "get": user_password_get})
+    return json.dumps({"put": users_me_password_put})
 
 
-login_post = []
-
-login_get = [
-    {
-        "name": "username",
-        "type": "str",
-        "is_required": False,
-        "container": "body",
-    },
-    {
-        "name": "email",
-        "type": "str",
-        "is_required": False,
-        "container": "body",
-    },
-    {
-        "name": "password",
-        "type": "str",
-        "is_required": True,
-        "container": "body",
-    },
+auth_login_post = [
+    {"name": "username", "type": "str", "is_required": False, "container": "body"},
+    {"name": "email", "type": "str", "is_required": False, "container": "body"},
+    {"name": "password", "type": "str", "is_required": True, "container": "body"},
 ]
 
 
-@info.route("/login", methods=["OPTIONS"])
-def login_info():
-    """Отвечает на OPTIONS /login.
+@info.route("/auth/login", methods=["OPTIONS"])
+def auth_login_info() -> str:
+    """Отвечает на OPTIONS /auth/login.
 
     Args:
         None
 
     Returns:
-        JSON-строка со схемами полей для POST и GET /login.
+        JSON-строка со схемами полей методов этого пути.
     """
-    return json.dumps({"post": login_post, "get": login_get})
+    return json.dumps({"post": auth_login_post})
+
+
+auth_refresh_post = [
+    {"name": "refresh_token", "type": "str", "is_required": True, "container": "body"},
+]
+
+
+@info.route("/auth/refresh", methods=["OPTIONS"])
+def auth_refresh_info() -> str:
+    """Отвечает на OPTIONS /auth/refresh.
+
+    Args:
+        None
+
+    Returns:
+        JSON-строка со схемами полей методов этого пути.
+    """
+    return json.dumps({"post": auth_refresh_post})
+
+
+auth_logout_post = [
+    {"name": "refresh_token", "type": "str", "is_required": True, "container": "body"},
+]
+
+
+@info.route("/auth/logout", methods=["OPTIONS"])
+def auth_logout_info() -> str:
+    """Отвечает на OPTIONS /auth/logout.
+
+    Args:
+        None
+
+    Returns:
+        JSON-строка со схемами полей методов этого пути.
+    """
+    return json.dumps({"post": auth_logout_post})

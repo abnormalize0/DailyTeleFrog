@@ -5,12 +5,16 @@
 import json
 import time
 
-from .db import user, article, comment
+from sqlalchemy.orm import Session
+
+from .db import user, article, comment, auth
 from . import config
 from . import request_status
 
 
-def get_article(session, article_id, username):
+def get_article(
+    session: Session, article_id: int, username: str
+) -> tuple[request_status.Status, dict | None]:
     """Собирает полную информацию о статье для страницы статьи.
 
     Args:
@@ -21,60 +25,46 @@ def get_article(session, article_id, username):
 
     Returns:
         Кортеж (`Status`, dict):
-            - OK и данные статьи (см. api.api_article_get) — при успехе.
+            - OK и данные статьи (см. api_articles_item_get) — при успехе.
             - ERROR и `None` — если статья или связанные данные не найдены.
     """
     status, article_info = article.get(session, article_id)
     if status.is_error:
         return status, None
-    status, author_preview = user.preview(session, article_info.author_username)
-    if status.is_error:
-        return status, None
-    status, preview = article.preview(session, article_id)
-    if status.is_error:
-        return status, None
-    status, likes = article.likes_count(session, article_id)
-    if status.is_error:
-        return status, None
-    status, dislikes = article.dislikes_count(session, article_id)
-    if status.is_error:
-        return status, None
-    status, rating = article.rating(session, article_id)
-    if status.is_error:
-        return status, None
-    status, comments_count = article.comments_count(session, article_id)
-    if status.is_error:
-        return status, None
-    status, comments = comment.from_article(session, article_id)
-    if status.is_error:
-        return status, None
-    status, is_liked = article.is_liked(session, article_id, username)
-    if status.is_error:
-        return status, None
-    status, is_disliked = article.is_disliked(session, article_id, username)
-    if status.is_error:
-        return status, None
-    status, tags = article.tags(session, article_id)
-    if status.is_error:
-        return status, None
-    return request_status.Status(request_status.StatusType.OK), {
+
+    data = {
         "creation_date": article_info.creation_date,
-        "author_preview": author_preview,
         "title": article_info.title,
         "body": json.loads(article_info.body),
-        "preview": preview,
-        "likes": likes,
-        "dislikes": dislikes,
-        "rating": rating,
-        "comments_count": comments_count,
-        "comments": comments,
-        "is_liked": is_liked,
-        "is_disliked": is_disliked,
-        "tags": tags,
     }
+    accessors = {
+        "author_preview": lambda: user.preview(session, article_info.author_username),
+        "preview": lambda: article.preview(session, article_id),
+        "likes": lambda: article.likes_count(session, article_id),
+        "dislikes": lambda: article.dislikes_count(session, article_id),
+        "rating": lambda: article.rating(session, article_id),
+        "comments_count": lambda: article.comments_count(session, article_id),
+        "comments": lambda: comment.from_article(session, article_id),
+        "is_liked": lambda: article.is_liked(session, article_id, username),
+        "is_disliked": lambda: article.is_disliked(session, article_id, username),
+        "tags": lambda: article.tags(session, article_id),
+    }
+    for key, accessor in accessors.items():
+        status, data[key] = accessor()
+        if status.is_error:
+            return status, None
+
+    return request_status.Status(request_status.StatusType.OK), data
 
 
-def post_article(session, author, title, body, preview, tags):
+def post_article(
+    session: Session,
+    author: str,
+    title: str,
+    body: dict,
+    preview: dict,
+    tags: list[str],
+) -> tuple[request_status.Status, int | None]:
     """Публикует новую статью и создает её теги.
 
     Args:
@@ -86,16 +76,20 @@ def post_article(session, author, title, body, preview, tags):
         tags: список тегов статьи.
 
     Returns:
-        Кортеж (`Status`, int) — OK и id созданной статьи.
+        Кортеж (`Status`, int):
+            - OK и id созданной статьи — при успехе.
+            - InvalidParameters и `None` — если в tags есть одинаковые теги.
     """
     article_id = article.post(
         session=session, title=title, body=body, author=author, preview=preview
     )
-    article.add_tags(session=session, tags=tags, article_id=article_id)
-    return request_status.Status(request_status.StatusType.OK), article_id
+    status = article.add_tags(session=session, tags=tags, article_id=article_id)
+    if status.is_error:
+        return status, None
+    return status, article_id
 
 
-def add_user(session, user_info):
+def add_user(session: Session, user_info: dict) -> request_status.Status:
     """Регистрирует нового пользователя.
 
     Args:
@@ -106,7 +100,7 @@ def add_user(session, user_info):
     Returns:
         `Status`:
             - OK — пользователь успешно создан.
-            - ValueError — username или email уже заняты.
+            - Conflict — username или email уже заняты.
     """
     status = user.add_user(
         session=session,
@@ -121,7 +115,9 @@ def add_user(session, user_info):
     return status
 
 
-def update_user_info(session, username, data):
+def update_user_info(
+    session: Session, username: str, data: dict
+) -> request_status.Status:
     """Обновляет только те поля пользователя, что переданы в data.
 
     Args:
@@ -135,59 +131,47 @@ def update_user_info(session, username, data):
             - OK — все переданные поля успешно применены.
             - ошибка первого поля, которое не удалось применить.
     """
+    single_value_updaters = {
+        "avatar": user.update_avatar,
+        "nickname": user.update_nickname,
+        "email": user.update_email,
+        "description": user.update_description,
+    }
+    list_value_updaters = {
+        "sub-tags": user.sub_tag,
+        "blocked-tags": user.block_tag,
+        "sub-users": user.sub_user,
+        "blocked-users": user.block_user,
+    }
     for key in data:
-        match key:
-            case "avatar":
-                status = user.update_avatar(session, username, data[key])
-                if status.is_error:
-                    return status
-            case "sub-tags":
-                for tag_name in data[key]:
-                    status = user.sub_tag(session, username, tag_name)
-                    if status.is_error:
-                        return status
-            case "blocked-tags":
-                for tag_name in data[key]:
-                    status = user.block_tag(session, username, tag_name)
-                    if status.is_error:
-                        return status
-            case "sub-users":
-                for sub in data[key]:
-                    status = user.sub_user(session, username, sub)
-                    if status.is_error:
-                        return status
-            case "blocked-users":
-                for blocked_user in data[key]:
-                    status = user.block_user(session, username, blocked_user)
-                    if status.is_error:
-                        return status
-            case "nickname":
-                status = user.update_nickname(session, username, data[key])
-                if status.is_error:
-                    return status
-            case "email":
-                status = user.update_email(session, username, data[key])
-                if status.is_error:
-                    return status
-            case "description":
-                status = user.update_description(session, username, data[key])
+        if key in single_value_updaters:
+            status = single_value_updaters[key](session, username, data[key])
+            if status.is_error:
+                return status
+        elif key in list_value_updaters:
+            updater = list_value_updaters[key]
+            for value in data[key]:
+                status = updater(session, username, value)
                 if status.is_error:
                     return status
     return request_status.Status(request_status.StatusType.OK)
 
 
-def login(session, parameters):
-    """Проверяет пароль пользователя, найденного по username или email.
+def login(
+    session: Session, parameters: dict
+) -> tuple[request_status.Status, dict | None]:
+    """Проверяет пароль пользователя и выпускает пару токенов авторизации.
 
     Args:
         session: сессия SQLAlchemy.
         parameters: словарь с полями password и username и/или email.
 
     Returns:
-        Кортеж (`Status`, bool):
-            - OK и `True`/`False` — совпадает ли password с паролем
-              найденного пользователя.
-            - OK и `False` — если пользователь не найден.
+        Кортеж (`Status`, dict):
+            - OK и {"access_token": str, "refresh_token": str} — при успехе.
+            - InvalidCredentials и `None` — если пароль не совпадает или пользователь
+              с таким username/email не найден (одно и то же сообщение для
+              обоих случаев, чтобы не раскрывать существование аккаунта).
     """
     password = parameters["password"]
     username = parameters["username"]
@@ -195,11 +179,91 @@ def login(session, parameters):
     status, is_password_correct = user.check_password(
         session=session, password=password, username=username, email=email
     )
-    return status, is_password_correct
+    if status.is_error:
+        return status, None
+    if not is_password_correct:
+        return (
+            request_status.Status(
+                request_status.StatusType.ERROR,
+                error_type=request_status.ErrorType.InvalidCredentials,
+                msg="Incorrect password!",
+            ),
+            None,
+        )
+    if not username:
+        username = user.get_username_by_email(session, email)
+    return request_status.Status(request_status.StatusType.OK), {
+        "access_token": auth.create_access_token(session, username),
+        "refresh_token": auth.create_refresh_token(session, username),
+    }
 
 
-def change_password(session, previous_password, new_password, username):
-    """Меняет пароль пользователя, если previous_password верен.
+def refresh_session(
+    session: Session, refresh_token: str
+) -> tuple[request_status.Status, dict | None]:
+    """Выпускает новую пару токенов взамен действующего refresh token (ротация).
+
+    Args:
+        session: сессия SQLAlchemy.
+        refresh_token: текущий refresh token.
+
+    Returns:
+        Кортеж (`Status`, dict):
+            - OK и {"access_token": str, "refresh_token": str} — при успехе;
+              переданный refresh_token отзывается и больше не действителен.
+            - InvalidToken и `None` — если refresh_token не найден или истёк.
+    """
+    status, username = auth.resolve_refresh_token(session, refresh_token)
+    if status.is_error:
+        return status, None
+    auth.revoke_refresh_token(session, refresh_token)
+    return request_status.Status(request_status.StatusType.OK), {
+        "access_token": auth.create_access_token(session, username),
+        "refresh_token": auth.create_refresh_token(session, username),
+    }
+
+
+def logout(
+    session: Session, access_token: str, refresh_token: str
+) -> request_status.Status:
+    """Завершает сессию: отзывает переданные access и refresh токены.
+
+    Args:
+        session: сессия SQLAlchemy.
+        access_token: access token текущей сессии.
+        refresh_token: refresh token текущей сессии.
+
+    Returns:
+        `Status` — всегда OK; отзыв идемпотентен, уже отсутствующий токен
+        просто игнорируется.
+    """
+    auth.revoke_access_token(session, access_token)
+    auth.revoke_refresh_token(session, refresh_token)
+    return request_status.Status(request_status.StatusType.OK)
+
+
+def resolve_token(
+    session: Session, access_token: str
+) -> tuple[request_status.Status, str | None]:
+    """Разрешает access token в username вызывающего — основа авторизации
+    для всех защищённых API-методов.
+
+    Args:
+        session: сессия SQLAlchemy.
+        access_token: значение access token (без префикса "Bearer ").
+
+    Returns:
+        Кортеж (`Status`, str) — OK и username, либо InvalidToken и `None`,
+        если токен отсутствует, не найден или истёк.
+    """
+    return auth.resolve_access_token(session, access_token)
+
+
+def change_password(
+    session: Session, previous_password: str, new_password: str, username: str
+) -> request_status.Status:
+    """Меняет пароль пользователя, если previous_password верен, и отзывает
+    все его токены (чтобы остальные сессии/устройства разлогинились).
 
     Args:
         session: сессия SQLAlchemy.
@@ -210,7 +274,8 @@ def change_password(session, previous_password, new_password, username):
     Returns:
         `Status`:
             - OK — пароль успешно изменен.
-            - ValueError — previous_password неверен или пользователь не найден.
+            - Forbidden — previous_password неверен.
+            - NotFound — пользователь не найден.
     """
     status, is_same = user.check_password(session, previous_password, username=username)
     if status.is_error:
@@ -218,73 +283,20 @@ def change_password(session, previous_password, new_password, username):
     if not is_same:
         return request_status.Status(
             request_status.StatusType.ERROR,
-            error_type=request_status.ErrorType.ValueError,
+            # 403, а не 401: токен валиден, и клиент не должен пытаться его обновлять.
+            error_type=request_status.ErrorType.Forbidden,
             msg="Incorrect password!",
         )
-    return user.change_password(session, new_password, username)
-
-
-def article_dislike(session, article_id, username):
-    """Ставит или снимает дизлайк username на статье.
-
-    Args:
-        session: сессия SQLAlchemy.
-        article_id: id статьи.
-        username: кто ставит дизлайк.
-
-    Returns:
-        `Status` операции.
-    """
-    status = article.dislike(session, article_id, username)
+    status = user.change_password(session, new_password, username)
+    if status.is_error:
+        return status
+    auth.revoke_all_tokens(session, username)
     return status
 
 
-def article_like(session, article_id, username):
-    """Ставит или снимает лайк username на статье.
-
-    Args:
-        session: сессия SQLAlchemy.
-        article_id: id статьи.
-        username: кто ставит лайк.
-
-    Returns:
-        `Status` операции.
-    """
-    status = article.like(session, article_id, username)
-    return status
-
-
-def comment_like(session, comment_id, username):
-    """Ставит или снимает лайк username на комментарии.
-
-    Args:
-        session: сессия SQLAlchemy.
-        comment_id: id комментария.
-        username: кто ставит лайк.
-
-    Returns:
-        `Status` операции.
-    """
-    status = comment.like(session, comment_id, username)
-    return status
-
-
-def comment_dislike(session, comment_id, username):
-    """Ставит или снимает дизлайк username на комментарии.
-
-    Args:
-        session: сессия SQLAlchemy.
-        comment_id: id комментария.
-        username: кто ставит дизлайк.
-
-    Returns:
-        `Status` операции.
-    """
-    status = comment.dislike(session, comment_id, username)
-    return status
-
-
-def add_comment(session, article_id, root, comment_text, username):
+def add_comment(
+    session: Session, article_id: int, root: int, comment_text: str, username: str
+) -> tuple[request_status.Status, int | None]:
     """Добавляет комментарий (или ответ на комментарий) к статье.
 
     Args:
@@ -295,13 +307,20 @@ def add_comment(session, article_id, root, comment_text, username):
         username: автор комментария.
 
     Returns:
-        Кортеж (`Status`, int) — OK и id созданного комментария.
+        Кортеж (`Status`, int):
+            - OK и id созданного комментария — при успехе.
+            - NotFound и `None` — если статьи нет: она указана в URL, поэтому
+              это 404, а не падение на внешнем ключе с кодом 500.
+            - InvalidParameters и `None` — если root не найден.
     """
-    status, id = comment.add(session, article_id, root, comment_text, username)
-    return status, id
+    if article.is_article_not_exist(session, article_id):
+        return request_status.not_found("article with id", article_id), None
+    return comment.add(session, article_id, root, comment_text, username)
 
 
-def get_comment_data(session, comment_id, username, requested_data):
+def get_comment_data(
+    session: Session, comment_id: int, username: str, requested_data: list[str]
+) -> tuple[request_status.Status, dict | None]:
     """Собирает выбранные поля данных о комментарии.
 
     Args:
@@ -313,39 +332,35 @@ def get_comment_data(session, comment_id, username, requested_data):
             creation_date, is_liked, is_disliked).
 
     Returns:
-        Кортеж (`Status`, dict) — OK и словарь с запрошенными полями.
+        Кортеж (`Status`, dict):
+            - OK и словарь с запрошенными полями.
+            - NotFound и `None` — если комментария нет.
     """
-    data: dict = {}
+    # Проверка сразу: is_liked/is_disliked для несуществующего объекта отдают
+    # False, и без неё GET только этих полей вернул бы 200 вместо 404.
+    if comment.is_comment_not_exist(session, comment_id):
+        return request_status.not_found("comment with id", comment_id), None
+    accessors = {
+        "likes": lambda: comment.likes_count(session, comment_id),
+        "dislikes": lambda: comment.dislikes_count(session, comment_id),
+        "rating": lambda: comment.rating(session, comment_id),
+        "creation_date": lambda: comment.creation_date(session, comment_id),
+        "is_liked": lambda: comment.is_liked(session, comment_id, username),
+        "is_disliked": lambda: comment.is_disliked(session, comment_id, username),
+    }
+    data = {}
     for key in requested_data:
-        match key:
-            case "likes":
-                status, data[key] = comment.likes_count(session, comment_id)
-                if status.is_error:
-                    return status, None
-            case "dislikes":
-                status, data[key] = comment.dislikes_count(session, comment_id)
-                if status.is_error:
-                    return status, None
-            case "rating":
-                status, data[key] = comment.rating(session, comment_id)
-                if status.is_error:
-                    return status, None
-            case "creation_date":
-                status, data[key] = comment.creation_date(session, comment_id)
-                if status.is_error:
-                    return status, None
-            case "is_liked":
-                status, data[key] = comment.is_liked(session, comment_id, username)
-                if status.is_error:
-                    return status, None
-            case "is_disliked":
-                status, data[key] = comment.is_disliked(session, comment_id, username)
-                if status.is_error:
-                    return status, None
+        if key not in accessors:
+            continue
+        status, data[key] = accessors[key]()
+        if status.is_error:
+            return status, None
     return request_status.Status(request_status.StatusType.OK), data
 
 
-def get_article_data(session, article_id, username, requested_data):
+def get_article_data(
+    session: Session, article_id: int, username: str, requested_data: list[str]
+) -> tuple[request_status.Status, dict | None]:
     """Собирает выбранные поля данных о статье.
 
     Args:
@@ -357,48 +372,51 @@ def get_article_data(session, article_id, username, requested_data):
             comments_count, creation_date, tags, is_liked, is_disliked).
 
     Returns:
-        Кортеж (`Status`, dict) — OK и словарь с запрошенными полями.
+        Кортеж (`Status`, dict):
+            - OK и словарь с запрошенными полями.
+            - NotFound и `None` — если статьи нет.
     """
-    data: dict = {}
+    # Проверка сразу, см. комментарий в get_comment_data.
+    if article.is_article_not_exist(session, article_id):
+        return request_status.not_found("article with id", article_id), None
+
+    def get_creation_date() -> tuple[request_status.Status, int | None]:
+        """Возвращает creation_date статьи как аксессор в формате (Status, значение).
+
+        Args:
+            None
+
+        Returns:
+            Кортеж (`Status`, int): OK и дата создания, либо NotFound и `None`.
+        """
+        status, article_info = article.get(session, article_id)
+        if status.is_error:
+            return status, None
+        return status, article_info.creation_date
+
+    accessors = {
+        "likes": lambda: article.likes_count(session, article_id),
+        "dislikes": lambda: article.dislikes_count(session, article_id),
+        "rating": lambda: article.rating(session, article_id),
+        "comments_count": lambda: article.comments_count(session, article_id),
+        "creation_date": get_creation_date,
+        "tags": lambda: article.tags(session, article_id),
+        "is_liked": lambda: article.is_liked(session, article_id, username),
+        "is_disliked": lambda: article.is_disliked(session, article_id, username),
+    }
+    data = {}
     for key in requested_data:
-        match key:
-            case "likes":
-                status, data[key] = article.likes_count(session, article_id)
-                if status.is_error:
-                    return status, None
-            case "dislikes":
-                status, data[key] = article.dislikes_count(session, article_id)
-                if status.is_error:
-                    return status, None
-            case "rating":
-                status, data[key] = article.rating(session, article_id)
-                if status.is_error:
-                    return status, None
-            case "comments_count":
-                status, data[key] = article.comments_count(session, article_id)
-                if status.is_error:
-                    return status, None
-            case "creation_date":
-                status, article_info = article.get(session, article_id)
-                if status.is_error:
-                    return status, None
-                data[key] = article_info.creation_date
-            case "tags":
-                status, data[key] = article.tags(session, article_id)
-                if status.is_error:
-                    return status, None
-            case "is_liked":
-                status, data[key] = article.is_liked(session, article_id, username)
-                if status.is_error:
-                    return status, None
-            case "is_disliked":
-                status, data[key] = article.is_disliked(session, article_id, username)
-                if status.is_error:
-                    return status, None
+        if key not in accessors:
+            continue
+        status, data[key] = accessors[key]()
+        if status.is_error:
+            return status, None
     return request_status.Status(request_status.StatusType.OK), data
 
 
-def get_user_data(session, username, requested_data):
+def get_user_data(
+    session: Session, username: str, requested_data: list[str]
+) -> tuple[request_status.Status, dict | None]:
     """Собирает выбранные поля данных о пользователе.
 
     Args:
@@ -411,59 +429,32 @@ def get_user_data(session, username, requested_data):
     Returns:
         Кортеж (`Status`, dict) — OK и словарь с запрошенными полями.
     """
-    data: dict = {}
+    accessors = {
+        "avatar": lambda: user.get_avatar(session, username),
+        "name_history": lambda: user.get_name_history(session, username),
+        "sub_tags": lambda: user.get_sub_tag(session, username),
+        "blocked_tags": lambda: user.get_blacklist_tag(session, username),
+        "sub_users": lambda: user.get_sub_user(session, username),
+        "blocked_users": lambda: user.get_blacklist_user(session, username),
+        "nickname": lambda: user.get_nickname(session, username),
+        "email": lambda: user.get_email(session, username),
+        "description": lambda: user.get_description(session, username),
+        "creation_date": lambda: user.get_creation_date(session, username),
+        "rating": lambda: user.get_rating(session, username),
+    }
+    data = {}
     for key in requested_data:
-        match key:
-            case "avatar":
-                status, data[key] = user.get_avatar(session, username)
-                if status.is_error:
-                    return status, None
-            case "name_history":
-                status, data[key] = user.get_name_history(session, username)
-                if status.is_error:
-                    return status, None
-            case "sub_tags":
-                status, data[key] = user.get_sub_tag(session, username)
-                if status.is_error:
-                    return status, None
-            case "blocked_tags":
-                status, data[key] = user.get_blacklist_tag(session, username)
-                if status.is_error:
-                    return status, None
-            case "sub_users":
-                status, data[key] = user.get_sub_user(session, username)
-                if status.is_error:
-                    return status, None
-            case "blocked_users":
-                status, data[key] = user.get_blacklist_user(session, username)
-                if status.is_error:
-                    return status, None
-            case "nickname":
-                status, data[key] = user.get_nickname(session, username)
-                if status.is_error:
-                    return status, None
-            case "email":
-                status, data[key] = user.get_email(session, username)
-                if status.is_error:
-                    return status, None
-            case "description":
-                status, data[key] = user.get_description(session, username)
-                if status.is_error:
-                    return status, None
-            case "creation_date":
-                status, data[key] = user.get_creation_date(session, username)
-                if status.is_error:
-                    return status, None
-            case "rating":
-                status, data[key] = user.get_rating(session, username)
-                if status.is_error:
-                    return status, None
-            case _:
-                pass
+        if key not in accessors:
+            continue
+        status, data[key] = accessors[key]()
+        if status.is_error:
+            return status, None
     return request_status.Status(request_status.StatusType.OK), data
 
 
-def get_article_preview(session, article_id, username):
+def get_article_preview(
+    session: Session, article_id: int, username: str
+) -> tuple[request_status.Status, dict | None]:
     """Собирает превью статьи для ленты.
 
     Args:
@@ -480,60 +471,42 @@ def get_article_preview(session, article_id, username):
     status, article_info = article.get(session, article_id)
     if status.is_error:
         return status, None
-    status, author_preview = user.preview(session, article_info.author_username)
-    if status.is_error:
-        return status, None
-    status, preview_content = article.preview(session, article_id)
-    if status.is_error:
-        return status, None
-    status, likes = article.likes_count(session, article_id)
-    if status.is_error:
-        return status, None
-    status, dislikes = article.dislikes_count(session, article_id)
-    if status.is_error:
-        return status, None
-    status, rating = article.rating(session, article_id)
-    if status.is_error:
-        return status, None
-    status, comments_count = article.comments_count(session, article_id)
-    if status.is_error:
-        return status, None
-    status, tags = article.tags(session, article_id)
-    if status.is_error:
-        return status, None
-    status, is_liked = article.is_liked(session, article_id, username)
-    if status.is_error:
-        return status, None
-    status, is_disliked = article.is_disliked(session, article_id, username)
-    if status.is_error:
-        return status, None
-    return request_status.Status(request_status.StatusType.OK), {
+
+    data = {
         "id": article_id,
         "title": article_info.title,
         "creation_date": article_info.creation_date,
-        "author_preview": author_preview,
-        "preview_content": preview_content,
-        "likes": likes,
-        "dislikes": dislikes,
-        "rating": rating,
-        "comments_count": comments_count,
-        "tags": tags,
-        "is_liked": is_liked,
-        "is_disliked": is_disliked,
     }
+    accessors = {
+        "author_preview": lambda: user.preview(session, article_info.author_username),
+        "preview_content": lambda: article.preview(session, article_id),
+        "likes": lambda: article.likes_count(session, article_id),
+        "dislikes": lambda: article.dislikes_count(session, article_id),
+        "rating": lambda: article.rating(session, article_id),
+        "comments_count": lambda: article.comments_count(session, article_id),
+        "tags": lambda: article.tags(session, article_id),
+        "is_liked": lambda: article.is_liked(session, article_id, username),
+        "is_disliked": lambda: article.is_disliked(session, article_id, username),
+    }
+    for key, accessor in accessors.items():
+        status, data[key] = accessor()
+        if status.is_error:
+            return status, None
+
+    return request_status.Status(request_status.StatusType.OK), data
 
 
 def pages_get(
-    session,
-    username,
-    indexes,
-    include_nonsub,
-    sort_column,
-    sort_direction,
-    include,
-    exclude,
-    bounds,
-):
+    session: Session,
+    username: str,
+    indexes: list[int],
+    include_nonsub: bool,
+    sort_column: str,
+    sort_direction: str,
+    include: dict,
+    exclude: dict,
+    bounds: dict,
+) -> tuple[request_status.Status, dict | None]:
     """Собирает страницы ленты статей с превью каждой статьи.
 
     Args:

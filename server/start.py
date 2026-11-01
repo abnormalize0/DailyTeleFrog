@@ -15,7 +15,7 @@ from src.api import api
 from src import config
 
 
-def backup():
+def backup() -> None:
     if not os.path.exists(config.backup_directory.path):
         os.mkdir(config.backup_directory.path)
 
@@ -40,7 +40,7 @@ def backup():
         shutil.rmtree(tmp_dir)
 
 
-def standard_configuration(log_name):
+def standard_configuration(log_name: str) -> None:
     logger = logging.getLogger(log_name)
     logger.setLevel(logging.DEBUG)
     handler = logging.FileHandler(log_name)
@@ -49,14 +49,14 @@ def standard_configuration(log_name):
     logger.addHandler(handler)
 
 
-def set_up_loggers():
+def set_up_loggers() -> None:
     if not os.path.exists(config.log_directory.path):
         os.mkdir(config.log_directory.path)
     standard_configuration(config.log_server_api.path)
     standard_configuration(config.log_db_api.path)
 
 
-def init_users():
+def init_users() -> None:
     shutil.rmtree(config.db_user_directory.path, ignore_errors=True)
     os.makedirs(config.db_user_directory.path)
     connection = sqlite3.connect(config.db_user.path)
@@ -81,7 +81,7 @@ def init_users():
     connection.close()
 
 
-def init_articles():
+def init_articles() -> None:
     shutil.rmtree(config.db_article_directory.path, ignore_errors=True)
     os.makedirs(config.db_article_directory.path)
     connection = sqlite3.connect(config.db_article.path)
@@ -105,7 +105,7 @@ def init_articles():
     connection.close()
 
 
-def init_comments():
+def init_comments() -> None:
     shutil.rmtree(config.db_comment_directory.path, ignore_errors=True)
     os.makedirs(config.db_comment_directory.path)
     connection = sqlite3.connect(config.db_comment.path)

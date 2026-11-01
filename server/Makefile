@@ -49,6 +49,6 @@ test: ## Запуск end-to-end тестов.
 	# refused".
 	sleep 30s
 	docker cp ./tests server-test:/app/tests
-	docker exec -t server-test python3 /app/tests/run_tests.py
+	docker exec -w /app -t server-test python3 -m pytest tests -v
 	rm -rf test_logs
 	docker cp server-test:/app/test_tmp test_logs
