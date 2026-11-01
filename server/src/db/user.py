@@ -113,6 +113,9 @@ def is_user_not_exist(
     session: Session, username: str | None = None, email: str | None = None
 ) -> bool:
     """Проверяет, существует ли пользователь с указанным username или email.
+    Удалённый аккаунт считается несуществующим: через эту проверку идут вход, подписки
+    и чтение профиля, поэтому к нему нельзя обратиться (см.
+    decisions/0005-soft-delete.md).
 
     Args:
         session: сессия SQLAlchemy.
@@ -120,15 +123,14 @@ def is_user_not_exist(
         email: email пользователя для поиска.
 
     Returns:
-        `True`, если пользователь не найден, иначе `False`.
+        `True`, если пользователь не найден или удалён, иначе `False`.
     """
+    query = session.query(scheme.User).where(scheme.User.is_deleted.is_(False))
     user = None
     if username:
-        user = (
-            session.query(scheme.User).where(scheme.User.username == username).scalar()
-        )
+        user = query.where(scheme.User.username == username).scalar()
     if email:
-        user = session.query(scheme.User).where(scheme.User.email == email).scalar()
+        user = query.where(scheme.User.email == email).scalar()
     return user is None
 
 
@@ -159,13 +161,15 @@ def add_user(
             - OK — пользователь успешно создан.
             - Conflict — username или email уже заняты.
     """
-    if not is_user_not_exist(session=session, username=username):
+    # Без is_user_not_exist: username и email удалённого аккаунта тоже заняты,
+    # его строка остаётся в таблице.
+    if session.get(scheme.User, username) is not None:
         return request_status.Status(
             request_status.StatusType.ERROR,
             error_type=request_status.ErrorType.Conflict,
             msg=f"User with username {username} already exists",
         )
-    if not is_user_not_exist(session=session, email=email):
+    if get_username_by_email(session, email) is not None:
         return request_status.Status(
             request_status.StatusType.ERROR,
             error_type=request_status.ErrorType.Conflict,
@@ -180,17 +184,44 @@ def add_user(
         avatar=avatar,
         description=description,
     )
-    old_name = scheme.UserNameHistory(
-        username=username,
-        old_name=nickname,
+    session.add(user)
+    session.flush()
+    return request_status.Status(request_status.StatusType.OK)
+
+
+def delete(session: Session, username: str) -> request_status.Status:
+    """Мягко удаляет аккаунт и убирает подписки и блокировки других пользователей
+    на него: иначе в их списках остался бы недоступный аккаунт. Его собственные
+    подписки не влияют ни на кого, поэтому остаются.
+
+    Args:
+        session: сессия SQLAlchemy.
+        username: имя пользователя.
+
+    Returns:
+        `Status`:
+            - OK — аккаунт удалён.
+            - NotFound — пользователь не найден.
+    """
+    if is_user_not_exist(session=session, username=username):
+        return request_status.not_found("user with username", username)
+    user: scheme.User = (
+        session.query(scheme.User).where(scheme.User.username == username).scalar()
     )
-    session.add_all((user, old_name))
+    user.is_deleted = True
+    session.query(scheme.UserSubscription).where(
+        scheme.UserSubscription.subscribed_user == username
+    ).delete()
+    session.query(scheme.UserBlacklist).where(
+        scheme.UserBlacklist.blocked_user == username
+    ).delete()
     session.flush()
     return request_status.Status(request_status.StatusType.OK)
 
 
 def get_username_by_email(session: Session, email: str) -> str | None:
-    """Возвращает username пользователя с указанным email.
+    """Возвращает username пользователя с указанным email, в том числе удалённого:
+    его email остаётся занятым.
 
     Args:
         session: сессия SQLAlchemy.
@@ -304,7 +335,7 @@ def update_email(session: Session, username: str, email: str) -> request_status.
 def update_nickname(
     session: Session, username: str, nickname: str
 ) -> request_status.Status:
-    """Обновляет nickname пользователя и добавляет запись в name_history.
+    """Обновляет nickname пользователя и добавляет прежний nickname в name_history.
 
     Args:
         session: сессия SQLAlchemy.
@@ -321,11 +352,13 @@ def update_nickname(
     user: scheme.User = (
         session.query(scheme.User).where(scheme.User.username == username).scalar()
     )
+    # Повторный PATCH с тем же nickname не смена: в истории только прошлые значения.
+    if user.nickname != nickname:
+        # При повторной смене на ранее использованный nickname запись уже есть.
+        _add_if_missing(
+            session, scheme.UserNameHistory, username=username, old_name=user.nickname
+        )
     user.nickname = nickname
-    # Возврат к прежнему nickname: запись о нём в истории уже есть.
-    _add_if_missing(
-        session, scheme.UserNameHistory, username=username, old_name=nickname
-    )
     session.flush()
     return request_status.Status(request_status.StatusType.OK)
 
@@ -524,6 +557,7 @@ def get_rating(
     session: Session, username: str
 ) -> tuple[request_status.Status, int | None]:
     """Вычисляет рейтинг пользователя по лайкам/дизлайкам его статей и комментариев.
+    Удалённые статьи и комментарии, включая комментарии удалённых статей, не считаются.
 
     Args:
         session: сессия SQLAlchemy.
@@ -538,7 +572,10 @@ def get_rating(
         return request_status.not_found("user with username", username), None
     user_articles = (
         session.query(scheme.Article.id)
-        .where(scheme.Article.author_username == username)
+        .where(
+            scheme.Article.author_username == username,
+            scheme.Article.is_deleted.is_(False),
+        )
         .all()
     )
     user_articles = [row[0] for row in user_articles]
@@ -555,7 +592,12 @@ def get_rating(
     )
     user_comments = (
         session.query(scheme.Comment.id)
-        .where(scheme.Comment.author_username == username)
+        .join(scheme.Article, scheme.Comment.article_id == scheme.Article.id)
+        .where(
+            scheme.Comment.author_username == username,
+            scheme.Comment.is_deleted.is_(False),
+            scheme.Article.is_deleted.is_(False),
+        )
         .all()
     )
     user_comments = [row[0] for row in user_comments]
@@ -649,7 +691,8 @@ def get_name_history(
 
     Returns:
         Кортеж (`Status`, list[str]):
-            - OK и список nickname (включая текущий) — если пользователь найден.
+            - OK и список прошлых nickname без текущего, если только пользователь
+              не вернулся к одному из них, — если пользователь найден.
             - NotFound и `None` — если пользователь не найден.
     """
     return _get_user_list_field(
@@ -828,25 +871,31 @@ def preview(
     Returns:
         Кортеж (`Status`, dict):
             - OK и превью — если пользователь найден.
+            - OK и {"is_deleted": True} — если аккаунт удалён: его статьи остаются
+              видны, но данных аккаунта в них быть не должно.
             - NotFound и `None` — если пользователь не найден.
     """
-    if is_user_not_exist(session=session, username=username):
-        return request_status.not_found("user with username", username), None
-
     row = (
         session.query(
             scheme.User.avatar,
             scheme.User.nickname,
             scheme.User.description,
             scheme.User.username,
+            scheme.User.is_deleted,
         )
         .where(scheme.User.username == username)
         .first()
     )
+    if row is None:
+        return request_status.not_found("user with username", username), None
+    if row.is_deleted:
+        return request_status.Status(request_status.StatusType.OK), {"is_deleted": True}
+
     user_preview = {
         "avatar": row.avatar,
         "nickname": row.nickname,
         "description": row.description,
         "username": row.username,
+        "is_deleted": False,
     }
     return request_status.Status(request_status.StatusType.OK), user_preview

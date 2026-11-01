@@ -215,7 +215,7 @@ def add_comment(server: subprocess.Popen) -> Callable[[str, int], int]:
     def _add_comment(access_token: str, article_id: int) -> int:
         response = requests.post(
             f"{LOCALHOST}/articles/{article_id}/comments",
-            json={"text": "text", "root": -1},
+            json={"text": "text", "parent": -1},
             headers=auth_headers(access_token),
         )
         assert_ok(response, 201)

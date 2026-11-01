@@ -22,13 +22,13 @@ def test_articles_comments_post(add_user: Callable, add_article: Callable) -> No
     check_endpoint_structure(endpoint, "post")
 
     # Проверка, что без токена нельзя оставить комментарий.
-    answer = requests.post(LOCALHOST + endpoint, json={"text": "text", "root": -1})
+    answer = requests.post(LOCALHOST + endpoint, json={"text": "text", "parent": -1})
     assert_error(answer, "invalid-token")
 
     # Публикуем комментарий к статье.
     answer = requests.post(
         LOCALHOST + endpoint,
-        json={"text": "text", "root": -1},
+        json={"text": "text", "parent": -1},
         headers=auth_headers(access_token),
     )
     assert_ok(answer, 201)
@@ -38,7 +38,7 @@ def test_articles_comments_post(add_user: Callable, add_article: Callable) -> No
     # Публикуем ответ на комментарий.
     answer = requests.post(
         LOCALHOST + endpoint,
-        json={"text": "text", "root": comment_id},
+        json={"text": "text", "parent": comment_id},
         headers=auth_headers(access_token),
     )
     assert_ok(answer, 201)
@@ -52,13 +52,13 @@ def test_articles_comments_post(add_user: Callable, add_article: Callable) -> No
     # Проверка, что комментарий предельной длины сохраняется, а длиннее — нет.
     answer = requests.post(
         LOCALHOST + endpoint,
-        json={"text": "ю" * 32767, "root": -1},
+        json={"text": "ю" * 32767, "parent": -1},
         headers=auth_headers(access_token),
     )
     assert_ok(answer, 201)
     answer = requests.post(
         LOCALHOST + endpoint,
-        json={"text": "ю" * 32768, "root": -1},
+        json={"text": "ю" * 32768, "parent": -1},
         headers=auth_headers(access_token),
     )
     assert_error(answer, "validation")
@@ -66,7 +66,7 @@ def test_articles_comments_post(add_user: Callable, add_article: Callable) -> No
     # Попытка ответить на несуществующий комментарий.
     answer = requests.post(
         LOCALHOST + endpoint,
-        json={"text": "text", "root": comment_id + 1000},
+        json={"text": "text", "parent": comment_id + 1000},
         headers=auth_headers(access_token),
     )
     assert_error(answer, "validation")
@@ -74,7 +74,7 @@ def test_articles_comments_post(add_user: Callable, add_article: Callable) -> No
     # Проверка, что к несуществующей статье комментарий не оставить.
     answer = requests.post(
         f"{LOCALHOST}/articles/{article_id + 1}/comments",
-        json={"text": "text", "root": -1},
+        json={"text": "text", "parent": -1},
         headers=auth_headers(access_token),
     )
     assert_error(answer, "not-found")

@@ -26,6 +26,9 @@ info = Blueprint("info", __name__)
 # Предел колонки TEXT в MySQL. Проверяем сами, потому что запись большего значения
 # падает с ошибкой БД (500). У String(n) предел свой, и он берётся прямо из схемы.
 TEXT_MAX_BYTES = 65_535
+# Предел колонки MEDIUMTEXT (scheme.Article.body). Отдельного лимита для статьи нет,
+# это та же техническая проверка: без неё значение больше колонки вернулось бы как 500.
+ARTICLE_BODY_MAX_BYTES = 16_777_215
 _TAG_MAX_LENGTH = scheme.ArticleTag.tag_name.type.length
 
 type_defaults = {
@@ -61,7 +64,7 @@ articles_post = [
         "type": "dict",
         "is_required": True,
         "container": "body",
-        "max_bytes": TEXT_MAX_BYTES,
+        "max_bytes": ARTICLE_BODY_MAX_BYTES,
     },
     {
         "name": "preview",
@@ -155,7 +158,7 @@ def articles_item_info(article_id: int) -> str:
     Returns:
         JSON-строка со схемами полей методов этого пути.
     """
-    return json.dumps({"get": []})
+    return json.dumps({"get": [], "delete": []})
 
 
 articles_data_get = [
@@ -224,7 +227,7 @@ articles_comments_post = [
         "container": "body",
         "max_bytes": TEXT_MAX_BYTES,
     },
-    {"name": "root", "type": "int", "is_required": True, "container": "body"},
+    {"name": "parent", "type": "int", "is_required": True, "container": "body"},
 ]
 
 
@@ -269,7 +272,7 @@ def comments_item_info(comment_id: int) -> str:
     Returns:
         JSON-строка со схемами полей методов этого пути.
     """
-    return json.dumps({"get": comments_item_get})
+    return json.dumps({"get": comments_item_get, "delete": []})
 
 
 @info.route("/comments/<int:comment_id>/like", methods=["OPTIONS"])
@@ -435,6 +438,11 @@ users_me_patch = [
 ]
 
 
+users_me_delete = [
+    {"name": "password", "type": "str", "is_required": True, "container": "body"},
+]
+
+
 @info.route("/users/me", methods=["OPTIONS"])
 def users_me_info() -> str:
     """Отвечает на OPTIONS /users/me.
@@ -445,7 +453,9 @@ def users_me_info() -> str:
     Returns:
         JSON-строка со схемами полей методов этого пути.
     """
-    return json.dumps({"get": users_me_get, "patch": users_me_patch})
+    return json.dumps(
+        {"get": users_me_get, "patch": users_me_patch, "delete": users_me_delete}
+    )
 
 
 users_me_password_put = [
@@ -526,3 +536,16 @@ def auth_logout_info() -> str:
         JSON-строка со схемами полей методов этого пути.
     """
     return json.dumps({"post": auth_logout_post})
+
+
+@info.route("/auth/logout-all", methods=["OPTIONS"])
+def auth_logout_all_info() -> str:
+    """Отвечает на OPTIONS /auth/logout-all.
+
+    Args:
+        None
+
+    Returns:
+        JSON-строка со схемами полей методов этого пути.
+    """
+    return json.dumps({"post": []})

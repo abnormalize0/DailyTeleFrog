@@ -198,8 +198,8 @@ def check_not_unlogged(username: str) -> Response | None:
 def _stored_size(value: str | dict) -> int:
     """Считает размер значения в байтах в том виде, в каком оно попадёт в БД.
 
-    dict хранится как результат json.dumps (см. db/article.py). Его нужно мерить
-    именно так: json.dumps экранирует кириллицу, и один символ занимает 6 байт.
+    dict хранится как результат json.dumps(ensure_ascii=False) (см. db/article.py).
+    Его нужно мерить именно так: служебные символы JSON тоже занимают место в колонке.
 
     Args:
         value: строка или словарь из запроса.
@@ -207,7 +207,7 @@ def _stored_size(value: str | dict) -> int:
     Returns:
         Размер в байтах.
     """
-    stored = json.dumps(value) if isinstance(value, dict) else value
+    stored = json.dumps(value, ensure_ascii=False) if isinstance(value, dict) else value
     return len(stored.encode("utf8"))
 
 

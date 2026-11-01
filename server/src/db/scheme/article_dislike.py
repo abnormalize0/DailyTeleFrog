@@ -18,9 +18,12 @@ class ArticleDislike(Base):
         ForeignKey("articles.id", ondelete="CASCADE"), primary_key=True
     )
 
-    # FK на users.username — дизлайк не может существовать без автора.
+    # Тот, кто поставил дизлайк, а не автор статьи или комментария. Дизлайк не
+    # может существовать без этого пользователя.
     # ondelete="CASCADE" — реакция, а не контент, та же причина, что у
-    # ArticleLike.author_username.
-    author_username: Mapped[str] = mapped_column(
-        ForeignKey("users.username", ondelete="CASCADE"), primary_key=True
+    # ArticleLike.username.
+    username: Mapped[str] = mapped_column(
+        ForeignKey("users.username", ondelete="CASCADE"),
+        primary_key=True,
+        index=True,
     )

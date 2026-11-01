@@ -27,5 +27,7 @@ class UserSubscription(Base):
     # ondelete="CASCADE" — если удалить того, на кого подписывались, подписка
     # на него тоже теряет смысл.
     subscribed_user: Mapped[str] = mapped_column(
-        ForeignKey("users.username", ondelete="CASCADE"), primary_key=True
+        ForeignKey("users.username", ondelete="CASCADE"),
+        primary_key=True,
+        index=True,
     )

@@ -22,9 +22,8 @@ class AccessToken(Base):
     # ondelete="CASCADE" — токен эфемерен, при удалении пользователя его
     # сессии просто перестают существовать, никакого продуктового вопроса
     # здесь нет (в отличие от авторства статей/комментариев).
-    # index=True: по username ищем при отзыве всех сессий пользователя разом
-    # (logout всех устройств, смена пароля) — см. db/auth.py::revoke_all_tokens.
-    # Без индекса это был бы full scan таблицы токенов.
+    # По username ищем при отзыве всех сессий пользователя разом: смена пароля,
+    # /auth/logout-all, удаление аккаунта (см. db/auth.py::revoke_all_tokens).
     username: Mapped[str] = mapped_column(
         ForeignKey("users.username", ondelete="CASCADE"), index=True
     )

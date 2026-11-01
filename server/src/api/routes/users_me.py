@@ -1,6 +1,7 @@
 """
-Этот файл служит для хранения API-методов пути /users/me: чтение (GET) и
-частичное обновление (PATCH) собственного профиля авторизованного пользователя.
+Этот файл служит для хранения API-методов пути /users/me: чтение (GET), частичное
+обновление (PATCH) и удаление (DELETE) собственного профиля авторизованного
+пользователя.
 Путь /users/me, а не /users/{username}: метод работает только с владельцем
 токена, поэтому имя в пути ничего бы не значило и требовало бы лишней проверки.
 """
@@ -42,8 +43,9 @@ def api_users_me_get() -> Response:
 
     Отдает:
         200 и JSON с одним ключом на каждое поле из requested_data: nickname (str),
-        email (str), name_history (list[str] — все прежние nickname пользователя,
-        включая текущий), avatar (str), sub_tags/blocked_tags (list[str]),
+        email (str), name_history (list[str] — прежние nickname пользователя без
+        повторов и порядка; текущий nickname здесь только если пользователь к нему
+        вернулся), avatar (str), sub_tags/blocked_tags (list[str]),
         sub_users/blocked_users (list[str] — username'ы), description (str),
         creation_date (int, мс с 1970 года), rating (int).
 
@@ -104,7 +106,7 @@ def api_users_me_patch() -> Response:
     Ошибки:
         - 400 /errors/validation — при некорректном теле запроса, если значение
           длиннее предела из api_info.users_me_patch или если sub-users/blocked-users
-          содержит несуществующего пользователя.
+          содержит несуществующего или удалённого пользователя.
         - 401 /errors/invalid-token — если заголовок Authorization отсутствует,
           токен не найден или истёк.
         - 403 /errors/forbidden — если sub-users/blocked-users содержит самого
@@ -115,7 +117,7 @@ def api_users_me_patch() -> Response:
         Повторная подписка, блокировка или возврат к прежнему nickname не являются
         ошибкой: PATCH описывает нужное состояние, и оно уже достигнуто.
         Обрабатываются только переданные в запросе поля, остальные остаются без
-        изменений. Если передан nickname, он также добавляется в name_history
+        изменений. Если nickname меняется, прежний добавляется в name_history
         пользователя. Подписка на тег/автора из sub-tags/sub-users автоматически
         снимает соответствующую блокировку (и наоборот для blocked-tags/blocked-users) —
         подписка и блокировка одного и того же тега/автора взаимоисключающие.
@@ -133,6 +135,53 @@ def api_users_me_patch() -> Response:
         if auth_error:
             return auth_error
         status = backend.update_user_info(session, username, parameters)
+        if status.is_error:
+            session.rollback()
+            return request_status.problem_response(status)
+
+        session.commit()
+        return no_content()
+
+
+@app.route("/users/me", methods=["DELETE"])
+@log.safe_api
+@log.log_request
+@log.timer(config.log_server_api)
+def api_users_me_delete() -> Response:
+    """Удаляет аккаунт авторизованного пользователя.
+
+    Принимает (JSON-тело запроса, см. api_info.users_me_delete):
+        - password (str, обязательно) — текущий пароль: одного токена недостаточно,
+          чтобы украденная сессия не могла уничтожить аккаунт.
+
+        Заголовок Authorization: Bearer <access_token> (обязательно) — определяет,
+        чей аккаунт удаляется.
+
+    Отдает:
+        204 без тела.
+
+    Ошибки:
+        - 400 /errors/validation — при некорректном теле запроса.
+        - 401 /errors/invalid-token — если заголовок Authorization отсутствует,
+          токен не найден или истёк.
+        - 403 /errors/forbidden — если password неверен.
+
+    Контракт:
+        Удаление мягкое (см. decisions/0005-soft-delete.md): войти в аккаунт больше
+        нельзя, все токены отозваны, подписки и блокировки других пользователей на него
+        сняты, username и email остаются занятыми. Статьи и комментарии аккаунта
+        остаются доступны, в author_preview вместо его данных отдаётся
+        is_deleted (True). Повторный вызов даст 401, потому что токен уже отозван:
+        идемпотентность DELETE здесь недостижима.
+    """
+    parameters, error = read_body(api_info.users_me_delete)
+    if error:
+        return error
+    with get_session() as session:
+        username, auth_error = require_auth(session)
+        if auth_error:
+            return auth_error
+        status = backend.delete_user(session, parameters["password"], username)
         if status.is_error:
             session.rollback()
             return request_status.problem_response(status)

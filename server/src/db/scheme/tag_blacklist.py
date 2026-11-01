@@ -16,6 +16,7 @@ class TagBlacklist(Base):
     # Тот же fan-out-паттерн и та же оговорка про порядок PK, что и у
     # TagSubscription (см. её комментарии и decisions/0002): tag_name лидирует,
     # хотя основной запрос — по username; компенсируем index=True на username.
+    # Регистр при сравнении не учитывается (см. base.py).
     tag_name: Mapped[str] = mapped_column(String(512), primary_key=True)
 
     # FK на users.username — блокировка не может существовать без пользователя.

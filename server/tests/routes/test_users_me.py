@@ -1,6 +1,6 @@
 """
-Этот файл служит для хранения тестов на API-методы пути /users/me: чтение (GET)
-и изменение (PATCH) данных пользователя.
+Этот файл служит для хранения тестов на API-методы пути /users/me: чтение (GET),
+изменение (PATCH) и удаление (DELETE) данных пользователя.
 """
 
 from collections.abc import Callable
@@ -15,6 +15,7 @@ from tests.helpers import (
     auth_headers,
     check_endpoint_structure,
     read_field,
+    read_server_log,
 )
 
 ENDPOINT = "/users/me"
@@ -79,7 +80,7 @@ def test_users_me_patch(add_user: Callable) -> None:
     )
     assert_ok(answer)
     assert answer.json()["nickname"] == nickname
-    assert answer.json()["name_history"] == [nickname, user_name]
+    assert answer.json()["name_history"] == [user_name]
     assert answer.json()["avatar"] == avatar
 
     # Проверка, что непереданные поля не меняются.
@@ -220,3 +221,87 @@ def test_users_me_patch(add_user: Callable) -> None:
         LOCALHOST + ENDPOINT, json={"nickname": nickname, "avatar": avatar}
     )
     assert_error(answer, "invalid-token")
+
+
+def test_users_me_delete(add_user: Callable, add_article: Callable) -> None:
+    check_endpoint_structure(ENDPOINT, "delete")
+    assert_preflight_allows(ENDPOINT, "DELETE")
+    username, password, nickname, email, access_token, refresh_token = add_user()
+    _, _, _, _, follower_token, _ = add_user()
+    article_id = add_article(access_token)
+    answer = requests.patch(
+        LOCALHOST + ENDPOINT,
+        json={"sub-users": [username]},
+        headers=auth_headers(follower_token),
+    )
+    assert_ok(answer, 204)
+
+    # Проверка, что без токена аккаунт не удалить.
+    answer = requests.delete(LOCALHOST + ENDPOINT, json={"password": password})
+    assert_error(answer, "invalid-token")
+
+    # Проверка, что с неверным паролем аккаунт не удаляется.
+    answer = requests.delete(
+        LOCALHOST + ENDPOINT,
+        json={"password": "wrong_password"},
+        headers=auth_headers(access_token),
+    )
+    assert_error(answer, "forbidden")
+    assert read_field(ENDPOINT, "nickname", access_token) == nickname
+
+    # happy path
+    answer = requests.delete(
+        LOCALHOST + ENDPOINT,
+        json={"password": password},
+        headers=auth_headers(access_token),
+    )
+    assert_ok(answer, 204)
+
+    # Проверка, что пароль из тела DELETE не попал в лог.
+    assert password not in read_server_log()
+
+    # Проверка, что все токены удалённого аккаунта отозваны.
+    answer = requests.get(
+        LOCALHOST + ENDPOINT,
+        params={"requested_data": "nickname"},
+        headers=auth_headers(access_token),
+    )
+    assert_error(answer, "invalid-token")
+    answer = requests.post(
+        LOCALHOST + "/auth/refresh", json={"refresh_token": refresh_token}
+    )
+    assert_error(answer, "invalid-token")
+
+    # Проверка, что в удалённый аккаунт нельзя войти.
+    answer = requests.post(
+        LOCALHOST + "/auth/login", json={"username": username, "password": password}
+    )
+    assert_error(answer, "invalid-credentials")
+
+    # Проверка, что username и email удалённого аккаунта остаются занятыми.
+    for new_username, new_email in ((username, "new@test.test"), ("new", email)):
+        answer = requests.post(
+            LOCALHOST + "/users",
+            json={
+                "username": new_username,
+                "nickname": "nickname",
+                "email": new_email,
+                "password": password,
+            },
+        )
+        assert_error(answer, "conflict")
+
+    # Проверка, что статья осталась, но данных автора в ней нет.
+    article = requests.get(f"{LOCALHOST}/articles/{article_id}").json()["article"]
+    assert article["author_preview"] == {"is_deleted": True}
+    page = requests.get(LOCALHOST + "/articles", params={"indexes": 0}).json()["pages"]
+    assert page["0"][0]["author_preview"] == {"is_deleted": True}
+
+    # Проверка, что подписка на удалённый аккаунт снята и оформить её нельзя.
+    assert read_field(ENDPOINT, "sub_users", follower_token) == []
+    answer = requests.patch(
+        LOCALHOST + ENDPOINT,
+        json={"sub-users": [username]},
+        headers=auth_headers(follower_token),
+    )
+    assert_error(answer, "validation")

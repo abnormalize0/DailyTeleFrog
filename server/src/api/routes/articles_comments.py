@@ -25,8 +25,8 @@ def api_articles_comments_post(article_id: int) -> Response:
         - article_id (int, в пути) — id статьи, к которой оставляют комментарий.
         JSON-тело запроса, см. api_info.articles_comments_post:
         - text (str, обязательно) — текст комментария.
-        - root (int, обязательно) — id комментария этой же статьи, на который отвечают,
-          либо -1, если это комментарий верхнего уровня (не ответ).
+        - parent (int, обязательно) — id комментария этой же статьи, на который
+          отвечают, либо -1, если это комментарий верхнего уровня (не ответ).
 
         Заголовок Authorization: Bearer <access_token> (обязательно) —
         определяет автора комментария.
@@ -37,10 +37,11 @@ def api_articles_comments_post(article_id: int) -> Response:
 
     Ошибки:
         - 400 /errors/validation — при некорректном теле запроса, если text длиннее
-          api_info.TEXT_MAX_BYTES байт или если root не равен -1 и не ссылается на существующий комментарий именно этой статьи.
+          api_info.TEXT_MAX_BYTES байт или если parent не равен -1 и не ссылается на
+          существующий неудалённый комментарий именно этой статьи.
         - 401 /errors/invalid-token — если заголовок Authorization отсутствует,
           токен не найден или истёк.
-        - 404 /errors/not-found — если статьи не существует.
+        - 404 /errors/not-found — если статьи не существует или она удалена.
 
     Контракт:
         Комментарий создается с creation_date, выставленным сервером (текущее время
@@ -58,7 +59,7 @@ def api_articles_comments_post(article_id: int) -> Response:
             article_id=article_id,
             username=username,
             comment_text=parameters["text"],
-            root=parameters["root"],
+            parent=parameters["parent"],
         )
         if status.is_error:
             session.rollback()

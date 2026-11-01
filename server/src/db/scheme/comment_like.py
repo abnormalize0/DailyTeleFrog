@@ -19,8 +19,11 @@ class CommentLike(Base):
         ForeignKey("comments.id", ondelete="CASCADE"), primary_key=True
     )
 
-    # FK на users.username — лайк не может существовать без автора.
+    # Тот, кто поставил лайк, а не автор статьи или комментария. Лайк не может
+    # существовать без этого пользователя.
     # ondelete="CASCADE" — реакция, а не контент (см. ArticleLike).
-    author_username: Mapped[str] = mapped_column(
-        ForeignKey("users.username", ondelete="CASCADE"), primary_key=True
+    username: Mapped[str] = mapped_column(
+        ForeignKey("users.username", ondelete="CASCADE"),
+        primary_key=True,
+        index=True,
     )

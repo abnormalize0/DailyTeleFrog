@@ -157,6 +157,52 @@ def update_user_info(
     return request_status.Status(request_status.StatusType.OK)
 
 
+def _incorrect_password() -> request_status.Status:
+    """Строит ошибку для неверного пароля при действии с собственным аккаунтом.
+
+    Args:
+        None
+
+    Returns:
+        `Status` с типом Forbidden: 403, а не 401, потому что токен валиден и клиент
+        не должен пытаться его обновлять.
+    """
+    return request_status.Status(
+        request_status.StatusType.ERROR,
+        error_type=request_status.ErrorType.Forbidden,
+        msg="Incorrect password!",
+    )
+
+
+def delete_user(
+    session: Session, password: str, username: str
+) -> request_status.Status:
+    """Удаляет аккаунт, если password верен, и отзывает все его токены, чтобы удалённым
+    аккаунтом нельзя было пользоваться в уже открытых сессиях.
+
+    Args:
+        session: сессия SQLAlchemy.
+        password: текущий пароль пользователя.
+        username: имя пользователя.
+
+    Returns:
+        `Status`:
+            - OK — аккаунт удалён.
+            - Forbidden — password неверен.
+            - NotFound — пользователь не найден.
+    """
+    status, is_same = user.check_password(session, password, username=username)
+    if status.is_error:
+        return status
+    if not is_same:
+        return _incorrect_password()
+    status = user.delete(session, username)
+    if status.is_error:
+        return status
+    auth.revoke_all_tokens(session, username)
+    return status
+
+
 def login(
     session: Session, parameters: dict
 ) -> tuple[request_status.Status, dict | None]:
@@ -281,12 +327,7 @@ def change_password(
     if status.is_error:
         return status
     if not is_same:
-        return request_status.Status(
-            request_status.StatusType.ERROR,
-            # 403, а не 401: токен валиден, и клиент не должен пытаться его обновлять.
-            error_type=request_status.ErrorType.Forbidden,
-            msg="Incorrect password!",
-        )
+        return _incorrect_password()
     status = user.change_password(session, new_password, username)
     if status.is_error:
         return status
@@ -295,14 +336,14 @@ def change_password(
 
 
 def add_comment(
-    session: Session, article_id: int, root: int, comment_text: str, username: str
+    session: Session, article_id: int, parent: int, comment_text: str, username: str
 ) -> tuple[request_status.Status, int | None]:
     """Добавляет комментарий (или ответ на комментарий) к статье.
 
     Args:
         session: сессия SQLAlchemy.
         article_id: id статьи.
-        root: id родительского комментария или -1 для комментария верхнего уровня.
+        parent: id родительского комментария или -1 для комментария верхнего уровня.
         comment_text: текст комментария.
         username: автор комментария.
 
@@ -311,11 +352,11 @@ def add_comment(
             - OK и id созданного комментария — при успехе.
             - NotFound и `None` — если статьи нет: она указана в URL, поэтому
               это 404, а не падение на внешнем ключе с кодом 500.
-            - InvalidParameters и `None` — если root не найден.
+            - InvalidParameters и `None` — если parent не найден или удалён.
     """
     if article.is_article_not_exist(session, article_id):
         return request_status.not_found("article with id", article_id), None
-    return comment.add(session, article_id, root, comment_text, username)
+    return comment.add(session, article_id, parent, comment_text, username)
 
 
 def get_comment_data(
@@ -334,8 +375,12 @@ def get_comment_data(
     Returns:
         Кортеж (`Status`, dict):
             - OK и словарь с запрошенными полями.
-            - NotFound и `None` — если комментария нет.
+            - OK и {"is_deleted": True} — если комментарий удалён: вместо данных
+              отдаётся только статус, как заглушка в дереве комментариев.
+            - NotFound и `None` — если комментария нет или удалена его статья.
     """
+    if comment.is_deleted(session, comment_id):
+        return request_status.Status(request_status.StatusType.OK), {"is_deleted": True}
     # Проверка сразу: is_liked/is_disliked для несуществующего объекта отдают
     # False, и без неё GET только этих полей вернул бы 200 вместо 404.
     if comment.is_comment_not_exist(session, comment_id):

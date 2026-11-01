@@ -19,3 +19,4 @@ from . import users_me_password
 from . import auth_login
 from . import auth_refresh
 from . import auth_logout
+from . import auth_logout_all

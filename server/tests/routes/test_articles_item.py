@@ -1,5 +1,5 @@
 """
-Этот файл служит для хранения теста на API-метод GET /articles/{id}.
+Этот файл служит для хранения тестов на API-методы пути /articles/{id}: GET и DELETE.
 """
 
 from collections.abc import Callable
@@ -10,8 +10,10 @@ from tests.helpers import (
     LOCALHOST,
     assert_error,
     assert_ok,
+    assert_preflight_allows,
     auth_headers,
     check_endpoint_structure,
+    read_field,
 )
 
 
@@ -61,7 +63,88 @@ def test_articles_item_get(add_user: Callable, add_article: Callable) -> None:
     assert answer.headers["Content-Type"] == "application/problem+json"
     assert answer.json()["type"] == "about:blank"
 
-    answer = requests.delete(LOCALHOST + endpoint)
+    answer = requests.patch(LOCALHOST + endpoint)
     assert answer.status_code == 405
     assert answer.headers["Content-Type"] == "application/problem+json"
     assert "GET" in answer.headers["Allow"]
+
+
+def test_articles_item_delete(
+    add_user: Callable,
+    add_article: Callable,
+    add_comment: Callable,
+    like_article: Callable,
+) -> None:
+    _, _, _, _, author_token, _ = add_user()
+    _, _, _, _, other_token, _ = add_user()
+    article_id = add_article(author_token)
+    kept_article_id = add_article(author_token)
+    comment_id = add_comment(other_token, article_id)
+    like_article(article_id, other_token)
+    endpoint = f"/articles/{article_id}"
+    check_endpoint_structure(endpoint, "delete")
+    assert_preflight_allows(endpoint, "DELETE")
+
+    # Проверка, что без токена статью не удалить.
+    assert_error(requests.delete(LOCALHOST + endpoint), "invalid-token")
+
+    # Проверка, что удалить статью может только автор.
+    answer = requests.delete(LOCALHOST + endpoint, headers=auth_headers(other_token))
+    assert_error(answer, "forbidden")
+    assert_ok(requests.get(LOCALHOST + endpoint))
+
+    # Проверка, что несуществующую статью не удалить.
+    answer = requests.delete(
+        f"{LOCALHOST}/articles/{kept_article_id + 1}",
+        headers=auth_headers(author_token),
+    )
+    assert_error(answer, "not-found")
+
+    # happy path
+    assert read_field("/users/me", "rating", author_token) == 1
+    answer = requests.delete(LOCALHOST + endpoint, headers=auth_headers(author_token))
+    assert_ok(answer, 204)
+
+    # Проверка, что к удалённой статье нельзя обратиться ни одним методом.
+    assert_error(requests.get(LOCALHOST + endpoint), "not-found")
+    answer = requests.get(
+        f"{LOCALHOST}{endpoint}/data", params={"requested_data": "likes"}
+    )
+    assert_error(answer, "not-found")
+    answer = requests.put(
+        f"{LOCALHOST}{endpoint}/like", headers=auth_headers(other_token)
+    )
+    assert_error(answer, "not-found")
+    answer = requests.post(
+        f"{LOCALHOST}{endpoint}/comments",
+        json={"text": "text", "parent": -1},
+        headers=auth_headers(other_token),
+    )
+    assert_error(answer, "not-found")
+
+    # Проверка, что вместе со статьёй скрыты и её комментарии.
+    answer = requests.get(
+        f"{LOCALHOST}/comments/{comment_id}", params={"requested_data": "likes"}
+    )
+    assert_error(answer, "not-found")
+
+    # Проверка, что комментарий удалённой статьи не удалить отдельно.
+    answer = requests.delete(
+        f"{LOCALHOST}/comments/{comment_id}", headers=auth_headers(other_token)
+    )
+    assert_error(answer, "not-found")
+
+    # Проверка, что статьи нет в ленте, а другая статья автора осталась.
+    page = requests.get(LOCALHOST + "/articles", params={"indexes": 0}).json()["pages"]
+    assert [article["id"] for article in page["0"]] == [kept_article_id]
+
+    # Проверка, что реакции на удалённую статью не входят в рейтинг автора.
+    assert read_field("/users/me", "rating", author_token) == 0
+
+    # Проверка, что посторонний не узнает о существовании удалённой статьи.
+    answer = requests.delete(LOCALHOST + endpoint, headers=auth_headers(other_token))
+    assert_error(answer, "not-found")
+
+    # Проверка идемпотентности для автора.
+    answer = requests.delete(LOCALHOST + endpoint, headers=auth_headers(author_token))
+    assert_ok(answer, 204)

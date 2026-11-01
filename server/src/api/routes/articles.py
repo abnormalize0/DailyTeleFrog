@@ -129,7 +129,8 @@ def api_articles_get() -> Response:
         - pages (dict) — ключи совпадают с запрошенными indexes (в виде строк, так
           как это JSON), значение — список превью статей страницы в порядке
           сортировки. Превью статьи содержит: id, title, creation_date,
-          author_preview (avatar, nickname, description, username), preview_content,
+          author_preview (avatar, nickname, description, username, is_deleted; у
+          удалённого аккаунта только is_deleted), preview_content,
           likes, dislikes, rating, comments_count, tags, is_liked, is_disliked.
 
     Ошибки:

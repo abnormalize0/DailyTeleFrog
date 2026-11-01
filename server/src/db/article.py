@@ -14,17 +14,21 @@ from sqlalchemy.exc import IntegrityError
 
 
 def is_article_not_exist(session: Session, article_id: int) -> bool:
-    """Проверяет, существует ли статья с указанным id.
+    """Проверяет, существует ли статья с указанным id. Удалённая статья считается
+    несуществующей: все методы работы со статьёй идут через эту проверку, поэтому к
+    ней нельзя обратиться (см. decisions/0005-soft-delete.md).
 
     Args:
         session: сессия SQLAlchemy.
         article_id: id статьи.
 
     Returns:
-        `True`, если статьи не существует, иначе `False`.
+        `True`, если статьи не существует или она удалена, иначе `False`.
     """
     article = (
-        session.query(scheme.Article).where(scheme.Article.id == article_id).scalar()
+        session.query(scheme.Article)
+        .where(scheme.Article.id == article_id, scheme.Article.is_deleted.is_(False))
+        .scalar()
     )
     return article is None
 
@@ -44,7 +48,9 @@ def post(session: Session, title: str, body: dict, author: str, preview: dict) -
     """
     article = scheme.Article(
         title=title,
-        body=json.dumps(body),
+        # ensure_ascii=False: иначе каждая русская буква хранилась бы как \uXXXX и
+        # занимала 6 байт вместо 2.
+        body=json.dumps(body, ensure_ascii=False),
         author_username=author,
         creation_date=round(time.time() * 1000),
     )
@@ -52,11 +58,43 @@ def post(session: Session, title: str, body: dict, author: str, preview: dict) -
     session.flush()
     article_preview = scheme.ArticlePreview(
         article_id=article.id,
-        preview_content=json.dumps(preview),
+        preview_content=json.dumps(preview, ensure_ascii=False),
     )
     session.add(article_preview)
     session.flush()
     return article.id
+
+
+def delete(session: Session, article_id: int, username: str) -> request_status.Status:
+    """Мягко удаляет статью. Идемпотентно (это DELETE): автор может повторить вызов.
+
+    Args:
+        session: сессия SQLAlchemy.
+        article_id: id статьи.
+        username: кто удаляет.
+
+    Returns:
+        `Status`:
+            - OK — статья удалена.
+            - NotFound — статьи нет, либо она удалена и вызывающий не её автор:
+              посторонний не должен узнать, что такая статья была.
+            - Forbidden — статья не удалена и вызывающий не её автор.
+    """
+    article = (
+        session.query(scheme.Article).where(scheme.Article.id == article_id).scalar()
+    )
+    is_author = article is not None and article.author_username == username
+    if article is None or (article.is_deleted and not is_author):
+        return request_status.not_found("article with id", article_id)
+    if not is_author:
+        return request_status.Status(
+            request_status.StatusType.ERROR,
+            error_type=request_status.ErrorType.Forbidden,
+            msg="User tries to delete someone else's article",
+        )
+    article.is_deleted = True
+    session.flush()
+    return request_status.Status(request_status.StatusType.OK)
 
 
 def add_tags(
@@ -116,7 +154,7 @@ def is_liked(
         not session.query(scheme.ArticleLike)
         .where(
             scheme.ArticleLike.article_id == article_id,
-            scheme.ArticleLike.author_username == username,
+            scheme.ArticleLike.username == username,
         )
         .scalar()
         is None,
@@ -145,7 +183,7 @@ def is_disliked(
         not session.query(scheme.ArticleDislike)
         .where(
             scheme.ArticleDislike.article_id == article_id,
-            scheme.ArticleDislike.author_username == username,
+            scheme.ArticleDislike.username == username,
         )
         .scalar()
         is None,
@@ -253,7 +291,8 @@ def rating(
 def comments_count(
     session: Session, article_id: int
 ) -> tuple[request_status.Status, int | None]:
-    """Считает количество комментариев статьи.
+    """Считает количество комментариев статьи, не считая удалённые: заглушка
+    нужна только для сохранения ветки ответов.
 
     Args:
         session: сессия SQLAlchemy.
@@ -268,7 +307,10 @@ def comments_count(
         return request_status.not_found("article with id", article_id), None
     comments_count = (
         session.query(scheme.Comment)
-        .where(scheme.Comment.article_id == article_id)
+        .where(
+            scheme.Comment.article_id == article_id,
+            scheme.Comment.is_deleted.is_(False),
+        )
         .count()
     )
     return request_status.Status(request_status.StatusType.OK), comments_count
@@ -376,7 +418,7 @@ def like(session: Session, article_id: int, username: str) -> request_status.Sta
         session.query(scheme.ArticleLike)
         .where(
             scheme.ArticleLike.article_id == article_id,
-            scheme.ArticleLike.author_username == username,
+            scheme.ArticleLike.username == username,
         )
         .scalar()
     )
@@ -384,12 +426,12 @@ def like(session: Session, article_id: int, username: str) -> request_status.Sta
         session.query(scheme.ArticleDislike)
         .where(
             scheme.ArticleDislike.article_id == article_id,
-            scheme.ArticleDislike.author_username == username,
+            scheme.ArticleDislike.username == username,
         )
         .scalar()
     )
     if not existing_like:
-        session.add(scheme.ArticleLike(article_id=article_id, author_username=username))
+        session.add(scheme.ArticleLike(article_id=article_id, username=username))
     if existing_dislike:
         session.delete(existing_dislike)
     session.flush()
@@ -428,7 +470,7 @@ def dislike(session: Session, article_id: int, username: str) -> request_status.
         session.query(scheme.ArticleLike)
         .where(
             scheme.ArticleLike.article_id == article_id,
-            scheme.ArticleLike.author_username == username,
+            scheme.ArticleLike.username == username,
         )
         .scalar()
     )
@@ -436,14 +478,12 @@ def dislike(session: Session, article_id: int, username: str) -> request_status.
         session.query(scheme.ArticleDislike)
         .where(
             scheme.ArticleDislike.article_id == article_id,
-            scheme.ArticleDislike.author_username == username,
+            scheme.ArticleDislike.username == username,
         )
         .scalar()
     )
     if not existing_dislike:
-        session.add(
-            scheme.ArticleDislike(article_id=article_id, author_username=username)
-        )
+        session.add(scheme.ArticleDislike(article_id=article_id, username=username))
     if existing_like:
         session.delete(existing_like)
     session.flush()
@@ -471,7 +511,7 @@ def remove_like(
         return request_status.not_found("article with id", article_id)
     session.query(scheme.ArticleLike).where(
         scheme.ArticleLike.article_id == article_id,
-        scheme.ArticleLike.author_username == username,
+        scheme.ArticleLike.username == username,
     ).delete()
     return request_status.Status(request_status.StatusType.OK)
 
@@ -496,7 +536,7 @@ def remove_dislike(
         return request_status.not_found("article with id", article_id)
     session.query(scheme.ArticleDislike).where(
         scheme.ArticleDislike.article_id == article_id,
-        scheme.ArticleDislike.author_username == username,
+        scheme.ArticleDislike.username == username,
     ).delete()
     return request_status.Status(request_status.StatusType.OK)
 
@@ -550,7 +590,7 @@ def pages_get(
         Список id статей в порядке сортировки (без пагинации — на страницы
         список режет backend.pages_get).
     """
-    query = session.query(scheme.Article.id)
+    query = session.query(scheme.Article.id).where(scheme.Article.is_deleted.is_(False))
 
     is_logged_in = username != "unlogged_user"
 

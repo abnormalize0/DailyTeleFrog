@@ -3,7 +3,8 @@
 статьи.
 """
 
-from sqlalchemy import ForeignKey, String, Text, BigInteger
+from sqlalchemy import ForeignKey, String, BigInteger
+from sqlalchemy.dialects.mysql import MEDIUMTEXT
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .base import Base
@@ -28,23 +29,22 @@ class Article(Base):
     creation_date: Mapped[int] = mapped_column(BigInteger, index=True)
 
     # Тело статьи — JSON произвольной, определяемой frontend'ом структуры
-    # (блочный редактор), сервер её не разбирает, поэтому Text, а не String(n).
-    # Предел Text в MySQL — 65 535 байт, API проверяет его до записи (см.
-    # api_info.TEXT_MAX_BYTES).
-    body: Mapped[str] = mapped_column(Text)
+    # (блочный редактор), сервер её не разбирает, поэтому текстовый тип, а не
+    # String(n). MEDIUMTEXT, а не Text: в 65 535 байт Text блочная разметка
+    # оставляет примерно 34 000 русских символов, а лонгрид бывает длиннее. Предел
+    # MEDIUMTEXT — 16 777 215 байт, API проверяет его до записи (см.
+    # api_info.ARTICLE_BODY_MAX_BYTES).
+    body: Mapped[str] = mapped_column(MEDIUMTEXT)
 
     # FK на users.username — у статьи всегда есть автор, поле обязательное
     # (без Optional): статья без автора не имеет смысла в модели проекта.
-    # ondelete не задан (по умолчанию RESTRICT/запрет) — удалить пользователя,
-    # пока у него есть статьи, нельзя. Это осознанный выбор по умолчанию, а не
-    # забытый случай: удаления аккаунта в API ещё нет, а решить, что должно
-    # происходить со статьями удалённого автора (удалить вместе, оставить от
-    # имени «удалённого пользователя» и т.п.) — отдельный продуктовый вопрос,
-    # который стоит явно обсудить, когда появится сама фича удаления аккаунта.
-    #
-    # index=True — по этой колонке фильтруется лента (include_authors/
-    # exclude_authors и блок-лист авторов в pages_get), без индекса это тоже
-    # full scan.
+    # ondelete не задан (по умолчанию RESTRICT/запрет): аккаунт удаляется мягко,
+    # строка users остаётся, а статьи автора продолжают отображаться (см.
+    # decisions/0005-soft-delete.md).
     author_username: Mapped[str] = mapped_column(
         ForeignKey("users.username"), index=True
     )
+
+    # Мягкое удаление (см. decisions/0005-soft-delete.md): удалённая статья не видна
+    # ни в одном методе, вместе с ней скрыто всё, что находится внутри неё.
+    is_deleted: Mapped[bool] = mapped_column(default=False)

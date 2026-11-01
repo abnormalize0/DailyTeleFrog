@@ -54,27 +54,28 @@ def test_articles_post(add_user: Callable, add_article: Callable) -> None:
     # Проверка, что статья действительно доступна по адресу из Location.
     assert_ok(requests.get(LOCALHOST + answer.headers["Location"]))
 
-    # Проверка, что значения предельной длины реально сохраняются. Кириллица в body
-    # занимает 6 байт на символ из-за json.dumps, поэтому берём латиницу и кириллицу:
-    # предел должен считаться по хранимому виду, а не по числу символов.
+    # Проверка, что значения предельной длины реально сохраняются: статья длиннее
+    # предела TEXT (65 535 байт) помещается в MEDIUMTEXT.
     long_article = {
         "title": "t" * 512,
         "preview": {"data": "p" * 65000},
         "tags": ["т" * 512],
-        "body": {"data": "b" * 65000},
+        "body": {"data": "б" * 100000},
     }
     answer = requests.post(
         LOCALHOST + ENDPOINT, json=long_article, headers=auth_headers(access_token)
     )
     assert_ok(answer, 201)
 
+    # Проверка, что предел считается в байтах хранимого вида, а не в символах:
+    # 33000 кириллических символов занимают 66000 байт и в TEXT не помещаются.
     answer = requests.post(
         LOCALHOST + ENDPOINT,
-        json={**long_article, "body": {"data": "б" * 11000}},
+        json={**long_article, "preview": {"data": "п" * 33000}},
         headers=auth_headers(access_token),
     )
     assert_error(answer, "validation")
-    assert answer.json()["errors"][0]["name"] == "body"
+    assert answer.json()["errors"][0]["name"] == "preview"
 
     # Проверка, что нельзя выставить статье одинаковые теги, в том числе отличающиеся
     # только регистром, и что статья при этом не создаётся.

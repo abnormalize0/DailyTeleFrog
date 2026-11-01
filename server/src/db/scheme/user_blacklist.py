@@ -25,5 +25,7 @@ class UserBlacklist(Base):
     # пользователем. ondelete="CASCADE" — если удалить заблокированного,
     # блокировка на него тоже теряет смысл.
     blocked_user: Mapped[str] = mapped_column(
-        ForeignKey("users.username", ondelete="CASCADE"), primary_key=True
+        ForeignKey("users.username", ondelete="CASCADE"),
+        primary_key=True,
+        index=True,
     )

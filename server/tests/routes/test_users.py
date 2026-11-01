@@ -60,7 +60,7 @@ def test_users_post() -> None:
     assert_ok(answer)
     assert nickname == answer.json()["nickname"]
     assert email == answer.json()["email"]
-    assert [nickname] == answer.json()["name_history"]
+    assert [] == answer.json()["name_history"]
     assert avatar == answer.json()["avatar"]
     assert 0 == answer.json()["rating"]
     assert "creation_date" in answer.json()
@@ -75,7 +75,7 @@ def test_users_post() -> None:
             "nickname": long_nickname,
             "email": "e" * 255,
             "password": password,
-            "avatar": "a" * 512,
+            "avatar": "a" * 4096,
             "description": "о" * 32767,
         },
     )
