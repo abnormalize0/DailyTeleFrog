@@ -90,7 +90,7 @@ def delete(session: Session, article_id: int, username: str) -> request_status.S
         return request_status.Status(
             request_status.StatusType.ERROR,
             error_type=request_status.ErrorType.Forbidden,
-            msg="User tries to delete someone else's article",
+            msg="User cannot delete someone else's article",
         )
     article.is_deleted = True
     session.flush()
@@ -133,7 +133,7 @@ def add_tags(
 
 
 def is_liked(
-    session: Session, article_id: int, username: str
+    session: Session, article_id: int, username: str | None
 ) -> tuple[request_status.Status, bool]:
     """Проверяет, лайкнул ли username статью.
 
@@ -162,7 +162,7 @@ def is_liked(
 
 
 def is_disliked(
-    session: Session, article_id: int, username: str
+    session: Session, article_id: int, username: str | None
 ) -> tuple[request_status.Status, bool]:
     """Проверяет, дизлайкнул ли username статью.
 
@@ -412,7 +412,7 @@ def like(session: Session, article_id: int, username: str) -> request_status.Sta
         return request_status.Status(
             request_status.StatusType.ERROR,
             error_type=request_status.ErrorType.Forbidden,
-            msg="User tries to like or dislike their own article",
+            msg="User cannot like or dislike their own article",
         )
     existing_like = (
         session.query(scheme.ArticleLike)
@@ -464,7 +464,7 @@ def dislike(session: Session, article_id: int, username: str) -> request_status.
         return request_status.Status(
             request_status.StatusType.ERROR,
             error_type=request_status.ErrorType.Forbidden,
-            msg="User tries to like or dislike their own article",
+            msg="User cannot like or dislike their own article",
         )
     existing_like = (
         session.query(scheme.ArticleLike)
@@ -565,7 +565,7 @@ def _rating_expression() -> ColumnElement:
 
 def pages_get(
     session: Session,
-    username: str,
+    username: str | None,
     include_nonsub: bool,
     sort_column: str,
     sort_direction: str,
@@ -577,8 +577,8 @@ def pages_get(
 
     Args:
         session: сессия SQLAlchemy.
-        username: пользователь, для которого формируется лента ("unlogged_user"
-            для неавторизованного).
+        username: пользователь, для которого формируется лента (`None` для
+            неавторизованного).
         include_nonsub: если `False`, оставляет только статьи по подпискам username.
         sort_column: "creation_date" или "rating".
         sort_direction: "ascending" или "descending".
@@ -592,7 +592,7 @@ def pages_get(
     """
     query = session.query(scheme.Article.id).where(scheme.Article.is_deleted.is_(False))
 
-    is_logged_in = username != "unlogged_user"
+    is_logged_in = username is not None
 
     exclude_authors = set(exclude.get("authors") or [])
     exclude_tags = set(exclude.get("tags") or [])

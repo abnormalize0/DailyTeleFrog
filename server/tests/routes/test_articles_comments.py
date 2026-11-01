@@ -23,7 +23,7 @@ def test_articles_comments_post(add_user: Callable, add_article: Callable) -> No
 
     # Проверка, что без токена нельзя оставить комментарий.
     answer = requests.post(LOCALHOST + endpoint, json={"text": "text", "parent": -1})
-    assert_error(answer, "invalid-token")
+    assert_error(answer, "invalid-token", "Missing or invalid token")
 
     # Публикуем комментарий к статье.
     answer = requests.post(
@@ -61,7 +61,19 @@ def test_articles_comments_post(add_user: Callable, add_article: Callable) -> No
         json={"text": "ю" * 32768, "parent": -1},
         headers=auth_headers(access_token),
     )
-    assert_error(answer, "validation")
+    assert_error(answer, "validation", "Wrong request parameters structure")
+
+    # Проверка, что текст, который выглядит как пустота, отвергается.
+    for text in ("", " \t\n", "\u00a0", "\u200b\ufeff", "\u3164"):
+        answer = requests.post(
+            LOCALHOST + endpoint,
+            json={"text": text, "parent": -1},
+            headers=auth_headers(access_token),
+        )
+        assert_error(answer, "validation", "Wrong request parameters structure")
+        assert answer.json()["errors"] == [
+            {"name": "text", "reason": "must not be blank"}
+        ]
 
     # Попытка ответить на несуществующий комментарий.
     answer = requests.post(
@@ -69,7 +81,7 @@ def test_articles_comments_post(add_user: Callable, add_article: Callable) -> No
         json={"text": "text", "parent": comment_id + 1000},
         headers=auth_headers(access_token),
     )
-    assert_error(answer, "validation")
+    assert_error(answer, "validation", "Cannot find comment with id: 1001")
 
     # Проверка, что к несуществующей статье комментарий не оставить.
     answer = requests.post(
@@ -77,4 +89,4 @@ def test_articles_comments_post(add_user: Callable, add_article: Callable) -> No
         json={"text": "text", "parent": -1},
         headers=auth_headers(access_token),
     )
-    assert_error(answer, "not-found")
+    assert_error(answer, "not-found", "Cannot find article with id: 2")

@@ -34,8 +34,12 @@ def pytest_sessionstart(session: pytest.Session) -> None:
     Returns:
         None
     """
-    if os.path.exists(WORKDIR):
-        with open(os.path.join(WORKDIR, "lastpid.txt"), "r") as pid_file:
+    # Проверяется сам файл, а не WORKDIR: папку создаёт сервер при запуске, а pid
+    # записывается только после того, как он ответил. Если сервер упал на старте,
+    # папка уже есть, а файла ещё нет.
+    pid_path = os.path.join(WORKDIR, "lastpid.txt")
+    if os.path.exists(pid_path):
+        with open(pid_path, "r") as pid_file:
             pid = pid_file.readline()
         try:
             os.kill(int(pid), signal.SIGKILL)

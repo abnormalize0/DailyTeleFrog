@@ -36,8 +36,8 @@ def api_articles_comments_post(article_id: int) -> Response:
         - id (int) — id созданного комментария.
 
     Ошибки:
-        - 400 /errors/validation — при некорректном теле запроса, если text длиннее
-          api_info.TEXT_MAX_BYTES байт или если parent не равен -1 и не ссылается на
+        - 400 /errors/validation — при некорректном теле запроса, если в text нет
+          ни одного видимого символа или он длиннее api_info.TEXT_MAX_BYTES байт или если parent не равен -1 и не ссылается на
           существующий неудалённый комментарий именно этой статьи.
         - 401 /errors/invalid-token — если заголовок Authorization отсутствует,
           токен не найден или истёк.

@@ -73,13 +73,41 @@ def test_users_post() -> None:
         json={
             "username": "u" * 32,
             "nickname": long_nickname,
-            "email": "e" * 255,
+            "email": "e" * 245 + "@test.test",
             "password": password,
             "avatar": "a" * 4096,
             "description": "о" * 32767,
         },
     )
     assert_ok(answer, 201)
+
+    # Проверка, что нижние границы правил ввода проходят: кириллица в nickname
+    # разрешена, а имя unlogged_user больше не служебное.
+    answer = requests.post(
+        LOCALHOST + endpoint,
+        json={
+            "username": "abc",
+            "nickname": "Я",
+            "email": "a@b.c",
+            "password": "p" * 128,
+        },
+    )
+    assert_ok(answer, 201)
+    answer = requests.post(
+        LOCALHOST + endpoint,
+        json={
+            "username": "unlogged_user",
+            "nickname": "n",
+            "email": "unlogged@test.test",
+            "password": "p" * 8,
+        },
+    )
+    assert_ok(answer, 201)
+    answer = requests.post(
+        LOCALHOST + "/auth/login",
+        json={"username": "unlogged_user", "password": "p" * 8},
+    )
+    assert_ok(answer)
 
     # Проверка, что описание считается в байтах: 32768 кириллических символов
     # занимают 65536 байт и в TEXT не помещаются.
@@ -93,7 +121,7 @@ def test_users_post() -> None:
             "description": "о" * 32768,
         },
     )
-    assert_error(answer, "validation")
+    assert_error(answer, "validation", "Wrong request parameters structure")
     assert answer.json()["errors"][0]["name"] == "description"
 
     # username is a primary key: same username with a different email must be rejected
@@ -106,7 +134,7 @@ def test_users_post() -> None:
             "password": password,
         },
     )
-    assert_error(answer, "conflict")
+    assert_error(answer, "conflict", "User with username test_name_1 already exists")
 
     # email is unique: different username with the same email must be rejected
     answer = requests.post(
@@ -118,4 +146,4 @@ def test_users_post() -> None:
             "password": password,
         },
     )
-    assert_error(answer, "conflict")
+    assert_error(answer, "conflict", "User with email test@,test.test already exists")

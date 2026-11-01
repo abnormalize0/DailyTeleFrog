@@ -28,24 +28,34 @@ Docker: `make` без аргументов выводит список всех 
 
 ## Запуск тестов
 
-Тесты написаны на **pytest** (обычные функции/классы с `assert`, без `unittest.TestCase`). Отдельного слоя юнит-тестов/моков нет: перед каждым тестом из `tests/routes/*.py` fixture `server` из `tests/conftest.py` удаляет и заново создаёт все таблицы из `scheme.Base.metadata`, поднимает настоящий серверный процесс `start.py -t` поверх настоящей базы данных, а после теста останавливает его. Тесты общаются с сервером только по HTTP через `requests`.
+Тесты написаны на **pytest** (обычные функции/классы с `assert`, без `unittest.TestCase`). Слоёв два, моков нет ни в одном (см. `decisions/0006-unit-tests.md`):
 
-Запуск всего набора в docker (собирает образы, поднимает MySQL и сервер, копирует логи в `test_logs/`):
+- **Unit-тесты** лежат рядом с проверяемым модулем (`src/db/user.py` → `src/db/test_user.py`) и вызывают функции напрямую, без сервера и HTTP. Тесты, которым нужна БД, работают с настоящей MySQL: fixture `session` из `src/conftest.py` откатывает изменения после каждого теста. Остальным тестам БД не нужна.
+- **End-to-end тесты** лежат в `tests/routes/`. Перед каждым тестом fixture `server` из `tests/conftest.py` удаляет и заново создаёт все таблицы из `scheme.Base.metadata`, поднимает настоящий серверный процесс `start.py -t` поверх настоящей базы данных, а после теста останавливает его. Тесты общаются с сервером только по HTTP через `requests`.
+
+Запуск в docker (собирает образы и поднимает MySQL):
 
 ```bash
-make test
+make test        # оба слоя, логи сервера копируются в test_logs/ даже при падении тестов
+make test-unit   # только unit-тесты
 ```
 
 Запуск подмножества или одного теста — обычные флаги pytest внутри контейнера:
 
 ```bash
-docker exec -w /app -t server-test python3 -m pytest tests -v                          # весь набор
-docker exec -w /app -t server-test python3 -m pytest tests -v -k test_auth_login_post       # один тест (подстрока имени)
+docker exec -w /app -t server-test python3 -m pytest src -v                             # все unit-тесты
+docker exec -w /app -t server-test python3 -m pytest tests -v                           # все e2e-тесты
+docker exec -w /app -t server-test python3 -m pytest tests -v -k test_auth_login_post   # один тест (подстрока имени)
 docker exec -w /app -t server-test python3 -m pytest tests --collect-only -q            # показать тесты без запуска
 docker exec -w /app -t server-test python3 -m pytest tests -v -k "not test_users"       # запустить все, кроме подходящих
+docker cp ./src/. server-test:/app/src/                                                 # обновить код в уже запущенном контейнере
 ```
 
-Для обнаружения тестов обязателен префикс `test_` и в имени файла, и в имени метода (стандартное поведение pytest, дополнительно не настраивается).
+`src` и `tests` запускаются раздельными командами: e2e-fixtures с `autouse` живут в `tests/conftest.py` и не должны срабатывать на unit-тестах.
+
+Для обнаружения тестов обязателен префикс `test_` и в имени файла, и в имени метода (стандартное поведение pytest, дополнительно не настраивается). Имена файлов не должны повторяться: в проекте нет `__init__.py` в тестовых папках, и pytest не сможет собрать два `test_<имя>.py` разом.
+
+**Оба слоя проверяют не только успешные сценарии, но и ошибки.** На каждую ошибку из докстринга функции или метода нужна проверка, и она сверяет текст целиком: `assert_error(answer, "not-found", "Cannot find article with id: 1")` в e2e-тестах и `assert_error_status(status, ErrorType.NotFound, "...")` из `src/test_helpers.py` в unit-тестах. Клиент показывает этот текст человеку, поэтому он должен объяснять, что пошло не так. Клиентская ошибка в запросе никогда не должна превращаться в 500.
 
 **Каждый API-метод должен иметь свой отдельный end-to-end тест** в файле своего ресурса под `tests/routes/` (один `test_<метод>_<тип>` на каждый `api_<метод>_<тип>`, в том же файле, что и `src/api/routes/<ресурс>.py`), а не полагаться на то, что его затронет тест другого метода.
 

@@ -13,7 +13,6 @@ from ... import log
 from .. import api_info
 from ..shared import (
     app,
-    check_not_unlogged,
     error_response,
     fill_default,
     get_session,
@@ -48,8 +47,7 @@ def api_auth_login_post() -> Response:
 
     Ошибки:
         - 400 /errors/validation — при некорректном теле запроса, если переданы и
-          username, и email одновременно, если не передано ни то, ни другое, или
-          если username == "unlogged_user".
+          username, и email одновременно или если не передано ни то, ни другое.
         - 401 /errors/invalid-credentials — если пароль не совпадает с паролем
           найденного пользователя, либо пользователь с таким username/email не
           найден (одно и то же сообщение для обоих случаев, чтобы не раскрывать
@@ -66,16 +64,13 @@ def api_auth_login_post() -> Response:
     if parameters["username"] and parameters["email"]:
         return error_response(
             request_status.ErrorType.InvalidParameters,
-            "User cant login via username and email.",
+            "User cannot log in with both username and email",
         )
     if not parameters["username"] and not parameters["email"]:
         return error_response(
             request_status.ErrorType.InvalidParameters,
-            "User must login via username or email.",
+            "User must log in with username or email",
         )
-    unlogged_response = check_not_unlogged(parameters["username"])
-    if unlogged_response:
-        return unlogged_response
     with get_session() as session:
         status, tokens = backend.login(session, parameters)
         if status.is_error:

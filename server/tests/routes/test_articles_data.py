@@ -52,14 +52,14 @@ def test_articles_data_get(add_user: Callable, add_article: Callable) -> None:
         params={"requested_data": request_data},
         headers=auth_headers("bogus_token"),
     )
-    assert_error(answer, "invalid-token")
+    assert_error(answer, "invalid-token", "Missing or invalid token")
 
     # trying to read a non-existent article
     answer = requests.get(
         f"{LOCALHOST}/articles/{article_id + 1}/data",
         params={"requested_data": request_data},
     )
-    assert_error(answer, "not-found")
+    assert_error(answer, "not-found", "Cannot find article with id: 2")
 
     # Проверка, что 404 не зависит от набора полей: is_liked сам по себе не
     # проверяет существование статьи.
@@ -67,4 +67,4 @@ def test_articles_data_get(add_user: Callable, add_article: Callable) -> None:
         f"{LOCALHOST}/articles/{article_id + 1}/data",
         params={"requested_data": "is_liked"},
     )
-    assert_error(answer, "not-found")
+    assert_error(answer, "not-found", "Cannot find article with id: 2")

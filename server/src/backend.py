@@ -13,7 +13,7 @@ from . import request_status
 
 
 def get_article(
-    session: Session, article_id: int, username: str
+    session: Session, article_id: int, username: str | None
 ) -> tuple[request_status.Status, dict | None]:
     """Собирает полную информацию о статье для страницы статьи.
 
@@ -170,7 +170,7 @@ def _incorrect_password() -> request_status.Status:
     return request_status.Status(
         request_status.StatusType.ERROR,
         error_type=request_status.ErrorType.Forbidden,
-        msg="Incorrect password!",
+        msg="Incorrect password",
     )
 
 
@@ -232,7 +232,7 @@ def login(
             request_status.Status(
                 request_status.StatusType.ERROR,
                 error_type=request_status.ErrorType.InvalidCredentials,
-                msg="Incorrect password!",
+                msg="Incorrect login or password",
             ),
             None,
         )
@@ -360,7 +360,7 @@ def add_comment(
 
 
 def get_comment_data(
-    session: Session, comment_id: int, username: str, requested_data: list[str]
+    session: Session, comment_id: int, username: str | None, requested_data: list[str]
 ) -> tuple[request_status.Status, dict | None]:
     """Собирает выбранные поля данных о комментарии.
 
@@ -404,7 +404,7 @@ def get_comment_data(
 
 
 def get_article_data(
-    session: Session, article_id: int, username: str, requested_data: list[str]
+    session: Session, article_id: int, username: str | None, requested_data: list[str]
 ) -> tuple[request_status.Status, dict | None]:
     """Собирает выбранные поля данных о статье.
 
@@ -498,7 +498,7 @@ def get_user_data(
 
 
 def get_article_preview(
-    session: Session, article_id: int, username: str
+    session: Session, article_id: int, username: str | None
 ) -> tuple[request_status.Status, dict | None]:
     """Собирает превью статьи для ленты.
 
@@ -543,7 +543,7 @@ def get_article_preview(
 
 def pages_get(
     session: Session,
-    username: str,
+    username: str | None,
     indexes: list[int],
     include_nonsub: bool,
     sort_column: str,

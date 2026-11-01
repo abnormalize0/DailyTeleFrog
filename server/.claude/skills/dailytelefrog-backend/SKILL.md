@@ -79,6 +79,6 @@ API устроено по классическому REST (решение `serve
 
 1. Для нового или изменённого API-метода есть свой e2e-тест в `server/tests/routes/test_<ресурс>.py`, ответ на OPTIONS в `server/src/api/api_info.py`, и порядок методов совпадает во всех местах.
 2. Прогнан `python -m black src tests start.py` из `server/`.
-3. Тесты прогнаны (`make test`, или выборочно `docker exec -w /app -t server-test python3 -m pytest tests -v -k <имя_теста>`). Если запустить их не удалось (нет docker/MySQL), прямо так и скажи.
+3. Полный `make test` (unit- и e2e-тесты) прошёл без ошибок и выполнено саморевью из скила `dailytelefrog-self-review`. Выборочный прогон `docker exec -w /app -t server-test python3 -m pytest <src|tests> -v -k <имя_теста>` годится только для работы над задачей. Если запустить тесты не удалось (нет docker/MySQL), задача не готова, прямо так и скажи.
 4. Изменения только внутри `server/`.
 5. В ответе: что сделано, какие решения приняты и почему, список «Замечено по пути», если он есть.

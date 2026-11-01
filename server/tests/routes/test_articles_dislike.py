@@ -29,12 +29,15 @@ def test_articles_dislike_put(add_user: Callable, add_article: Callable) -> None
     assert_preflight_allows(endpoint, "DELETE")
 
     # Проверка, что без токена нельзя поставить дизлайк.
-    assert_error(requests.put(LOCALHOST + endpoint), "invalid-token")
+    assert_error(
+        requests.put(LOCALHOST + endpoint), "invalid-token", "Missing or invalid token"
+    )
 
     # Проверка, что нельзя поставить дизлайк на свою статью.
     assert_error(
         requests.put(LOCALHOST + endpoint, headers=auth_headers(access_token)),
         "forbidden",
+        "User cannot like or dislike their own article",
     )
 
     # Проверка, что на несуществующий объект дизлайк не поставить.
@@ -44,6 +47,7 @@ def test_articles_dislike_put(add_user: Callable, add_article: Callable) -> None
             headers=auth_headers(access_token_2),
         ),
         "not-found",
+        "Cannot find article with id: 1001",
     )
 
     # Проверка, что дизлайк применился.
@@ -85,7 +89,11 @@ def test_articles_dislike_delete(add_user: Callable, add_article: Callable) -> N
     check_endpoint_structure(endpoint, method)
 
     # Проверка, что без токена нельзя снять дизлайк.
-    assert_error(requests.delete(LOCALHOST + endpoint), "invalid-token")
+    assert_error(
+        requests.delete(LOCALHOST + endpoint),
+        "invalid-token",
+        "Missing or invalid token",
+    )
 
     # Проверка, что с несуществующего объекта дизлайк не снять.
     assert_error(
@@ -94,6 +102,7 @@ def test_articles_dislike_delete(add_user: Callable, add_article: Callable) -> N
             headers=auth_headers(access_token_2),
         ),
         "not-found",
+        "Cannot find article with id: 1001",
     )
 
     # Проверка, что снятие отсутствующего дизлайка не является ошибкой.

@@ -140,7 +140,7 @@ def delete(session: Session, comment_id: int, username: str) -> request_status.S
         return request_status.Status(
             request_status.StatusType.ERROR,
             error_type=request_status.ErrorType.Forbidden,
-            msg="User tries to delete someone else's comment",
+            msg="User cannot delete someone else's comment",
         )
     comment.is_deleted = True
     session.flush()
@@ -173,7 +173,7 @@ def like(session: Session, comment_id: int, username: str) -> request_status.Sta
         return request_status.Status(
             request_status.StatusType.ERROR,
             error_type=request_status.ErrorType.Forbidden,
-            msg="User tries to like or dislike their own comment",
+            msg="User cannot like or dislike their own comment",
         )
     existing_like = (
         session.query(scheme.CommentLike)
@@ -225,7 +225,7 @@ def dislike(session: Session, comment_id: int, username: str) -> request_status.
         return request_status.Status(
             request_status.StatusType.ERROR,
             error_type=request_status.ErrorType.Forbidden,
-            msg="User tries to like or dislike their own comment",
+            msg="User cannot like or dislike their own comment",
         )
     existing_like = (
         session.query(scheme.CommentLike)
@@ -499,7 +499,7 @@ def creation_date(
 
 
 def is_liked(
-    session: Session, comment_id: int, username: str
+    session: Session, comment_id: int, username: str | None
 ) -> tuple[request_status.Status, bool]:
     """Проверяет, лайкнул ли username комментарий.
 
@@ -528,7 +528,7 @@ def is_liked(
 
 
 def is_disliked(
-    session: Session, comment_id: int, username: str
+    session: Session, comment_id: int, username: str | None
 ) -> tuple[request_status.Status, bool]:
     """Проверяет, дизлайкнул ли username комментарий.
 

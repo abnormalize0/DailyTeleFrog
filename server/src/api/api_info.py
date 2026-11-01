@@ -13,7 +13,13 @@ fill_default в shared.py проверяют по ним запросы, а об
 Ограничения, которые тоже уходят клиенту через OPTIONS:
 - "max_length": предел строки в символах, совпадает с длиной колонки String(n);
 - "max_bytes": предел значения в байтах, в виде, в котором оно хранится;
-- "item_type" и "item_max_length": тип и предел длины элементов списка.
+- "item_type" и "item_max_length": тип и предел длины элементов списка;
+- "min_length": нижний предел длины строки в символах;
+- "not_blank" и "item_not_blank": значение или элемент списка должны содержать
+  хотя бы один видимый символ: пробелы, табы, переносы строк и непечатные символы
+  видимыми не считаются;
+- "pattern" и "pattern_reason": регулярное выражение, которому значение должно
+  соответствовать целиком, и причина ошибки, если оно не соответствует.
 """
 
 import json
@@ -30,6 +36,34 @@ TEXT_MAX_BYTES = 65_535
 # это та же техническая проверка: без неё значение больше колонки вернулось бы как 500.
 ARTICLE_BODY_MAX_BYTES = 16_777_215
 _TAG_MAX_LENGTH = scheme.ArticleTag.tag_name.type.length
+
+# Правила ввода данных аккаунта общие для регистрации и изменения профиля, иначе
+# ограничение можно было бы обойти через PATCH. См. decisions/0007-input-rules.md.
+_USERNAME_RULES = {
+    "min_length": 3,
+    "max_length": scheme.User.username.type.length,
+    # Только латиница: username попадает в ссылки и служит логином, а похожие друг
+    # на друга кириллические и латинские буквы позволили бы выдавать себя за другого.
+    # Кириллица доступна в nickname.
+    "pattern": "[A-Za-z0-9_-]+",
+    "pattern_reason": "must contain only Latin letters, digits, _ and -",
+}
+_NICKNAME_RULES = {
+    "max_length": scheme.User.nickname.type.length,
+    "not_blank": True,
+    "pattern": "[^\\x00-\\x1f\\x7f]+",
+    "pattern_reason": "must not contain control characters",
+}
+_EMAIL_RULES = {
+    "max_length": scheme.User.email.type.length,
+    # Намеренно грубая проверка: полный синтаксис RFC 5322 сложен и всё равно не
+    # доказывает, что адрес существует. Это покажет только письмо с подтверждением.
+    "pattern": "[^@\\s]+@[^@\\s]+\\.[^@\\s]+",
+    "pattern_reason": "must be a valid email address",
+}
+# 8 символов — минимум из NIST SP 800-63B, он же не рекомендует требовать разные
+# классы символов. Верхний предел защищает от очень длинных значений в запросе.
+_NEW_PASSWORD_RULES = {"min_length": 8, "max_length": 128}
 
 type_defaults = {
     "int": None,
@@ -58,6 +92,7 @@ articles_post = [
         "is_required": True,
         "container": "body",
         "max_length": scheme.Article.title.type.length,
+        "not_blank": True,
     },
     {
         "name": "body",
@@ -65,6 +100,7 @@ articles_post = [
         "is_required": True,
         "container": "body",
         "max_bytes": ARTICLE_BODY_MAX_BYTES,
+        "not_blank": True,
     },
     {
         "name": "preview",
@@ -80,6 +116,7 @@ articles_post = [
         "container": "body",
         "item_type": "str",
         "item_max_length": _TAG_MAX_LENGTH,
+        "item_not_blank": True,
     },
 ]
 
@@ -226,6 +263,7 @@ articles_comments_post = [
         "is_required": True,
         "container": "body",
         "max_bytes": TEXT_MAX_BYTES,
+        "not_blank": True,
     },
     {"name": "parent", "type": "int", "is_required": True, "container": "body"},
 ]
@@ -307,23 +345,29 @@ users_post = [
         "type": "str",
         "is_required": True,
         "container": "body",
-        "max_length": scheme.User.username.type.length,
+        **_USERNAME_RULES,
     },
     {
         "name": "nickname",
         "type": "str",
         "is_required": True,
         "container": "body",
-        "max_length": scheme.User.nickname.type.length,
+        **_NICKNAME_RULES,
     },
     {
         "name": "email",
         "type": "str",
         "is_required": True,
         "container": "body",
-        "max_length": scheme.User.email.type.length,
+        **_EMAIL_RULES,
     },
-    {"name": "password", "type": "str", "is_required": True, "container": "body"},
+    {
+        "name": "password",
+        "type": "str",
+        "is_required": True,
+        "container": "body",
+        **_NEW_PASSWORD_RULES,
+    },
     {
         "name": "avatar",
         "type": "str",
@@ -382,14 +426,14 @@ users_me_patch = [
         "type": "str",
         "is_required": False,
         "container": "body",
-        "max_length": scheme.User.nickname.type.length,
+        **_NICKNAME_RULES,
     },
     {
         "name": "email",
         "type": "str",
         "is_required": False,
         "container": "body",
-        "max_length": scheme.User.email.type.length,
+        **_EMAIL_RULES,
     },
     {
         "name": "avatar",
@@ -412,6 +456,7 @@ users_me_patch = [
         "container": "body",
         "item_type": "str",
         "item_max_length": _TAG_MAX_LENGTH,
+        "item_not_blank": True,
     },
     {
         "name": "blocked-tags",
@@ -420,6 +465,7 @@ users_me_patch = [
         "container": "body",
         "item_type": "str",
         "item_max_length": _TAG_MAX_LENGTH,
+        "item_not_blank": True,
     },
     {
         "name": "sub-users",
@@ -465,7 +511,13 @@ users_me_password_put = [
         "is_required": True,
         "container": "body",
     },
-    {"name": "new_password", "type": "str", "is_required": True, "container": "body"},
+    {
+        "name": "new_password",
+        "type": "str",
+        "is_required": True,
+        "container": "body",
+        **_NEW_PASSWORD_RULES,
+    },
 ]
 
 

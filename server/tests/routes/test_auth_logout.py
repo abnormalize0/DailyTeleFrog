@@ -23,7 +23,7 @@ def test_auth_logout_post(add_user: Callable) -> None:
 
     # Проверка, что без токена нельзя разлогиниться.
     answer = requests.post(LOCALHOST + endpoint, json={"refresh_token": refresh_token})
-    assert_error(answer, "invalid-token")
+    assert_error(answer, "invalid-token", "Missing or invalid token")
 
     # happy path
     answer = requests.post(
@@ -39,10 +39,10 @@ def test_auth_logout_post(add_user: Callable) -> None:
         params={"requested_data": "nickname"},
         headers=auth_headers(access_token),
     )
-    assert_error(profile_answer, "invalid-token")
+    assert_error(profile_answer, "invalid-token", "Missing or invalid token")
 
     # Проверка, что refresh token тоже отозван.
     refresh_answer = requests.post(
         LOCALHOST + "/auth/refresh", json={"refresh_token": refresh_token}
     )
-    assert_error(refresh_answer, "invalid-token")
+    assert_error(refresh_answer, "invalid-token", "Missing or invalid token")

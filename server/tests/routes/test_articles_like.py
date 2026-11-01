@@ -29,12 +29,15 @@ def test_articles_like_put(add_user: Callable, add_article: Callable) -> None:
     assert_preflight_allows(endpoint, "DELETE")
 
     # Проверка, что без токена нельзя поставить лайк.
-    assert_error(requests.put(LOCALHOST + endpoint), "invalid-token")
+    assert_error(
+        requests.put(LOCALHOST + endpoint), "invalid-token", "Missing or invalid token"
+    )
 
     # Проверка, что нельзя поставить лайк на свою статью.
     assert_error(
         requests.put(LOCALHOST + endpoint, headers=auth_headers(access_token)),
         "forbidden",
+        "User cannot like or dislike their own article",
     )
 
     # Проверка, что на несуществующий объект лайк не поставить.
@@ -44,6 +47,7 @@ def test_articles_like_put(add_user: Callable, add_article: Callable) -> None:
             headers=auth_headers(access_token_2),
         ),
         "not-found",
+        "Cannot find article with id: 1001",
     )
 
     # Проверка, что лайк применился.
@@ -97,7 +101,11 @@ def test_articles_like_delete(add_user: Callable, add_article: Callable) -> None
     check_endpoint_structure(endpoint, method)
 
     # Проверка, что без токена нельзя снять лайк.
-    assert_error(requests.delete(LOCALHOST + endpoint), "invalid-token")
+    assert_error(
+        requests.delete(LOCALHOST + endpoint),
+        "invalid-token",
+        "Missing or invalid token",
+    )
 
     # Проверка, что с несуществующего объекта лайк не снять.
     assert_error(
@@ -106,6 +114,7 @@ def test_articles_like_delete(add_user: Callable, add_article: Callable) -> None
             headers=auth_headers(access_token_2),
         ),
         "not-found",
+        "Cannot find article with id: 1001",
     )
 
     # Проверка, что снятие отсутствующего лайка не является ошибкой.

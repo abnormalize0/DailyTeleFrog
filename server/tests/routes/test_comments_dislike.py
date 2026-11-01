@@ -32,12 +32,15 @@ def test_comments_dislike_put(
     assert_preflight_allows(endpoint, "DELETE")
 
     # Проверка, что без токена нельзя поставить дизлайк.
-    assert_error(requests.put(LOCALHOST + endpoint), "invalid-token")
+    assert_error(
+        requests.put(LOCALHOST + endpoint), "invalid-token", "Missing or invalid token"
+    )
 
     # Проверка, что нельзя поставить дизлайк на свой комментарий.
     assert_error(
         requests.put(LOCALHOST + endpoint, headers=auth_headers(access_token)),
         "forbidden",
+        "User cannot like or dislike their own comment",
     )
 
     # Проверка, что на несуществующий объект дизлайк не поставить.
@@ -47,6 +50,7 @@ def test_comments_dislike_put(
             headers=auth_headers(access_token_2),
         ),
         "not-found",
+        "Cannot find comment with id: 1001",
     )
 
     # Проверка, что дизлайк применился.
@@ -91,7 +95,11 @@ def test_comments_dislike_delete(
     check_endpoint_structure(endpoint, method)
 
     # Проверка, что без токена нельзя снять дизлайк.
-    assert_error(requests.delete(LOCALHOST + endpoint), "invalid-token")
+    assert_error(
+        requests.delete(LOCALHOST + endpoint),
+        "invalid-token",
+        "Missing or invalid token",
+    )
 
     # Проверка, что с несуществующего объекта дизлайк не снять.
     assert_error(
@@ -100,6 +108,7 @@ def test_comments_dislike_delete(
             headers=auth_headers(access_token_2),
         ),
         "not-found",
+        "Cannot find comment with id: 1001",
     )
 
     # Проверка, что снятие отсутствующего дизлайка не является ошибкой.

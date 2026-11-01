@@ -12,6 +12,8 @@ from sqlalchemy.orm import Session
 from werkzeug.exceptions import HTTPException
 import json
 import builtins
+import re
+import unicodedata
 
 from .. import backend
 from .. import request_status
@@ -20,6 +22,19 @@ from . import api_info
 app = Flask(__name__)
 app.register_blueprint(api_info.info)
 cors = CORS(app)
+
+# Символы, которые не видны на экране: разделители (Z*), управляющие (Cc) и
+# форматирующие (Cf), среди них нулевой пробел и BOM. Cn («не назначен») сюда не
+# входит: в нём окажутся эмодзи новее базы Unicode этой версии Python. str.strip
+# не подходит: он не считает пробелом ни U+200B, ни символы из списка ниже.
+_BLANK_CATEGORIES = {"Zs", "Zl", "Zp", "Cc", "Cf"}
+# Символы-заполнители и селекторы вариантов: по категории они буквы, знаки и символы,
+# но выглядят как пустота, поэтому их приходится перечислять.
+_INVISIBLE_CHARS = (
+    set("\u034f\u115f\u1160\u17b4\u17b5\u180b\u180c\u180d\u180f\u2800\u3164\uffa0")
+    | {chr(code) for code in range(0xFE00, 0xFE10)}
+    | {chr(code) for code in range(0xE0100, 0xE01F0)}
+)
 
 # Устанавливается run_server() (см. api.py) перед запуском сервера.
 db_url = None
@@ -156,43 +171,26 @@ def require_auth(session: Session) -> tuple:
 
 def optional_auth(session: Session) -> tuple:
     """Резолвит access token текущего запроса в username — для методов,
-    доступных и анонимно (тогда username == "unlogged_user").
+    доступных и анонимно (тогда username равен `None`).
 
     Args:
         session: сессия SQLAlchemy, используется для проверки токена, если
             заголовок Authorization присутствует.
 
     Returns:
-        Кортеж (str, None) — username из токена, либо "unlogged_user", если
-        заголовка Authorization нет вовсе.
+        Кортеж (str | None, None) — username из токена, либо `None`, если
+        заголовка Authorization нет вовсе. См. decisions/0008-anonymous-user.md.
         Кортеж (None, str) — ответ с ошибкой 401, если заголовок Authorization
         передан, но токен не найден/истёк (в отличие от отсутствия заголовка,
         это не считается анонимным запросом молча).
     """
     token = get_bearer_token()
     if not token:
-        return "unlogged_user", None
+        return None, None
     status, username = backend.resolve_token(session, token)
     if status.is_error:
         return None, request_status.problem_response(status)
     return username, None
-
-
-def check_not_unlogged(username: str) -> Response | None:
-    """Проверяет, что username не является неавторизованным пользователем.
-
-    Args:
-        username: значение поля username из тела запроса.
-
-    Returns:
-        Ответ с ошибкой, если username == "unlogged_user", иначе `None`.
-    """
-    if username == "unlogged_user":
-        return error_response(
-            request_status.ErrorType.InvalidParameters,
-            "Unlogged user cannot use this method",
-        )
-    return None
 
 
 def _stored_size(value: str | dict) -> int:
@@ -211,8 +209,48 @@ def _stored_size(value: str | dict) -> int:
     return len(stored.encode("utf8"))
 
 
+def _is_valid_text(value: str | dict | list | int | bool) -> bool:
+    """Проверяет, что все строки значения, в том числе вложенные и ключи словарей,
+    можно записать в UTF-8.
+
+    JSON допускает одиночный суррогат вроде "\\ud800", Flask принимает его как
+    строку Python, а упадёт такое значение только при хешировании пароля или записи
+    в MySQL и вернётся клиенту как 500. Проверять надо здесь, на входе: так клиент
+    получит понятную ошибку с именем поля на любом методе.
+
+    Args:
+        value: значение из запроса, тип которого уже проверен.
+
+    Returns:
+        `True`, если значение можно записать в UTF-8, иначе `False`.
+    """
+    try:
+        json.dumps(value, ensure_ascii=False).encode("utf8")
+    except UnicodeEncodeError:
+        return False
+    return True
+
+
+def _is_blank(value: str | dict) -> bool:
+    """Проверяет, что значение выглядело бы для читателя как пустота.
+
+    Args:
+        value: строка или словарь из запроса.
+
+    Returns:
+        `True` для пустого словаря и для строки, в которой нет ни одного видимого
+        символа, в том числе пустой, иначе `False`.
+    """
+    if isinstance(value, dict):
+        return not value
+    return all(
+        char in _INVISIBLE_CHARS or unicodedata.category(char) in _BLANK_CATEGORIES
+        for char in value
+    )
+
+
 def _check_limits(value: str | dict | list, element: dict) -> str | None:
-    """Проверяет ограничения на размер значения, тип которого уже проверен.
+    """Проверяет ограничения на размер и формат значения, тип которого уже проверен.
 
     Args:
         value: значение из запроса.
@@ -220,11 +258,22 @@ def _check_limits(value: str | dict | list, element: dict) -> str | None:
 
     Returns:
         Причина ошибки либо `None`, если значение подходит. Без этой проверки
-        слишком длинное значение дошло бы до MySQL и вернулось как 500.
+        слишком длинное значение дошло бы до MySQL и вернулось как 500. Длина
+        проверяется раньше шаблона: её причина понятнее для слишком длинной строки.
     """
     max_length = element.get("max_length")
     if max_length and len(value) > max_length:
         return f"must be at most {max_length} characters"
+    min_length = element.get("min_length")
+    if min_length and len(value) < min_length:
+        return f"must be at least {min_length} characters"
+    if element.get("not_blank") and _is_blank(value):
+        return "must not be blank"
+    if element.get("item_not_blank") and any(_is_blank(item) for item in value):
+        return "items must not be blank"
+    pattern = element.get("pattern")
+    if pattern and not re.fullmatch(pattern, value):
+        return element["pattern_reason"]
     max_bytes = element.get("max_bytes")
     if max_bytes and _stored_size(value) > max_bytes:
         return f"must be at most {max_bytes} bytes"
@@ -258,6 +307,10 @@ def check_structure(data: dict, pattern: list) -> list:
         if type(value) != getattr(builtins, element["type"]):
             errors.append({"name": name, "reason": f"must be {element['type']}"})
             continue
+        # Раньше проверки размера: _stored_size кодирует значение в UTF-8.
+        if not _is_valid_text(value):
+            errors.append({"name": name, "reason": "must be valid Unicode text"})
+            continue
         if element["type"] == "list":
             allowed = [field["name"] for field in element.get("structure", [])]
             if allowed and any(item not in allowed for item in value):
@@ -290,7 +343,7 @@ def _validated(data: dict, pattern: list) -> tuple:
     if errors:
         return None, error_response(
             request_status.ErrorType.InvalidParameters,
-            "Wrong request parameters structure.",
+            "Wrong request parameters structure",
             errors=errors,
         )
     return data, None

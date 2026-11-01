@@ -40,7 +40,7 @@ def test_auth_refresh_post(add_user: Callable) -> None:
 
     # Проверка ротации: старый refresh token больше не работает.
     answer = requests.post(LOCALHOST + endpoint, json={"refresh_token": refresh_token})
-    assert_error(answer, "invalid-token")
+    assert_error(answer, "invalid-token", "Missing or invalid token")
 
     # Проверка, что токены не попали в лог ни из запроса, ни из ответа.
     server_log = read_server_log()
@@ -49,4 +49,4 @@ def test_auth_refresh_post(add_user: Callable) -> None:
 
     # invalid refresh token
     answer = requests.post(LOCALHOST + endpoint, json={"refresh_token": "bogus_token"})
-    assert_error(answer, "invalid-token")
+    assert_error(answer, "invalid-token", "Missing or invalid token")

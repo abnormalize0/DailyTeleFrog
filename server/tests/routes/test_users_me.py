@@ -53,7 +53,7 @@ def test_users_me_get(add_user: Callable) -> None:
     answer = requests.get(
         LOCALHOST + ENDPOINT, params={"requested_data": requested_data}
     )
-    assert_error(answer, "invalid-token")
+    assert_error(answer, "invalid-token", "Missing or invalid token")
 
 
 def test_users_me_patch(add_user: Callable) -> None:
@@ -160,7 +160,9 @@ def test_users_me_patch(add_user: Callable) -> None:
             json={"avatar": "rolled_back", field: [own_username]},
             headers=headers,
         )
-        assert_error(answer, "forbidden")
+        assert_error(
+            answer, "forbidden", "User cannot subscribe to or block themselves"
+        )
     answer = requests.get(
         LOCALHOST + ENDPOINT,
         params={"requested_data": ["sub_users", "blocked_users", "avatar"]},
@@ -187,7 +189,22 @@ def test_users_me_patch(add_user: Callable) -> None:
             json={"avatar": "rolled_back", field: ["nobody"]},
             headers=headers,
         )
-        assert_error(answer, "validation")
+        assert_error(answer, "validation", "Cannot find user with username: nobody")
+    assert read_field(ENDPOINT, "avatar", access_token) == avatar
+
+    # Проверка, что PATCH применяет те же правила, что регистрация, и не меняет поля.
+    for invalid in (
+        {"nickname": "   "},
+        {"email": "not-an-email"},
+        {"sub-tags": ["tag", " "]},
+        {"blocked-tags": ["\u200b"]},
+    ):
+        answer = requests.patch(
+            LOCALHOST + ENDPOINT,
+            json={"avatar": "rolled_back", **invalid},
+            headers=headers,
+        )
+        assert_error(answer, "validation", "Wrong request parameters structure")
     assert read_field(ENDPOINT, "avatar", access_token) == avatar
 
     # Проверка, что нельзя занять чужой email, а свой указать повторно можно.
@@ -196,7 +213,7 @@ def test_users_me_patch(add_user: Callable) -> None:
     answer = requests.patch(
         LOCALHOST + ENDPOINT, json={"email": other_user_email}, headers=headers
     )
-    assert_error(answer, "conflict")
+    assert_error(answer, "conflict", "User with email test_2@test.test already exists")
     answer = requests.patch(
         LOCALHOST + ENDPOINT, json={"email": email}, headers=headers
     )
@@ -220,7 +237,7 @@ def test_users_me_patch(add_user: Callable) -> None:
     answer = requests.patch(
         LOCALHOST + ENDPOINT, json={"nickname": nickname, "avatar": avatar}
     )
-    assert_error(answer, "invalid-token")
+    assert_error(answer, "invalid-token", "Missing or invalid token")
 
 
 def test_users_me_delete(add_user: Callable, add_article: Callable) -> None:
@@ -238,7 +255,7 @@ def test_users_me_delete(add_user: Callable, add_article: Callable) -> None:
 
     # Проверка, что без токена аккаунт не удалить.
     answer = requests.delete(LOCALHOST + ENDPOINT, json={"password": password})
-    assert_error(answer, "invalid-token")
+    assert_error(answer, "invalid-token", "Missing or invalid token")
 
     # Проверка, что с неверным паролем аккаунт не удаляется.
     answer = requests.delete(
@@ -246,7 +263,7 @@ def test_users_me_delete(add_user: Callable, add_article: Callable) -> None:
         json={"password": "wrong_password"},
         headers=auth_headers(access_token),
     )
-    assert_error(answer, "forbidden")
+    assert_error(answer, "forbidden", "Incorrect password")
     assert read_field(ENDPOINT, "nickname", access_token) == nickname
 
     # happy path
@@ -266,20 +283,23 @@ def test_users_me_delete(add_user: Callable, add_article: Callable) -> None:
         params={"requested_data": "nickname"},
         headers=auth_headers(access_token),
     )
-    assert_error(answer, "invalid-token")
+    assert_error(answer, "invalid-token", "Missing or invalid token")
     answer = requests.post(
         LOCALHOST + "/auth/refresh", json={"refresh_token": refresh_token}
     )
-    assert_error(answer, "invalid-token")
+    assert_error(answer, "invalid-token", "Missing or invalid token")
 
     # Проверка, что в удалённый аккаунт нельзя войти.
     answer = requests.post(
         LOCALHOST + "/auth/login", json={"username": username, "password": password}
     )
-    assert_error(answer, "invalid-credentials")
+    assert_error(answer, "invalid-credentials", "Incorrect login or password")
 
     # Проверка, что username и email удалённого аккаунта остаются занятыми.
-    for new_username, new_email in ((username, "new@test.test"), ("new", email)):
+    for new_username, new_email, detail in (
+        (username, "new@test.test", f"User with username {username} already exists"),
+        ("new", email, f"User with email {email} already exists"),
+    ):
         answer = requests.post(
             LOCALHOST + "/users",
             json={
@@ -289,7 +309,7 @@ def test_users_me_delete(add_user: Callable, add_article: Callable) -> None:
                 "password": password,
             },
         )
-        assert_error(answer, "conflict")
+        assert_error(answer, "conflict", detail)
 
     # Проверка, что статья осталась, но данных автора в ней нет.
     article = requests.get(f"{LOCALHOST}/articles/{article_id}").json()["article"]
@@ -304,4 +324,6 @@ def test_users_me_delete(add_user: Callable, add_article: Callable) -> None:
         json={"sub-users": [username]},
         headers=auth_headers(follower_token),
     )
-    assert_error(answer, "validation")
+    assert_error(
+        answer, "validation", "Cannot find user with username: tester_username_0"
+    )

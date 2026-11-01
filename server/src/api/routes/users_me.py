@@ -105,7 +105,9 @@ def api_users_me_patch() -> Response:
 
     Ошибки:
         - 400 /errors/validation — при некорректном теле запроса, если значение
-          длиннее предела из api_info.users_me_patch или если sub-users/blocked-users
+          нарушает ограничения из api_info.users_me_patch (nickname и email
+          проверяются как при регистрации, а в элементах sub-tags и blocked-tags
+          должен быть видимый символ) или если sub-users/blocked-users
           содержит несуществующего или удалённого пользователя.
         - 401 /errors/invalid-token — если заголовок Authorization отсутствует,
           токен не найден или истёк.

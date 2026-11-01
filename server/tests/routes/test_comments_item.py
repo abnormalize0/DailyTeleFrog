@@ -58,14 +58,14 @@ def test_comments_item_get(
         params={"requested_data": request_data},
         headers=auth_headers("bogus_token"),
     )
-    assert_error(answer, "invalid-token")
+    assert_error(answer, "invalid-token", "Missing or invalid token")
 
     # trying to read a non-existent comment
     answer = requests.get(
         f"{LOCALHOST}/comments/{comment_id + 1}",
         params={"requested_data": request_data},
     )
-    assert_error(answer, "not-found")
+    assert_error(answer, "not-found", "Cannot find comment with id: 2")
 
     # Проверка, что 404 не зависит от набора полей: is_liked сам по себе не
     # проверяет существование комментария.
@@ -73,7 +73,7 @@ def test_comments_item_get(
         f"{LOCALHOST}/comments/{comment_id + 1}",
         params={"requested_data": "is_liked"},
     )
-    assert_error(answer, "not-found")
+    assert_error(answer, "not-found", "Cannot find comment with id: 2")
 
 
 def test_comments_item_delete(
@@ -95,17 +95,21 @@ def test_comments_item_delete(
     assert_preflight_allows(endpoint, "DELETE")
 
     # Проверка, что без токена комментарий не удалить.
-    assert_error(requests.delete(LOCALHOST + endpoint), "invalid-token")
+    assert_error(
+        requests.delete(LOCALHOST + endpoint),
+        "invalid-token",
+        "Missing or invalid token",
+    )
 
     # Проверка, что удалить комментарий может только автор.
     answer = requests.delete(LOCALHOST + endpoint, headers=auth_headers(other_token))
-    assert_error(answer, "forbidden")
+    assert_error(answer, "forbidden", "User cannot delete someone else's comment")
 
     # Проверка, что несуществующий комментарий не удалить.
     answer = requests.delete(
         f"{LOCALHOST}/comments/{reply_id + 1}", headers=auth_headers(author_token)
     )
-    assert_error(answer, "not-found")
+    assert_error(answer, "not-found", "Cannot find comment with id: 3")
 
     # happy path
     answer = requests.delete(LOCALHOST + endpoint, headers=auth_headers(author_token))
@@ -135,13 +139,13 @@ def test_comments_item_delete(
     answer = requests.put(
         f"{LOCALHOST}{endpoint}/like", headers=auth_headers(other_token)
     )
-    assert_error(answer, "not-found")
+    assert_error(answer, "not-found", "Cannot find comment with id: 1")
     answer = requests.post(
         f"{LOCALHOST}/articles/{article_id}/comments",
         json={"text": "text", "parent": comment_id},
         headers=auth_headers(other_token),
     )
-    assert_error(answer, "validation")
+    assert_error(answer, "validation", "Cannot find comment with id: 1")
 
     # Проверка идемпотентности.
     answer = requests.delete(LOCALHOST + endpoint, headers=auth_headers(author_token))

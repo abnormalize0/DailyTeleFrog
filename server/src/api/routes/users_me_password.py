@@ -30,7 +30,8 @@ def api_users_me_password_put() -> Response:
         204 без тела.
 
     Ошибки:
-        - 400 /errors/validation — при некорректном теле запроса.
+        - 400 /errors/validation — при некорректном теле запроса, в том числе если
+          new_password короче 8 или длиннее 128 символов.
         - 401 /errors/invalid-token — если заголовок Authorization отсутствует,
           токен не найден или истёк.
         - 403 /errors/forbidden — если previous_password не совпадает с текущим

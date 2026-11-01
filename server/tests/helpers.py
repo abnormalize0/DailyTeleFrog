@@ -39,6 +39,22 @@ WRONG_BODY_VALUES = {
     "bool": "hehe",
 }
 
+# Одиночный суррогат: допустимый JSON, который нельзя записать в UTF-8.
+INVALID_TEXT_VALUES = {
+    "str": "\ud800",
+    "dict": {"key": "\ud800"},
+    "list": ["\ud800"],
+}
+
+# Выглядит как пустота, хотя strip оставил бы от этой строки нулевой пробел.
+BLANK_TEXT = " \t\n\u00a0\u200b"
+
+# Нарушает все регулярные выражения из схем: управляющий символ и пробел.
+PATTERN_MISMATCH = "\x00 @"
+
+# Общий текст ошибки проверки структуры: причины по полям лежат в списке errors.
+STRUCTURE_ERROR = "Wrong request parameters structure"
+
 # В query-строке любое значение является строкой, поэтому неверный тип бывает
 # только у int и bool, а у списков — только у элементов (см. _wrong_query_value).
 WRONG_QUERY_VALUES = {
@@ -60,12 +76,16 @@ def assert_ok(answer: requests.Response, code: int = 200) -> None:
     assert answer.status_code == code, answer.text
 
 
-def assert_error(answer: requests.Response, error: str) -> None:
+def assert_error(answer: requests.Response, error: str, detail: str) -> None:
     """Проверяет, что ответ сервера — ошибка ожидаемого вида в формате Problem Details.
+
+    detail обязателен и сверяется целиком: клиент показывает этот текст человеку, а
+    непустой, но бесполезный текст вроде "Unexpected error" иначе прошёл бы проверку.
 
     Args:
         answer: ответ requests на запрос к серверу.
         error: ожидаемый вид ошибки, ключ ERROR_CODES.
+        detail: ожидаемый текст ошибки.
 
     Returns:
         None
@@ -77,7 +97,7 @@ def assert_error(answer: requests.Response, error: str) -> None:
     assert problem["type"] == f"/errors/{error}", problem
     assert problem["status"] == code, problem
     assert problem["title"], problem
-    assert problem["detail"], problem
+    assert problem["detail"] == detail, problem
 
 
 def auth_headers(access_token: str) -> dict:
@@ -202,9 +222,10 @@ def _too_long_value(field: dict) -> Any:
 
 
 def _assert_rejected(
-    endpoint: str, method: str, key: str, params: dict, name: str
+    endpoint: str, method: str, key: str, params: dict, name: str, reason: str
 ) -> None:
-    """Отправляет запрос и проверяет, что сервер отверг параметр name с кодом 400.
+    """Отправляет запрос и проверяет, что сервер отверг параметр name с кодом 400 и
+    объяснил причину.
 
     Args:
         endpoint: путь запроса.
@@ -212,18 +233,66 @@ def _assert_rejected(
         key: аргумент requests для параметров: "params" (query) или "json" (тело).
         params: параметры запроса.
         name: имя параметра, на который должен пожаловаться сервер.
+        reason: начало ожидаемой причины; целиком она зависит от ограничений поля.
 
     Returns:
         None
     """
     answer = requests.request(method, LOCALHOST + endpoint, **{key: params})
-    assert_error(answer, "validation")
-    assert name in [error["name"] for error in answer.json()["errors"]], answer.text
+    assert_error(answer, "validation", STRUCTURE_ERROR)
+    reasons = {error["name"]: error["reason"] for error in answer.json()["errors"]}
+    assert reasons.get(name, "").startswith(reason), answer.text
+
+
+def _wrong_value_reason(field: dict, is_query: bool) -> str:
+    """Определяет, как сервер объясняет значение, неверное по типу.
+
+    Args:
+        field: описание параметра из `OPTIONS <endpoint>`.
+        is_query: параметр передаётся в query-строке.
+
+    Returns:
+        Начало ожидаемой причины. В query-строке список всегда остаётся списком,
+        поэтому там неверным оказывается элемент, а не сам параметр.
+    """
+    if is_query and field.get("structure"):
+        return "must be one of"
+    if is_query and field.get("item_type"):
+        return f"must contain {field['item_type']}"
+    return f"must be {field['type']}"
+
+
+def _check_body_is_required(endpoint: str, method: str, structure: list) -> None:
+    """Проверяет, что тело, не являющееся JSON-объектом, даёт 400 с перечнем
+    обязательных полей, а не 500.
+
+    Args:
+        endpoint: путь запроса.
+        method: HTTP-метод.
+        structure: описание параметров из `OPTIONS <endpoint>`.
+
+    Returns:
+        None
+    """
+    required = {field["name"] for field in structure if field["is_required"]}
+    if not required:
+        return
+    for body in ("{broken", "[1, 2]"):
+        answer = requests.request(
+            method,
+            LOCALHOST + endpoint,
+            data=body,
+            headers={"Content-Type": "application/json"},
+        )
+        assert_error(answer, "validation", STRUCTURE_ERROR)
+        assert {error["name"] for error in answer.json()["errors"]} == required
 
 
 def check_endpoint_structure(endpoint: str, method: str) -> None:
     """Запрашивает описание параметров через `OPTIONS <endpoint>` и проверяет, что
-    метод отвергает неверный тип каждого параметра и отсутствие обязательных.
+    метод отвергает с понятной причиной неверный тип, нарушение ограничений и
+    невалидный Unicode в каждом параметре, отсутствие обязательных и тело, не
+    являющееся JSON-объектом.
 
     Args:
         endpoint: путь запроса.
@@ -240,15 +309,73 @@ def check_endpoint_structure(endpoint: str, method: str) -> None:
     key = "params" if is_query else "json"
     valid = {field["name"]: _valid_value(field) for field in structure}
 
+    if not is_query:
+        _check_body_is_required(endpoint, method, structure)
+
     for field in structure:
         name = field["name"]
         wrong = (
             _wrong_query_value(field) if is_query else WRONG_BODY_VALUES[field["type"]]
         )
+        if wrong is not None:
+            reason = _wrong_value_reason(field, is_query)
+            _assert_rejected(
+                endpoint, method, key, {**valid, name: wrong}, name, reason
+            )
         too_long = _too_long_value(field)
-        for value in (wrong, too_long):
-            if value is not None:
-                _assert_rejected(endpoint, method, key, {**valid, name: value}, name)
+        if too_long is not None:
+            reason = (
+                "items must be at most"
+                if "item_max_length" in field
+                else "must be at most"
+            )
+            _assert_rejected(
+                endpoint, method, key, {**valid, name: too_long}, name, reason
+            )
+        if field.get("not_blank"):
+            blank = BLANK_TEXT if field["type"] == "str" else {}
+            _assert_rejected(
+                endpoint, method, key, {**valid, name: blank}, name, "must not be blank"
+            )
+        if field.get("item_not_blank"):
+            _assert_rejected(
+                endpoint,
+                method,
+                key,
+                {**valid, name: ["tag", BLANK_TEXT]},
+                name,
+                "items must not be blank",
+            )
+        if "min_length" in field:
+            too_short = "x" * (field["min_length"] - 1)
+            _assert_rejected(
+                endpoint,
+                method,
+                key,
+                {**valid, name: too_short},
+                name,
+                f"must be at least {field['min_length']} characters",
+            )
+        if "pattern" in field:
+            _assert_rejected(
+                endpoint,
+                method,
+                key,
+                {**valid, name: PATTERN_MISMATCH},
+                name,
+                field["pattern_reason"],
+            )
+        # В query-строке суррогата быть не может: её декодирует сам Flask.
+        invalid_text = INVALID_TEXT_VALUES.get(field["type"])
+        if invalid_text is not None and not is_query:
+            _assert_rejected(
+                endpoint,
+                method,
+                key,
+                {**valid, name: invalid_text},
+                name,
+                "must be valid Unicode text",
+            )
         if field["is_required"]:
             without_field = {k: v for k, v in valid.items() if k != name}
-            _assert_rejected(endpoint, method, key, without_field, name)
+            _assert_rejected(endpoint, method, key, without_field, name, "is required")

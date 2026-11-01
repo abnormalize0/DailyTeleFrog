@@ -31,7 +31,9 @@ def test_auth_logout_all_post(add_user: Callable) -> None:
     second_refresh_token = answer.json()["refresh_token"]
 
     # Проверка, что без токена нельзя завершить сессии.
-    assert_error(requests.post(LOCALHOST + endpoint), "invalid-token")
+    assert_error(
+        requests.post(LOCALHOST + endpoint), "invalid-token", "Missing or invalid token"
+    )
 
     # happy path
     answer = requests.post(LOCALHOST + endpoint, headers=auth_headers(access_token))
@@ -44,14 +46,14 @@ def test_auth_logout_all_post(add_user: Callable) -> None:
             params={"requested_data": "nickname"},
             headers=auth_headers(token),
         )
-        assert_error(answer, "invalid-token")
+        assert_error(answer, "invalid-token", "Missing or invalid token")
 
     # Проверка, что отозваны и refresh токены обеих сессий.
     for token in (refresh_token, second_refresh_token):
         answer = requests.post(
             LOCALHOST + "/auth/refresh", json={"refresh_token": token}
         )
-        assert_error(answer, "invalid-token")
+        assert_error(answer, "invalid-token", "Missing or invalid token")
 
     # Проверка, что сессии другого пользователя не затронуты.
     answer = requests.get(

@@ -74,7 +74,7 @@ def test_articles_post(add_user: Callable, add_article: Callable) -> None:
         json={**long_article, "preview": {"data": "п" * 33000}},
         headers=auth_headers(access_token),
     )
-    assert_error(answer, "validation")
+    assert_error(answer, "validation", "Wrong request parameters structure")
     assert answer.json()["errors"][0]["name"] == "preview"
 
     # Проверка, что нельзя выставить статье одинаковые теги, в том числе отличающиеся
@@ -88,8 +88,27 @@ def test_articles_post(add_user: Callable, add_article: Callable) -> None:
             json={**article, "tags": tags},
             headers=auth_headers(access_token),
         )
-        assert_error(answer, "validation")
+        assert_error(answer, "validation", "Article tags must be unique")
         assert answer.json()["errors"][0]["name"] == "tags"
+    articles_after = len(
+        requests.get(LOCALHOST + ENDPOINT, params={"indexes": 0}).json()["pages"]["0"]
+    )
+    assert articles_after == articles_before
+
+    # Проверка, что пустой тег отвергается, а статья при этом не создаётся.
+    articles_before = len(
+        requests.get(LOCALHOST + ENDPOINT, params={"indexes": 0}).json()["pages"]["0"]
+    )
+    for tag in ("", " \t\n", "\u200b"):
+        answer = requests.post(
+            LOCALHOST + ENDPOINT,
+            json={**article, "tags": ["tag1", tag]},
+            headers=auth_headers(access_token),
+        )
+        assert_error(answer, "validation", "Wrong request parameters structure")
+        assert answer.json()["errors"] == [
+            {"name": "tags", "reason": "items must not be blank"}
+        ]
     articles_after = len(
         requests.get(LOCALHOST + ENDPOINT, params={"indexes": 0}).json()["pages"]["0"]
     )
@@ -101,7 +120,7 @@ def test_articles_post(add_user: Callable, add_article: Callable) -> None:
         json={**article, "tags": [1]},
         headers=auth_headers(access_token),
     )
-    assert_error(answer, "validation")
+    assert_error(answer, "validation", "Wrong request parameters structure")
 
     # Проверка, что статья с пустым списком тегов публикуется без тегов.
     article_id = add_article(access_token, tags=[])
@@ -111,7 +130,11 @@ def test_articles_post(add_user: Callable, add_article: Callable) -> None:
     )
 
     # Проверка, что без токена статью не опубликовать.
-    assert_error(requests.post(LOCALHOST + ENDPOINT, json=article), "invalid-token")
+    assert_error(
+        requests.post(LOCALHOST + ENDPOINT, json=article),
+        "invalid-token",
+        "Missing or invalid token",
+    )
 
     # Проверка, что тело не в формате JSON даёт 400, а не 500.
     answer = requests.post(
@@ -119,7 +142,7 @@ def test_articles_post(add_user: Callable, add_article: Callable) -> None:
         data="{not json",
         headers={**auth_headers(access_token), "Content-Type": "application/json"},
     )
-    assert_error(answer, "validation")
+    assert_error(answer, "validation", "Wrong request parameters structure")
 
 
 def test_articles_get(
@@ -152,14 +175,22 @@ def test_articles_get(
         params={"indexes": 0, "sort_column": "bogus_column"},
         headers=headers,
     )
-    assert_error(answer, "validation")
+    assert_error(
+        answer,
+        "validation",
+        'Parameter "sort_column" must have value "creation_date" or "rating"',
+    )
 
     answer = requests.get(
         LOCALHOST + ENDPOINT,
         params={"indexes": 0, "sort_direction": "sideways"},
         headers=headers,
     )
-    assert_error(answer, "validation")
+    assert_error(
+        answer,
+        "validation",
+        'Parameter "sort_direction" must have value "descending" or "ascending"',
+    )
 
     # Проверка, что неверный токен не превращает запрос в анонимный.
     answer = requests.get(
@@ -167,7 +198,7 @@ def test_articles_get(
         params={"indexes": 0},
         headers=auth_headers("bogus_token"),
     )
-    assert_error(answer, "invalid-token")
+    assert_error(answer, "invalid-token", "Missing or invalid token")
 
     # happy path: sort by rating, descending
     answer = requests.get(

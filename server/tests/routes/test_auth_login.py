@@ -58,32 +58,27 @@ def test_auth_login_post(add_user: Callable) -> None:
         LOCALHOST + endpoint,
         json={"username": username, "password": password + "wrong"},
     )
-    assert_error(answer, "invalid-credentials")
+    assert_error(answer, "invalid-credentials", "Incorrect login or password")
 
     # Проверка, что несуществующий пользователь неотличим от неверного пароля.
     answer = requests.post(
         LOCALHOST + endpoint,
         json={"username": "nobody", "password": password},
     )
-    assert_error(answer, "invalid-credentials")
+    assert_error(answer, "invalid-credentials", "Incorrect login or password")
 
     # both username and email must be rejected
     answer = requests.post(
         LOCALHOST + endpoint,
         json={"username": username, "email": email, "password": password},
     )
-    assert_error(answer, "validation")
-
-    # Проверка, что под служебным именем неавторизованного пользователя не войти.
-    answer = requests.post(
-        LOCALHOST + endpoint,
-        json={"username": "unlogged_user", "password": password},
+    assert_error(
+        answer, "validation", "User cannot log in with both username and email"
     )
-    assert_error(answer, "validation")
 
     # neither username nor email must be rejected, not crash
     answer = requests.post(
         LOCALHOST + endpoint,
         json={"password": password},
     )
-    assert_error(answer, "validation")
+    assert_error(answer, "validation", "User must log in with username or email")
