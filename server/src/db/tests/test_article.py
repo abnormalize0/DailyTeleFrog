@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from src.db import article, scheme, user
 from src.request_status import ErrorType
-from src.test_helpers import assert_error_status
+from src.tests.helpers import assert_error_status
 
 
 def _post(session: Session, author: str, creation_date: int = 0) -> int:
@@ -274,6 +274,11 @@ def test_is_liked_for_anonymous_is_false(session: Session, add_user: Callable) -
 
     assert article.is_liked(session, article_id, None)[1] is False
     assert article.is_disliked(session, article_id, None)[1] is False
+
+
+def test_is_liked_of_unknown_article_is_false(session: Session) -> None:
+    assert article.is_liked(session, 0, "reader")[1] is False
+    assert article.is_disliked(session, 0, "reader")[1] is False
 
 
 def test_feed_subscriptions_only(session: Session, add_user: Callable) -> None:

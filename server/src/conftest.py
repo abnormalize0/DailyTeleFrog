@@ -4,7 +4,7 @@
 без сервера и HTTP, а БД подключается, только если тест запросил fixture `session`.
 SQLite не подходит: схема использует MEDIUMTEXT, а смысл
 проверок дубликатов задаёт правило сравнения строк MySQL (см.
-decisions/0006-unit-tests.md).
+decisions/0010-unit-tests.md).
 """
 
 import os
@@ -15,6 +15,7 @@ from sqlalchemy import Engine, create_engine
 from sqlalchemy.orm import Session
 
 from src.db import scheme
+from src.tests.helpers import user_row
 
 
 @pytest.fixture(scope="session")
@@ -62,18 +63,37 @@ def add_user(session: Session) -> Callable[[str], str]:
     """
 
     def _add_user(username: str) -> str:
-        # Вставка в обход user.add_user: хеширование пароля занимает десятые доли
-        # секунды, а большинству тестов нужен только сам факт наличия пользователя.
-        session.add(
-            scheme.User(
-                username=username,
-                email=f"{username}@test.test",
-                nickname=f"{username}_nickname",
-                password="unused",
-                creation_date=0,
-            )
-        )
+        session.add(user_row(username))
         session.flush()
         return username
 
     return _add_user
+
+
+@pytest.fixture
+def commit_rows(
+    session: Session, db_engine: Engine
+) -> Generator[Callable[..., None], None, None]:
+    """Даёт функцию, которая коммитит строки из отдельной транзакции, как параллельный
+    запрос. Закоммиченные данные откатить нельзя, поэтому после теста таблицы
+    пересоздаются: это дороже отката, зато нужно только тестам на гонки.
+
+    Args:
+        session: fixture сессии, её транзакция завершается перед очисткой, иначе
+            DROP TABLE ждал бы её бесконечно.
+        db_engine: fixture engine тестовой БД.
+
+    Returns:
+        Generator[Callable[..., None]]: функция (*rows).
+    """
+
+    def _commit_rows(*rows: scheme.Base) -> None:
+        with Session(db_engine) as rival_session:
+            rival_session.add_all(rows)
+            rival_session.commit()
+
+    yield _commit_rows
+
+    session.rollback()
+    scheme.Base.metadata.drop_all(db_engine)
+    scheme.Base.metadata.create_all(db_engine)

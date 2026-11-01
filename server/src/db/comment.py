@@ -4,6 +4,7 @@
 """
 
 from . import scheme
+from .rows import add_if_missing, lock_user_reactions
 import time
 from sqlalchemy import Row
 from sqlalchemy.orm import Session
@@ -175,14 +176,7 @@ def like(session: Session, comment_id: int, username: str) -> request_status.Sta
             error_type=request_status.ErrorType.Forbidden,
             msg="User cannot like or dislike their own comment",
         )
-    existing_like = (
-        session.query(scheme.CommentLike)
-        .where(
-            scheme.CommentLike.comment_id == comment_id,
-            scheme.CommentLike.username == username,
-        )
-        .scalar()
-    )
+    lock_user_reactions(session, username)
     existing_dislike = (
         session.query(scheme.CommentDislike)
         .where(
@@ -191,10 +185,11 @@ def like(session: Session, comment_id: int, username: str) -> request_status.Sta
         )
         .scalar()
     )
-    if not existing_like:
-        session.add(scheme.CommentLike(comment_id=comment_id, username=username))
     if existing_dislike:
         session.delete(existing_dislike)
+    add_if_missing(
+        session, scheme.CommentLike, comment_id=comment_id, username=username
+    )
     session.flush()
     return request_status.Status(request_status.StatusType.OK)
 
@@ -227,6 +222,7 @@ def dislike(session: Session, comment_id: int, username: str) -> request_status.
             error_type=request_status.ErrorType.Forbidden,
             msg="User cannot like or dislike their own comment",
         )
+    lock_user_reactions(session, username)
     existing_like = (
         session.query(scheme.CommentLike)
         .where(
@@ -235,18 +231,11 @@ def dislike(session: Session, comment_id: int, username: str) -> request_status.
         )
         .scalar()
     )
-    existing_dislike = (
-        session.query(scheme.CommentDislike)
-        .where(
-            scheme.CommentDislike.comment_id == comment_id,
-            scheme.CommentDislike.username == username,
-        )
-        .scalar()
-    )
-    if not existing_dislike:
-        session.add(scheme.CommentDislike(comment_id=comment_id, username=username))
     if existing_like:
         session.delete(existing_like)
+    add_if_missing(
+        session, scheme.CommentDislike, comment_id=comment_id, username=username
+    )
     session.flush()
     return request_status.Status(request_status.StatusType.OK)
 

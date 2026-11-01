@@ -11,13 +11,13 @@ from sqlalchemy.orm import Session
 from src import backend
 from src.db import article, auth, comment, scheme, user
 from src.request_status import ErrorType
-from src.test_helpers import assert_error_status
+from src.tests.helpers import assert_error_status
 
 PASSWORD = "password"
 
 
 @pytest.fixture
-def frog(session: Session) -> str:
+def registered_username(session: Session) -> str:
     """Регистрирует пользователя с настоящим хешем пароля, нужным для входа.
 
     Args:
@@ -42,15 +42,20 @@ def _credentials(**overrides: str) -> dict:
     return {"password": PASSWORD, "username": "", "email": "", **overrides}
 
 
-def test_login_by_username_and_email(session: Session, frog: str) -> None:
+def test_login_by_username_and_email(
+    session: Session, registered_username: str
+) -> None:
     for credentials in (
-        _credentials(username=frog),
+        _credentials(username=registered_username),
         _credentials(email="frog@test.test"),
     ):
         status, tokens = backend.login(session, credentials)
 
         assert not status.is_error
-        assert backend.resolve_token(session, tokens["access_token"])[1] == frog
+        assert (
+            backend.resolve_token(session, tokens["access_token"])[1]
+            == registered_username
+        )
 
 
 @pytest.mark.parametrize(
@@ -63,7 +68,7 @@ def test_login_by_username_and_email(session: Session, frog: str) -> None:
     ],
 )
 def test_login_failures_look_the_same(
-    session: Session, frog: str, credentials: dict
+    session: Session, registered_username: str, credentials: dict
 ) -> None:
     # Одинаковый ответ для неверного пароля и неизвестного логина: иначе по
     # сообщению можно было бы перебирать существующие аккаунты.
@@ -76,18 +81,18 @@ def test_login_failures_look_the_same(
     assert session.query(scheme.AccessToken).count() == 0
 
 
-def test_login_to_deleted_account(session: Session, frog: str) -> None:
-    user.delete(session, frog)
+def test_login_to_deleted_account(session: Session, registered_username: str) -> None:
+    user.delete(session, registered_username)
 
-    status, _ = backend.login(session, _credentials(username=frog))
+    status, _ = backend.login(session, _credentials(username=registered_username))
 
     assert_error_status(
         status, ErrorType.InvalidCredentials, "Incorrect login or password"
     )
 
 
-def test_refresh_rotates_token(session: Session, frog: str) -> None:
-    old_token = auth.create_refresh_token(session, frog)
+def test_refresh_rotates_token(session: Session, registered_username: str) -> None:
+    old_token = auth.create_refresh_token(session, registered_username)
 
     status, tokens = backend.refresh_session(session, old_token)
 
@@ -98,44 +103,62 @@ def test_refresh_rotates_token(session: Session, frog: str) -> None:
     assert tokens is None
 
 
-def test_delete_user_with_wrong_password_changes_nothing(
-    session: Session, frog: str
+def test_refresh_removes_expired_tokens(
+    session: Session, registered_username: str
 ) -> None:
-    token = auth.create_access_token(session, frog)
+    expired = auth.create_refresh_token(session, registered_username)
+    session.get(scheme.RefreshToken, expired).expires_at = 1
+    session.flush()
+    token = auth.create_refresh_token(session, registered_username)
 
-    status = backend.delete_user(session, "wrong", frog)
+    status, _ = backend.refresh_session(session, token)
+
+    assert not status.is_error
+    assert session.get(scheme.RefreshToken, expired) is None
+
+
+def test_delete_user_with_wrong_password_changes_nothing(
+    session: Session, registered_username: str
+) -> None:
+    token = auth.create_access_token(session, registered_username)
+
+    status = backend.delete_user(session, "wrong", registered_username)
 
     assert_error_status(status, ErrorType.Forbidden, "Incorrect password")
-    assert not user.is_user_not_exist(session, username=frog)
+    assert not user.is_user_not_exist(session, username=registered_username)
     assert not auth.resolve_access_token(session, token)[0].is_error
 
 
-def test_delete_user_revokes_tokens(session: Session, frog: str) -> None:
-    token = auth.create_access_token(session, frog)
+def test_delete_user_revokes_tokens(session: Session, registered_username: str) -> None:
+    token = auth.create_access_token(session, registered_username)
 
-    assert not backend.delete_user(session, PASSWORD, frog).is_error
+    assert not backend.delete_user(session, PASSWORD, registered_username).is_error
 
     assert auth.resolve_access_token(session, token)[0].is_error
 
 
 def test_change_password_with_wrong_password_changes_nothing(
-    session: Session, frog: str
+    session: Session, registered_username: str
 ) -> None:
-    token = auth.create_access_token(session, frog)
+    token = auth.create_access_token(session, registered_username)
 
-    status = backend.change_password(session, "wrong", "new", frog)
+    status = backend.change_password(session, "wrong", "new", registered_username)
 
     assert_error_status(status, ErrorType.Forbidden, "Incorrect password")
-    assert user.check_password(session, PASSWORD, username=frog)[1]
+    assert user.check_password(session, PASSWORD, username=registered_username)[1]
     assert not auth.resolve_access_token(session, token)[0].is_error
 
 
-def test_change_password_revokes_tokens(session: Session, frog: str) -> None:
-    token = auth.create_access_token(session, frog)
+def test_change_password_revokes_tokens(
+    session: Session, registered_username: str
+) -> None:
+    token = auth.create_access_token(session, registered_username)
 
-    assert not backend.change_password(session, PASSWORD, "new", frog).is_error
+    assert not backend.change_password(
+        session, PASSWORD, "new", registered_username
+    ).is_error
 
-    assert user.check_password(session, "new", username=frog)[1]
+    assert user.check_password(session, "new", username=registered_username)[1]
     assert auth.resolve_access_token(session, token)[0].is_error
 
 

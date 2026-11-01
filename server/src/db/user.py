@@ -4,6 +4,8 @@
 """
 
 from . import scheme
+from .rows import add_if_missing
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import InstrumentedAttribute, Session
 from typing import Any
 import hashlib
@@ -54,25 +56,6 @@ def _verify_password(password: str, stored: str) -> bool:
     )
     # compare_digest вместо == — защита от timing-атак при сравнении хешей.
     return hmac.compare_digest(computed.hex(), digest_hex)
-
-
-def _add_if_missing(session: Session, model: type, **columns: str) -> None:
-    """Добавляет строку таблицы со связью или историей, если её ещё нет.
-
-    Весь ключ этих таблиц составлен из самих значений строки, поэтому повторная
-    вставка упала бы на первичном ключе и дала 500. Для клиента повтор не ошибка:
-    PATCH описывает нужное состояние, и оно уже достигнуто.
-
-    Args:
-        session: сессия SQLAlchemy.
-        model: класс таблицы из scheme.
-        **columns: значения всех колонок первичного ключа.
-
-    Returns:
-        None
-    """
-    if session.query(model).filter_by(**columns).first() is None:
-        session.add(model(**columns))
 
 
 def _self_reference() -> request_status.Status:
@@ -159,7 +142,8 @@ def add_user(
     Returns:
         `Status`:
             - OK — пользователь успешно создан.
-            - Conflict — username или email уже заняты.
+            - Conflict — username или email уже заняты. Откат транзакции делает
+              API-метод.
     """
     # Без is_user_not_exist: username и email удалённого аккаунта тоже заняты,
     # его строка остаётся в таблице.
@@ -185,7 +169,17 @@ def add_user(
         description=description,
     )
     session.add(user)
-    session.flush()
+    # Проверки выше не защищают от параллельной регистрации: она может занять значения
+    # между проверкой и записью. Какое из двух значений занято, ошибка MySQL сообщает
+    # только именем ключа, а повторить чтение нельзя: транзакция уже откачена.
+    try:
+        session.flush()
+    except IntegrityError:
+        return request_status.Status(
+            request_status.StatusType.ERROR,
+            error_type=request_status.ErrorType.Conflict,
+            msg="Username or email is already taken",
+        )
     return request_status.Status(request_status.StatusType.OK)
 
 
@@ -313,22 +307,28 @@ def update_email(session: Session, username: str, email: str) -> request_status.
         `Status`:
             - OK — email успешно обновлен.
             - NotFound — пользователь не найден.
-            - Conflict — email занят другим пользователем.
+            - Conflict — email занят другим пользователем. Откат транзакции делает
+              API-метод.
     """
     if is_user_not_exist(session=session, username=username):
         return request_status.not_found("user with username", username)
+    email_taken = request_status.Status(
+        request_status.StatusType.ERROR,
+        error_type=request_status.ErrorType.Conflict,
+        msg=f"User with email {email} already exists",
+    )
     # Свой текущий email конфликтом не считается: повторный PATCH не должен падать.
     if get_username_by_email(session, email) not in (None, username):
-        return request_status.Status(
-            request_status.StatusType.ERROR,
-            error_type=request_status.ErrorType.Conflict,
-            msg=f"User with email {email} already exists",
-        )
+        return email_taken
     user: scheme.User = (
         session.query(scheme.User).where(scheme.User.username == username).scalar()
     )
     user.email = email
-    session.flush()
+    # Проверка выше не защищает от параллельного запроса с тем же email.
+    try:
+        session.flush()
+    except IntegrityError:
+        return email_taken
     return request_status.Status(request_status.StatusType.OK)
 
 
@@ -355,7 +355,7 @@ def update_nickname(
     # Повторный PATCH с тем же nickname не смена: в истории только прошлые значения.
     if user.nickname != nickname:
         # При повторной смене на ранее использованный nickname запись уже есть.
-        _add_if_missing(
+        add_if_missing(
             session, scheme.UserNameHistory, username=username, old_name=user.nickname
         )
     user.nickname = nickname
@@ -444,7 +444,7 @@ def sub_user(session: Session, username: str, sub: str) -> request_status.Status
     )
     if block_user:
         session.delete(block_user)
-    _add_if_missing(
+    add_if_missing(
         session, scheme.UserSubscription, username=username, subscribed_user=sub
     )
     session.flush()
@@ -484,7 +484,7 @@ def block_user(
     )
     if sub_user:
         session.delete(sub_user)
-    _add_if_missing(
+    add_if_missing(
         session, scheme.UserBlacklist, username=username, blocked_user=blocked_user
     )
     session.flush()
@@ -516,7 +516,7 @@ def sub_tag(session: Session, username: str, tag_name: str) -> request_status.St
     )
     if block_tag:
         session.delete(block_tag)
-    _add_if_missing(
+    add_if_missing(
         session, scheme.TagSubscription, username=username, tag_name=tag_name
     )
     session.flush()
@@ -548,7 +548,7 @@ def block_tag(session: Session, username: str, tag_name: str) -> request_status.
     )
     if sub_tag:
         session.delete(sub_tag)
-    _add_if_missing(session, scheme.TagBlacklist, username=username, tag_name=tag_name)
+    add_if_missing(session, scheme.TagBlacklist, username=username, tag_name=tag_name)
     session.flush()
     return request_status.Status(request_status.StatusType.OK)
 

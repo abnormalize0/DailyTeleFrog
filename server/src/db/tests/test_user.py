@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from src.db import article, comment, scheme, user
 from src.request_status import ErrorType
-from src.test_helpers import assert_error_status
+from src.tests.helpers import assert_error_status, open_snapshot, user_row
 
 
 def test_hash_password_format() -> None:
@@ -93,6 +93,35 @@ def test_delete_is_soft_and_keeps_names_taken(
         user.delete(session, "frog"),
         ErrorType.NotFound,
         "Cannot find user with username: frog",
+    )
+
+
+@pytest.mark.parametrize(
+    "username, email",
+    [("frog", "other@test.test"), ("other", "frog@test.test")],
+)
+def test_add_user_lost_race(
+    session: Session, commit_rows: Callable, username: str, email: str
+) -> None:
+    open_snapshot(session)
+    commit_rows(user_row("frog"))
+
+    status = user.add_user(session, username, "n", "p", 0, email)
+
+    assert_error_status(
+        status, ErrorType.Conflict, "Username or email is already taken"
+    )
+
+
+def test_update_email_lost_race(session: Session, commit_rows: Callable) -> None:
+    commit_rows(user_row("frog"))
+    open_snapshot(session)
+    commit_rows(user_row("toad"))
+
+    status = user.update_email(session, "frog", "toad@test.test")
+
+    assert_error_status(
+        status, ErrorType.Conflict, "User with email toad@test.test already exists"
     )
 
 
@@ -240,6 +269,7 @@ def test_changes_of_unknown_user(session: Session, call: Callable) -> None:
         user.get_sub_tag,
         user.get_blacklist_tag,
         user.get_creation_date,
+        user.preview,
     ],
 )
 def test_reads_of_unknown_user(session: Session, getter: Callable) -> None:

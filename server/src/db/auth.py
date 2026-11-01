@@ -133,11 +133,6 @@ def _resolve_token(
         )
     row = session.query(model).where(model.token == token).scalar()
     if row is None or row.expires_at < round(time.time() * 1000):
-        if row is not None:
-            # Просроченный токен больше никому не нужен — не ждём отдельной
-            # уборки мусора, а удаляем сразу при первой же проверке.
-            session.delete(row)
-            session.flush()
         return (
             request_status.Status(
                 request_status.StatusType.ERROR,
@@ -147,6 +142,28 @@ def _resolve_token(
             None,
         )
     return request_status.Status(request_status.StatusType.OK), row.username
+
+
+def delete_expired_tokens(session: Session, username: str) -> None:
+    """Удаляет все просроченные токены пользователя.
+
+    Вызывается при успешном выпуске новых токенов, а не при отказе в проверке: метод,
+    ответивший ошибкой, ничего не меняет, поэтому удаление на этом пути откатилось бы
+    (см. decisions/0009-api-atomicity.md).
+
+    Args:
+        session: сессия SQLAlchemy.
+        username: имя пользователя.
+
+    Returns:
+        None
+    """
+    now = round(time.time() * 1000)
+    for model in (scheme.AccessToken, scheme.RefreshToken):
+        session.query(model).where(
+            model.username == username, model.expires_at < now
+        ).delete()
+    session.flush()
 
 
 def revoke_refresh_token(session: Session, token: str) -> None:

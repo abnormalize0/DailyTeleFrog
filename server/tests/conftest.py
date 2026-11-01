@@ -14,7 +14,7 @@ from collections.abc import Callable, Generator
 import pytest
 import requests
 from dotenv import load_dotenv
-from sqlalchemy import Engine, create_engine
+from sqlalchemy import Engine, create_engine, text
 
 from src.db import scheme
 from tests.helpers import LOCALHOST, WORKDIR, assert_ok, auth_headers
@@ -248,3 +248,61 @@ def like_article(server: subprocess.Popen) -> Callable[[int, str], None]:
         assert_ok(response, 204)
 
     return _like_article
+
+
+@pytest.fixture
+def fail_write(db_engine: Engine) -> Callable[[str, str], None]:
+    """Дает функцию, из-за которой заданная запись в таблицу падает на стороне MySQL.
+
+    Сбой вызывается триггером, а не моком: сервер работает в отдельном процессе, а
+    транзакция откатывается настоящей базой (см. decisions/0009-api-atomicity.md).
+    Триггер исчезает вместе с таблицей, когда fixture `server` пересоздаёт схему.
+
+    Args:
+        db_engine: fixture engine тестовой БД.
+
+    Returns:
+        Callable[[str, str], None]: функция (operation, table), где operation равен
+            "INSERT", "UPDATE" или "DELETE". Запись, не затронувшая ни одной строки,
+            триггер не вызывает.
+    """
+
+    def _fail_write(operation: str, table: str) -> None:
+        with db_engine.begin() as connection:
+            connection.execute(
+                text(
+                    f"CREATE TRIGGER fail_{operation}_{table} "
+                    f"BEFORE {operation} ON {table} FOR EACH ROW "
+                    "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Injected failure'"
+                )
+            )
+
+    return _fail_write
+
+
+@pytest.fixture
+def read_all_rows(db_engine: Engine) -> Callable[[], dict]:
+    """Дает функцию, читающую все строки всех таблиц схемы.
+
+    Таблицы берутся из метаданных, а не перечисляются: новая таблица сразу попадёт
+    под проверку атомарности, и тест не может забыть служебную таблицу вроде
+    user_name_history, которую по HTTP видно только косвенно.
+
+    Args:
+        db_engine: fixture engine тестовой БД.
+
+    Returns:
+        Callable[[], dict]: функция без аргументов, возвращающая словарь
+            {имя таблицы: список строк, упорядоченный по первичному ключу}.
+    """
+
+    def _read_all_rows() -> dict:
+        with db_engine.connect() as connection:
+            return {
+                table.name: connection.execute(
+                    table.select().order_by(*table.primary_key.columns)
+                ).all()
+                for table in scheme.Base.metadata.sorted_tables
+            }
+
+    return _read_all_rows

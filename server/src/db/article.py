@@ -4,6 +4,7 @@
 """
 
 from . import scheme
+from .rows import add_if_missing, lock_user_reactions
 from .. import request_status
 import json
 import time
@@ -414,14 +415,7 @@ def like(session: Session, article_id: int, username: str) -> request_status.Sta
             error_type=request_status.ErrorType.Forbidden,
             msg="User cannot like or dislike their own article",
         )
-    existing_like = (
-        session.query(scheme.ArticleLike)
-        .where(
-            scheme.ArticleLike.article_id == article_id,
-            scheme.ArticleLike.username == username,
-        )
-        .scalar()
-    )
+    lock_user_reactions(session, username)
     existing_dislike = (
         session.query(scheme.ArticleDislike)
         .where(
@@ -430,10 +424,11 @@ def like(session: Session, article_id: int, username: str) -> request_status.Sta
         )
         .scalar()
     )
-    if not existing_like:
-        session.add(scheme.ArticleLike(article_id=article_id, username=username))
     if existing_dislike:
         session.delete(existing_dislike)
+    add_if_missing(
+        session, scheme.ArticleLike, article_id=article_id, username=username
+    )
     session.flush()
     return request_status.Status(request_status.StatusType.OK)
 
@@ -466,6 +461,7 @@ def dislike(session: Session, article_id: int, username: str) -> request_status.
             error_type=request_status.ErrorType.Forbidden,
             msg="User cannot like or dislike their own article",
         )
+    lock_user_reactions(session, username)
     existing_like = (
         session.query(scheme.ArticleLike)
         .where(
@@ -474,18 +470,11 @@ def dislike(session: Session, article_id: int, username: str) -> request_status.
         )
         .scalar()
     )
-    existing_dislike = (
-        session.query(scheme.ArticleDislike)
-        .where(
-            scheme.ArticleDislike.article_id == article_id,
-            scheme.ArticleDislike.username == username,
-        )
-        .scalar()
-    )
-    if not existing_dislike:
-        session.add(scheme.ArticleDislike(article_id=article_id, username=username))
     if existing_like:
         session.delete(existing_like)
+    add_if_missing(
+        session, scheme.ArticleDislike, article_id=article_id, username=username
+    )
     session.flush()
     return request_status.Status(request_status.StatusType.OK)
 

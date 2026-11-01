@@ -21,6 +21,7 @@ ERROR_CODES = {
     "forbidden": 403,
     "not-found": 404,
     "conflict": 409,
+    "internal-error": 500,
 }
 
 DEFAULT_VALUES = {

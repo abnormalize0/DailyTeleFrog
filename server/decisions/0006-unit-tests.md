@@ -1,13 +1,13 @@
 ---
 id: 0006
 title: Слой unit-тестов рядом с кодом, src/db на настоящей MySQL
-status: accepted
-implementation: done
+status: superseded
+implementation: n/a
 areas: [tests, db]
 files: [server/src/test_*.py, server/src/api/test_*.py, server/src/db/test_*.py, server/src/conftest.py, server/tests/helpers.py, server/Makefile, server/CLAUDE.md]
 date: 2026-11-01
 updated: 2026-11-01
-superseded_by:
+superseded_by: 0010
 supersedes:
 ---
 

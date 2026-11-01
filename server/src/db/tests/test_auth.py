@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from src import config
 from src.db import auth, scheme
 from src.request_status import ErrorType
-from src.test_helpers import assert_error_status
+from src.tests.helpers import assert_error_status
 
 TOKEN_KINDS = [
     (scheme.AccessToken, auth.create_access_token, auth.resolve_access_token),
@@ -61,7 +61,7 @@ def test_resolve_valid_token(
 
 
 @pytest.mark.parametrize("model, create, resolve", TOKEN_KINDS)
-def test_expired_token_is_rejected_and_removed(
+def test_expired_token_is_rejected(
     session: Session,
     add_user: Callable,
     model: type,
@@ -77,7 +77,32 @@ def test_expired_token_is_rejected_and_removed(
 
     assert_error_status(status, ErrorType.InvalidToken, "Missing or invalid token")
     assert username is None
-    assert session.query(model).count() == 0
+    # Метод ответит ошибкой, и удаление на этом пути всё равно откатилось бы.
+    assert session.query(model).count() == 1
+
+
+@pytest.mark.parametrize("model, create, resolve", TOKEN_KINDS)
+def test_delete_expired_tokens(
+    session: Session,
+    add_user: Callable,
+    model: type,
+    create: Callable,
+    resolve: Callable,
+) -> None:
+    add_user("frog")
+    add_user("toad")
+    expired = create(session, "frog")
+    active = create(session, "frog")
+    foreign_expired = create(session, "toad")
+    past = round(time.time() * 1000) - 1
+    session.get(model, expired).expires_at = past
+    session.get(model, foreign_expired).expires_at = past
+    session.flush()
+
+    auth.delete_expired_tokens(session, "frog")
+
+    remaining = {row.token for row in session.query(model).all()}
+    assert remaining == {active, foreign_expired}
 
 
 @pytest.mark.parametrize("token", ["", "unknown"])

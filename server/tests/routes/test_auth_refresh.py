@@ -5,6 +5,7 @@
 from collections.abc import Callable
 
 import requests
+from sqlalchemy import Engine, text
 
 from tests.helpers import (
     LOCALHOST,
@@ -50,3 +51,35 @@ def test_auth_refresh_post(add_user: Callable) -> None:
     # invalid refresh token
     answer = requests.post(LOCALHOST + endpoint, json={"refresh_token": "bogus_token"})
     assert_error(answer, "invalid-token", "Missing or invalid token")
+
+
+def test_auth_refresh_removes_expired_tokens(
+    add_user: Callable, db_engine: Engine, read_all_rows: Callable
+) -> None:
+    username, password, _, _, expired_access, expired_refresh = add_user()
+    answer = requests.post(
+        LOCALHOST + "/auth/login", json={"username": username, "password": password}
+    )
+    assert_ok(answer)
+    # Срок меняется только у первой пары: второй токен нужен для самого запроса.
+    with db_engine.begin() as connection:
+        connection.execute(
+            text("UPDATE access_tokens SET expires_at = 1 WHERE token = :token"),
+            {"token": expired_access},
+        )
+        connection.execute(
+            text("UPDATE refresh_tokens SET expires_at = 1 WHERE token = :token"),
+            {"token": expired_refresh},
+        )
+
+    # Проверка, что успешное обновление убирает просроченные токены после commit
+    answer = requests.post(
+        LOCALHOST + "/auth/refresh",
+        json={"refresh_token": answer.json()["refresh_token"]},
+    )
+    assert_ok(answer)
+    after = read_all_rows()
+    assert expired_access not in [row.token for row in after["access_tokens"]]
+    assert [row.token for row in after["refresh_tokens"]] == [
+        answer.json()["refresh_token"]
+    ]

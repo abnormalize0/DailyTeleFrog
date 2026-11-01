@@ -130,7 +130,13 @@ def get_session() -> Session:
     """
     global _engine
     if _engine is None:
-        _engine = create_engine(db_url)
+        # READ COMMITTED вместо стандартного для MySQL REPEATABLE READ: запрос, который
+        # дождался блокировки, должен увидеть результат предыдущего, а снимок из начала
+        # транзакции этого не даёт. Блокирующее чтение вместо смены уровня не подходит:
+        # при REPEATABLE READ оно блокирует промежуток индекса, и реакции разных
+        # пользователей на одну статью приводили бы к взаимоблокировкам
+        # (см. decisions/0009-api-atomicity.md).
+        _engine = create_engine(db_url, isolation_level="READ COMMITTED")
     return Session(_engine)
 
 

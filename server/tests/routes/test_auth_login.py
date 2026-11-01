@@ -5,6 +5,7 @@
 from collections.abc import Callable
 
 import requests
+from sqlalchemy import Engine, text
 
 from tests.helpers import (
     LOCALHOST,
@@ -82,3 +83,41 @@ def test_auth_login_post(add_user: Callable) -> None:
         json={"password": password},
     )
     assert_error(answer, "validation", "User must log in with username or email")
+
+
+def test_auth_login_removes_expired_tokens(
+    add_user: Callable, db_engine: Engine, read_all_rows: Callable
+) -> None:
+    username, password, _, _, access_token, refresh_token = add_user()
+    # По HTTP срок жизни не изменить, а удаление важно проверить после настоящего
+    # commit: внутри одной транзакции оно видно, даже если потом откатится.
+    with db_engine.begin() as connection:
+        connection.execute(text("UPDATE access_tokens SET expires_at = 1"))
+        connection.execute(text("UPDATE refresh_tokens SET expires_at = 1"))
+    before = read_all_rows()
+
+    # Проверка, что отказ по просроченному токену ничего не меняет
+    answer = requests.get(
+        LOCALHOST + "/users/me",
+        params={"requested_data": "email"},
+        headers=auth_headers(access_token),
+    )
+    assert_error(answer, "invalid-token", "Missing or invalid token")
+    answer = requests.post(
+        LOCALHOST + "/auth/refresh", json={"refresh_token": refresh_token}
+    )
+    assert_error(answer, "invalid-token", "Missing or invalid token")
+    assert read_all_rows() == before
+
+    # Проверка, что после успешного входа остаются только новые токены
+    answer = requests.post(
+        LOCALHOST + "/auth/login", json={"username": username, "password": password}
+    )
+    assert_ok(answer)
+    after = read_all_rows()
+    assert [row.token for row in after["access_tokens"]] == [
+        answer.json()["access_token"]
+    ]
+    assert [row.token for row in after["refresh_tokens"]] == [
+        answer.json()["refresh_token"]
+    ]

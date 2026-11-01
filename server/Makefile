@@ -41,7 +41,9 @@ test-env: ## Поднять чистые контейнеры с MySQL и код
 	docker network create test-net
 	docker build -t mysql\:1.0 -f deployment/code_mysql.dockerfile .
 	docker build -t code_server\:1.0 -f deployment/code_server.dockerfile .
-	docker run --env-file .env -dp 127.0.0.1:3306:3306 --name=db-test --network=test-net mysql\:1.0
+	# Флаг разрешает пользователю без SUPER создавать триггеры: ими тесты атомарности
+	# вызывают настоящий сбой записи (см. decisions/0009-api-atomicity.md).
+	docker run --env-file .env -dp 127.0.0.1:3306:3306 --name=db-test --network=test-net mysql\:1.0 --log-bin-trust-function-creators=1
 	docker run \
 	--env-file .env \
 	-dp 127.0.0.1:5000:5000 \

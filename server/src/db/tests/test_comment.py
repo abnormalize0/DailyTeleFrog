@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from src.db import article, comment
 from src.request_status import ErrorType
-from src.test_helpers import assert_error_status
+from src.tests.helpers import assert_error_status
 
 
 def _row(
@@ -161,6 +161,11 @@ def test_like_replaces_dislike(session: Session, add_user: Callable) -> None:
 
     comment.like(session, comment_id, "reader")
     assert comment.rating(session, comment_id)[1] == 1
+
+
+def test_is_liked_of_unknown_comment_is_false(session: Session) -> None:
+    assert comment.is_liked(session, 0, "reader")[1] is False
+    assert comment.is_disliked(session, 0, "reader")[1] is False
 
 
 def test_own_comment_reactions_are_forbidden(

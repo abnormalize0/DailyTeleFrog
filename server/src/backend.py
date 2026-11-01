@@ -238,6 +238,7 @@ def login(
         )
     if not username:
         username = user.get_username_by_email(session, email)
+    auth.delete_expired_tokens(session, username)
     return request_status.Status(request_status.StatusType.OK), {
         "access_token": auth.create_access_token(session, username),
         "refresh_token": auth.create_refresh_token(session, username),
@@ -263,6 +264,7 @@ def refresh_session(
     if status.is_error:
         return status, None
     auth.revoke_refresh_token(session, refresh_token)
+    auth.delete_expired_tokens(session, username)
     return request_status.Status(request_status.StatusType.OK), {
         "access_token": auth.create_access_token(session, username),
         "refresh_token": auth.create_refresh_token(session, username),
