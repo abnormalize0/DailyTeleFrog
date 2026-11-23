@@ -4,7 +4,7 @@ title: Слой unit-тестов рядом с кодом, src/db на наст
 status: superseded
 implementation: n/a
 areas: [tests, db]
-files: [server/src/test_*.py, server/src/api/test_*.py, server/src/db/test_*.py, server/src/conftest.py, server/tests/helpers.py, server/Makefile, server/CLAUDE.md]
+files: [server/src/test_*.py, server/src/api/test_*.py, server/src/db/test_*.py, server/src/conftest.py, server/tests/helpers.py, server/Makefile, server/AGENTS.md]
 date: 2026-11-01
 updated: 2026-11-01
 superseded_by: 0010

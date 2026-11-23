@@ -1,12 +1,12 @@
 ---
 id: 0009
 title: Атомарность API-методов. Определение, границы и проверка
-status: proposed
+status: accepted
 implementation: done
 areas: [api, tests]
 files: [server/src/api/routes/, server/src/api/shared.py, server/src/backend.py, server/src/db/, server/src/db/rows.py, server/src/api/tests/test_transactions.py, server/src/conftest.py, server/src/tests/helpers.py, server/tests/routes/test_atomicity.py, server/tests/routes/test_concurrency.py, server/tests/conftest.py, server/Makefile]
 date: 2026-11-01
-updated: 2026-11-01
+updated: 2026-11-23
 superseded_by:
 supersedes:
 ---
@@ -24,7 +24,7 @@ supersedes:
 - Сервер работает на READ COMMITTED (`shared.get_session`). Если взаимоисключающие строки лежат в разных таблицах, ключ их не защитит: блокируй строку владельца перед чтением, как `rows.lock_user_reactions`. Блокирующее чтение несуществующей строки не используй.
 
 ## Контекст
-Задача `issues/0004-api-atomicity.md`. Пункт 4 из 0004 описывал только паттерн и ничем не проверялся.
+Задача `issues/done/0004-api-atomicity.md`. Пункт 4 из 0004 описывал только паттерн и ничем не проверялся.
 
 ## Решение
 

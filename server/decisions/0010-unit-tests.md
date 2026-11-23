@@ -4,7 +4,7 @@ title: Unit-тесты в папках tests рядом с кодом, src/db н
 status: accepted
 implementation: done
 areas: [tests, db]
-files: [server/src/tests/, server/src/api/tests/, server/src/db/tests/, server/src/conftest.py, server/tests/helpers.py, server/Makefile, server/CLAUDE.md]
+files: [server/src/tests/, server/src/api/tests/, server/src/db/tests/, server/src/conftest.py, server/tests/helpers.py, server/Makefile, server/AGENTS.md]
 date: 2026-11-01
 updated: 2026-11-01
 superseded_by:
