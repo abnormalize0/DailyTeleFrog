@@ -5,12 +5,16 @@
 """
 
 import os
+from pathlib import Path
 from typing import Any
 
 import requests
 
 LOCALHOST = "http://127.0.0.1:5000"
-WORKDIR = os.getenv("MVP_PATH") + "/test_tmp"
+SERVER_ROOT = Path(__file__).resolve().parent.parent
+# При локальном запуске MVP_PATH обычно не задан, поэтому используется корень
+# server/; в Docker переменная задана через --env-file .env и указывает на /app.
+WORKDIR = str(Path(os.getenv("MVP_PATH") or SERVER_ROOT) / "test_tmp")
 
 # Вид ошибки -> HTTP-код. Таблица повторяет request_status.ErrorType намеренно:
 # тесты проверяют контракт с клиентом, а не сверяют код сам с собой.

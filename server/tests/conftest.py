@@ -8,8 +8,10 @@ tests/routes/*.py.
 import os
 import signal
 import subprocess
+import sys
 import time
 from collections.abc import Callable, Generator
+from pathlib import Path
 
 import pytest
 import requests
@@ -19,6 +21,7 @@ from sqlalchemy import Engine, create_engine, text
 from src.db import scheme
 from tests.helpers import LOCALHOST, WORKDIR, assert_ok, auth_headers
 
+SERVER_ROOT = Path(__file__).resolve().parent.parent
 SERVER_START_TIMEOUT_S = 30
 SERVER_STOP_TIMEOUT_S = 10
 
@@ -49,16 +52,19 @@ def pytest_sessionstart(session: pytest.Session) -> None:
 
 @pytest.fixture(scope="session")
 def db_engine() -> Engine:
-    """Читает `.env` и создает SQLAlchemy engine к тестовой БД один раз на сессию.
+    """Загружает `server/.env` (без перезаписи уже заданных переменных) и
+    создаёт SQLAlchemy engine к тестовой БД один раз на сессию.
 
     Args:
         None
 
     Returns:
-        sqlalchemy.Engine: engine, подключенный к MVP_DB_URL_TEST.
+        sqlalchemy.Engine: engine, подключённый к MVP_DB_URL_TEST.
     """
-    load_dotenv(dotenv_path="../.env")
-    return create_engine(os.getenv("MVP_DB_URL_TEST"))
+    # override=False сохраняет приоритет переменных окружения (например, --env-file
+    # в Docker или локальное переопределение в шелле) над файлом server/.env.
+    load_dotenv(dotenv_path=SERVER_ROOT / ".env", override=False)
+    return create_engine(os.environ["MVP_DB_URL_TEST"])
 
 
 def _wait_for_server(process: subprocess.Popen) -> None:
@@ -101,7 +107,13 @@ def server(db_engine: Engine) -> Generator[subprocess.Popen, None, None]:
     scheme.Base.metadata.create_all(db_engine)
 
     process = subprocess.Popen(
-        ["python3", "/app/start.py", "-t", "--working-directory", WORKDIR],
+        [
+            sys.executable,
+            str(SERVER_ROOT / "start.py"),
+            "-t",
+            "--working-directory",
+            WORKDIR,
+        ],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.PIPE,
     )

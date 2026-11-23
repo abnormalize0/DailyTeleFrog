@@ -9,25 +9,34 @@ decisions/0010-unit-tests.md).
 
 import os
 from collections.abc import Callable, Generator
+from pathlib import Path
 
 import pytest
+from dotenv import load_dotenv
 from sqlalchemy import Engine, create_engine
 from sqlalchemy.orm import Session
 
 from src.db import scheme
 from src.tests.helpers import user_row
 
+SERVER_ROOT = Path(__file__).resolve().parent.parent
+
 
 @pytest.fixture(scope="session")
 def db_engine() -> Engine:
-    """Создаёт engine к тестовой БД и один раз на прогон пересоздаёт таблицы.
+    """Загружает `server/.env` (без перезаписи уже заданных переменных),
+    создаёт engine к тестовой БД и один раз на прогон пересоздаёт таблицы.
 
     Args:
         None
 
     Returns:
-        sqlalchemy.Engine: engine, подключенный к MVP_DB_URL_TEST.
+        sqlalchemy.Engine: engine, подключённый к MVP_DB_URL_TEST.
     """
+    # override=False сохраняет приоритет переменных окружения (--env-file в Docker
+    # или явный экспорт в шелле), но позволяет запускать unit-тесты локально без
+    # ручного export.
+    load_dotenv(dotenv_path=SERVER_ROOT / ".env", override=False)
     engine = create_engine(os.environ["MVP_DB_URL_TEST"])
     scheme.Base.metadata.drop_all(engine)
     scheme.Base.metadata.create_all(engine)

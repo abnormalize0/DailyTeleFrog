@@ -50,10 +50,17 @@ test-env: ## Поднять чистые контейнеры с MySQL и код
 	--name=server-test \
 	--network=test-net \
 	code_server\:1.0
-	# Контейнеру с бд нужно время, чтобы завестись после того, как он
-	# запустился. Если убрать задержку, то будет ошибка "connection
-	# refused".
-	sleep 30s
+	# Ждём реального TCP-подключения к целевой БД: временный init-сервер MySQL
+	# запускается с --skip-networking, поэтому --protocol=TCP отсекает ложную готовность.
+	@i=0; while [ $$i -lt 60 ]; do \
+		if docker exec db-test sh -c 'MYSQL_PWD="$$MYSQL_PASSWORD" mysql --protocol=TCP -h 127.0.0.1 --connect-timeout=2 -u "$$MYSQL_USER" -D "$$MYSQL_DATABASE" -e "SELECT 1"' >/dev/null 2>&1; then \
+			exit 0; \
+		fi; \
+		i=$$((i + 1)); \
+		sleep 1; \
+	done; \
+	echo "Error: MySQL (db-test) did not become ready within 60 seconds" >&2; \
+	exit 1
 
 .PHONY: test-unit
 test-unit: test-env ## Запуск только unit-тестов (без сервера, но с MySQL).
