@@ -5,7 +5,10 @@
 tests/routes/*.py.
 """
 
+import hashlib
 import os
+import re
+import shutil
 import signal
 import subprocess
 import sys
@@ -48,6 +51,12 @@ def pytest_sessionstart(session: pytest.Session) -> None:
             os.kill(int(pid), signal.SIGKILL)
         except Exception:
             pass
+
+    if session.config.option.collectonly:
+        return
+    # Очищаем логи предыдущего запуска, чтобы в test_logs/ не оставался старый мусор.
+    for folder in ("log", "per_test"):
+        shutil.rmtree(os.path.join(WORKDIR, folder), ignore_errors=True)
 
 
 @pytest.fixture(scope="session")
@@ -92,19 +101,44 @@ def _wait_for_server(process: subprocess.Popen) -> None:
     pytest.fail(f"Server did not start in {SERVER_START_TIMEOUT_S} s")
 
 
+def _save_test_log(nodeid: str) -> None:
+    """Переносит лог текущего теста в `WORKDIR/per_test/<nodeid>_<hash>.log`.
+
+    Args:
+        nodeid: полный идентификатор теста pytest (`request.node.nodeid`).
+
+    Returns:
+        None
+    """
+    source = os.path.join(WORKDIR, "log", "server_api.log")
+    if not os.path.exists(source):
+        return
+    per_test_dir = os.path.join(WORKDIR, "per_test")
+    os.makedirs(per_test_dir, exist_ok=True)
+    # Короткий хеш от nodeid исключает коллизии санитайзера и укладывается в лимит имени файла.
+    digest = hashlib.sha1(nodeid.encode("utf-8")).hexdigest()[:8]
+    safe_name = re.sub(r"[^A-Za-z0-9_.-]+", "_", nodeid).strip("_")[:120]
+    shutil.move(source, os.path.join(per_test_dir, f"{safe_name}_{digest}.log"))
+
+
 @pytest.fixture(autouse=True)
-def server(db_engine: Engine) -> Generator[subprocess.Popen, None, None]:
-    """Пересоздает с нуля тестовую БД и поднимает `start.py -t` перед каждым тестом,
-    останавливая его после и печатая его stderr.
+def server(
+    db_engine: Engine, request: pytest.FixtureRequest
+) -> Generator[subprocess.Popen, None, None]:
+    """Пересоздает с нуля тестовую БД, очищает `WORKDIR/log` и поднимает
+    `start.py -t` перед каждым тестом, а после остановки переносит лог в
+    `WORKDIR/per_test/`.
 
     Args:
         db_engine: fixture engine тестовой БД.
+        request: контекст текущего теста pytest.
 
     Returns:
         Generator[subprocess.Popen]: процесс тестового сервера.
     """
     scheme.Base.metadata.drop_all(db_engine)
     scheme.Base.metadata.create_all(db_engine)
+    shutil.rmtree(os.path.join(WORKDIR, "log"), ignore_errors=True)
 
     process = subprocess.Popen(
         [
@@ -117,21 +151,24 @@ def server(db_engine: Engine) -> Generator[subprocess.Popen, None, None]:
         stdout=subprocess.DEVNULL,
         stderr=subprocess.PIPE,
     )
-    _wait_for_server(process)
-
-    with open(os.path.join(WORKDIR, "lastpid.txt"), "w+") as pid_file:
-        pid_file.write(str(process.pid))
-
-    yield process
-
-    process.terminate()
     try:
-        _, stderr = process.communicate(timeout=SERVER_STOP_TIMEOUT_S)
-    except subprocess.TimeoutExpired:
-        # Следующий тест не сможет занять порт, пока этот сервер жив.
-        process.kill()
-        _, stderr = process.communicate()
-    print(stderr.decode("utf8"))
+        _wait_for_server(process)
+
+        with open(os.path.join(WORKDIR, "lastpid.txt"), "w+") as pid_file:
+            pid_file.write(str(process.pid))
+
+        yield process
+    finally:
+        if process.poll() is None:
+            process.terminate()
+            try:
+                _, stderr = process.communicate(timeout=SERVER_STOP_TIMEOUT_S)
+            except subprocess.TimeoutExpired:
+                # Следующий тест не сможет занять порт, пока этот сервер жив.
+                process.kill()
+                _, stderr = process.communicate()
+            print(stderr.decode("utf8"))
+        _save_test_log(request.node.nodeid)
 
 
 @pytest.fixture

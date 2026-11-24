@@ -4,11 +4,12 @@
 них нет.
 """
 
+import os
 from collections.abc import Callable
 
 import requests
 
-from tests.helpers import LOCALHOST, assert_error, auth_headers
+from tests.helpers import LOCALHOST, WORKDIR, assert_error, auth_headers
 
 FLASK_NOT_FOUND = (
     "The requested URL was not found on the server. If you entered the URL manually "
@@ -118,3 +119,8 @@ def test_access_token_is_not_accepted_as_refresh_token(add_user: Callable) -> No
         "invalid-token",
         "Missing or invalid token",
     )
+
+
+def test_server_does_not_create_db_api_log() -> None:
+    assert os.path.exists(os.path.join(WORKDIR, "log", "server_api.log"))
+    assert not os.path.exists(os.path.join(WORKDIR, "log", "db_api.log"))

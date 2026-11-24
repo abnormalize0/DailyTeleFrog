@@ -12,7 +12,7 @@
 
 1. ~~[0034](done/0034-sync-docs-decisions-and-skills.md) — закрыть уже выполненную задачу `0004` (перенести в `issues/done/`), перевести ADR `0009` в `accepted`, исправить правило именования моделей в скиле БД.~~ *(выполнено)*
 2. ~~[0041](done/0041-portable-tests-and-mysql-healthcheck.md) — отвязать тесты от `/app` и `../.env`, заменить `sleep 30s` в `Makefile` на проверку готовности MySQL (экономит время на каждом прогоне `make test` во всех последующих задачах и открывает локальный запуск).~~ *(выполнено)*
-3. [0028](0028-remove-sqlite-legacy-dead-code.md) — удалить мёртвый SQLite-код в `start.py` и `src/config.py`, убрать пустой `db_api.log`, обновить `README.md` (чистит файлы до задач по логированию и WSGI).
+3. ~~[0028](done/0028-remove-sqlite-legacy-dead-code.md) — удалить мёртвый SQLite-код в `start.py` и `src/config.py`, убрать пустой `db_api.log`, обновить `README.md` (чистит файлы до задач по логированию и WSGI).~~ *(выполнено)*
 
 ---
 

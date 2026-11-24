@@ -1,11 +1,14 @@
 """
-Этот файл служит для хранения кофигурации сервера. Например, путей к базам данных.
+Этот файл служит для хранения конфигурации сервера: путей к логам, размера страницы
+ленты и времени жизни токенов авторизации.
 """
 
 import os
 
 
 class DynamicPath:
+    """Путь относительно текущей рабочей директории, вычисляемый при обращении к `path`."""
+
     def __init__(self, *args: str) -> None:
         """Сохраняет сегменты пути для дальнейшей сборки в path.
 
@@ -15,7 +18,7 @@ class DynamicPath:
         Returns:
             None
         """
-        self.endpont = args
+        self.parts = args
 
     @property
     def path(self) -> str:
@@ -27,24 +30,12 @@ class DynamicPath:
         Returns:
             Абсолютный путь (str).
         """
-        return os.path.join(os.getcwd(), *self.endpont)
+        return os.path.join(os.getcwd(), *self.parts)
 
-
-current_directory = os.getcwd()
-backup_directory = DynamicPath("backup")
-
-db_user_directory = DynamicPath("db", "users")
-db_user = DynamicPath("db", "users", "users.db")
-db_article_directory = DynamicPath("db", "articles")
-db_article = DynamicPath("db", "articles", "articles.db")
-db_comment_directory = DynamicPath("db", "comments")
-db_comment = DynamicPath("db", "comments", "comments.db")
 
 log_directory = DynamicPath("log")
 log_server_api = DynamicPath("log", "server_api.log")
-log_db_api = DynamicPath("log", "db_api.log")
 
-delimiter = "~"
 articles_per_page = 5
 
 # Время жизни токенов авторизации, мс (см. db/auth.py). access — короткий,
@@ -52,14 +43,3 @@ articles_per_page = 5
 # использовании (см. AccessToken/RefreshToken в db/scheme/).
 access_token_lifetime_ms = 60 * 60 * 1000  # 1 час
 refresh_token_lifetime_ms = 30 * 24 * 60 * 60 * 1000  # 30 дней
-
-user_id_name = "username"
-user_table_name = "users"
-
-article_id_name = "article_id"
-article_table_name = "articles"
-
-comment_id_name = "comment_id"
-comment_table_name = "comments"
-
-db_url = "mysql://server:4321@127.0.0.1/db"
