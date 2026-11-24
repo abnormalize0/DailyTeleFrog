@@ -17,6 +17,7 @@ from ..shared import (
     get_session,
     json_response,
     optional_auth,
+    problem_response,
     read_body,
     read_query,
     require_auth,
@@ -84,7 +85,7 @@ def api_articles_post() -> Response:
         )
         if status.is_error:
             session.rollback()
-            return request_status.problem_response(status)
+            return problem_response(status)
 
         session.commit()
         return json_response(
@@ -209,7 +210,7 @@ def api_articles_get() -> Response:
         )
         if status.is_error:
             session.rollback()
-            return request_status.problem_response(status)
+            return problem_response(status)
 
         session.commit()
         return json_response({"pages": pages})

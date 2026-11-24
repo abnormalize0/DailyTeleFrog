@@ -26,7 +26,7 @@ def registered_username(session: Session) -> str:
     Returns:
         username созданного пользователя.
     """
-    user.add_user(session, "frog", "Frog", PASSWORD, 0, "frog@test.test")
+    user.add_user(session, "frog", "Frog", PASSWORD, "frog@test.test")
     return "frog"
 
 
@@ -53,7 +53,7 @@ def test_login_by_username_and_email(
 
         assert not status.is_error
         assert (
-            backend.resolve_token(session, tokens["access_token"])[1]
+            auth.resolve_access_token(session, tokens["access_token"])[1]
             == registered_username
         )
 

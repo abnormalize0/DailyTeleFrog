@@ -15,9 +15,10 @@ import builtins
 import re
 import unicodedata
 
-from .. import backend
 from .. import request_status
+from ..db import auth
 from . import api_info
+from .errors import problem_response
 
 app = Flask(__name__)
 app.register_blueprint(api_info.info)
@@ -80,7 +81,7 @@ def error_response(
     Returns:
         Ответ в формате Problem Details.
     """
-    return request_status.problem_response(
+    return problem_response(
         request_status.Status.error(
             error_type,
             msg,
@@ -168,9 +169,9 @@ def require_auth(session: Session) -> tuple:
         Кортеж (None, str) — ответ с ошибкой 401, если токена нет, он не
         найден или истёк; вызывающий должен сразу вернуть этот ответ.
     """
-    status, username = backend.resolve_token(session, get_bearer_token())
+    status, username = auth.resolve_access_token(session, get_bearer_token())
     if status.is_error:
-        return None, request_status.problem_response(status)
+        return None, problem_response(status)
     return username, None
 
 
@@ -192,9 +193,9 @@ def optional_auth(session: Session) -> tuple:
     token = get_bearer_token()
     if not token:
         return None, None
-    status, username = backend.resolve_token(session, token)
+    status, username = auth.resolve_access_token(session, token)
     if status.is_error:
-        return None, request_status.problem_response(status)
+        return None, problem_response(status)
     return username, None
 
 

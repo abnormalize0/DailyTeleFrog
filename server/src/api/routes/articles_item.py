@@ -6,7 +6,6 @@
 from flask import Response
 
 from ... import backend
-from ... import request_status
 from ... import config
 from ... import log
 from ...db import article as article_db
@@ -16,6 +15,7 @@ from ..shared import (
     json_response,
     no_content,
     optional_auth,
+    problem_response,
     require_auth,
 )
 
@@ -68,7 +68,7 @@ def api_articles_item_get(article_id: int) -> Response:
         status, article = backend.get_article(session, article_id, username)
         if status.is_error:
             session.rollback()
-            return request_status.problem_response(status)
+            return problem_response(status)
 
         session.commit()
         return json_response({"article": article})
@@ -109,7 +109,7 @@ def api_articles_item_delete(article_id: int) -> Response:
         status = article_db.delete(session, article_id, username)
         if status.is_error:
             session.rollback()
-            return request_status.problem_response(status)
+            return problem_response(status)
 
         session.commit()
         return no_content()

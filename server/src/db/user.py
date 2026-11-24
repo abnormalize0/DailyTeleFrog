@@ -11,6 +11,7 @@ from typing import Any
 import hashlib
 import hmac
 import os
+import time
 
 from .. import request_status
 
@@ -120,7 +121,6 @@ def add_user(
     username: str,
     nickname: str,
     password: str,
-    creation_date: int,
     email: str,
     avatar: str | None = None,
     description: str | None = None,
@@ -132,7 +132,6 @@ def add_user(
         username: уникальный идентификатор пользователя.
         nickname: отображаемое имя.
         password: пароль в открытом виде (хешируется перед сохранением).
-        creation_date: дата регистрации, мс с 1970 года.
         email: email пользователя.
         avatar: ссылка на аватар.
         description: описание профиля.
@@ -159,7 +158,7 @@ def add_user(
         username=username,
         nickname=nickname,
         password=_hash_password(password),
-        creation_date=creation_date,
+        creation_date=round(time.time() * 1000),
         email=email,
         avatar=avatar,
         description=description,

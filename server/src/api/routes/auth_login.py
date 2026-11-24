@@ -17,6 +17,7 @@ from ..shared import (
     fill_default,
     get_session,
     json_response,
+    problem_response,
     read_body,
 )
 
@@ -75,7 +76,7 @@ def api_auth_login_post() -> Response:
         status, tokens = backend.login(session, parameters)
         if status.is_error:
             session.rollback()
-            return request_status.problem_response(status)
+            return problem_response(status)
 
         session.commit()
         return json_response(tokens)

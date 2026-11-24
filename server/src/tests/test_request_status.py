@@ -1,43 +1,34 @@
 """
-Этот файл служит для хранения unit-тестов src/request_status.py: таблицы видов
-ошибок, фабрик и валидации инвариантов `Status`, а также сборки тела ответа в
-формате Problem Details (RFC 9457).
+Этот файл служит для хранения unit-тестов src/request_status.py: фабрик и
+валидации инвариантов `Status`, хелпера `not_found`, а также проверки отсутствия
+прямых и транзитивных импортов Flask в доменных модулях и слое БД.
 """
 
-import json
+import subprocess
+import sys
+from pathlib import Path
+
 import pytest
 
 from src import request_status
 from src.request_status import ErrorType, Status, StatusType
 
-
-def test_error_type_table() -> None:
-    # Таблица повторена в тесте намеренно: клиент опирается на эти значения,
-    # и случайная правка ErrorType не должна проходить незамеченной.
-    assert {error.slug: error.http_code for error in ErrorType} == {
-        "validation": 400,
-        "invalid-token": 401,
-        "invalid-credentials": 401,
-        "forbidden": 403,
-        "not-found": 404,
-        "conflict": 409,
-        "internal-error": 500,
-    }
+SERVER_ROOT = Path(__file__).resolve().parent.parent.parent
 
 
 def test_status_factories() -> None:
     ok = Status.ok()
     assert not ok.is_error
-    assert ok._error_type is None
-    assert ok._msg is None
-    assert ok._errors is None
+    assert ok.error_type is None
+    assert ok.msg is None
+    assert ok.errors is None
 
     errors = [{"name": "title", "reason": "is required"}]
     err = Status.error(ErrorType.InvalidParameters, "Bad", errors=errors)
     assert err.is_error
-    assert err._error_type == ErrorType.InvalidParameters
-    assert err._msg == "Bad"
-    assert err._errors == errors
+    assert err.error_type == ErrorType.InvalidParameters
+    assert err.msg == "Bad"
+    assert err.errors == errors
 
 
 def test_status_is_error() -> None:
@@ -100,48 +91,29 @@ def test_status_ok_rejects_error_fields(kwargs: dict) -> None:
         Status(StatusType.OK, **kwargs)
 
 
-def test_status_ok_rejects_error_accessors() -> None:
-    ok = Status.ok()
-    with pytest.raises(ValueError, match="OK status"):
-        _ = ok.http_code
-    with pytest.raises(ValueError, match="OK status"):
-        ok.problem()
-    with pytest.raises(ValueError, match="OK status"):
-        request_status.problem_response(ok)
-
-
-def test_problem_fields() -> None:
-    status = Status.error(ErrorType.Conflict, "Already exists")
-
-    assert status.http_code == 409
-    assert status.problem() == {
-        "type": "/errors/conflict",
-        "title": "Resource conflict",
-        "status": 409,
-        "detail": "Already exists",
-    }
-
-
-def test_problem_includes_errors_only_when_present() -> None:
-    errors = [{"name": "title", "reason": "is required"}]
-    status = Status.error(ErrorType.InvalidParameters, "Bad", errors)
-
-    assert status.problem()["errors"] == errors
-    assert "errors" not in Status.error(ErrorType.Forbidden, "Denied").problem()
-
-
-def test_problem_response() -> None:
-    status = Status.error(ErrorType.InvalidToken, "Expired")
-
-    response = request_status.problem_response(status)
-
-    assert response.status_code == 401
-    assert response.mimetype == "application/problem+json"
-    assert json.loads(response.get_data(as_text=True)) == status.problem()
-
-
 def test_not_found() -> None:
     status = request_status.not_found("article with id", 7)
 
-    assert status.http_code == 404
-    assert status.problem()["detail"] == "Cannot find article with id: 7"
+    assert status.error_type == ErrorType.NotFound
+    assert status.msg == "Cannot find article with id: 7"
+
+
+def test_domain_and_db_modules_do_not_import_flask() -> None:
+    # Проверяем в чистом процессе, чтобы уже загруженные pytest/api тесты не
+    # загрязняли sys.modules.
+    code = (
+        "import sys\n"
+        "from src import backend, request_status\n"
+        "from src.db import article, auth, comment, rows, scheme, user\n"
+        "assert 'flask' not in sys.modules, 'flask must not be imported'\n"
+        "assert 'werkzeug' not in sys.modules, 'werkzeug must not be imported'\n"
+        "assert 'src.api' not in sys.modules, 'src.api must not be imported'\n"
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", code],
+        cwd=SERVER_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr

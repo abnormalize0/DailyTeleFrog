@@ -7,9 +7,8 @@ from flask import Response
 
 from ... import config
 from ... import log
-from ... import request_status
 from ...db import article
-from ..shared import app, get_session, no_content, require_auth
+from ..shared import app, get_session, no_content, problem_response, require_auth
 
 
 @app.route("/articles/<int:article_id>/dislike", methods=["PUT"])
@@ -46,7 +45,7 @@ def api_articles_dislike_put(article_id: int) -> Response:
         status = article.dislike(session, article_id, username)
         if status.is_error:
             session.rollback()
-            return request_status.problem_response(status)
+            return problem_response(status)
 
         session.commit()
         return no_content()
@@ -83,7 +82,7 @@ def api_articles_dislike_delete(article_id: int) -> Response:
         status = article.remove_dislike(session, article_id, username)
         if status.is_error:
             session.rollback()
-            return request_status.problem_response(status)
+            return problem_response(status)
 
         session.commit()
         return no_content()

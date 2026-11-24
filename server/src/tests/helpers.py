@@ -22,9 +22,8 @@ def assert_error_status(status: Status, error_type: ErrorType, detail: str) -> N
         None
     """
     assert status.is_error
-    problem = status.problem()
-    assert problem["type"] == f"/errors/{error_type.slug}", problem
-    assert problem["detail"] == detail, problem
+    assert status.error_type == error_type, status.error_type
+    assert status.msg == detail, status.msg
 
 
 def user_row(username: str) -> scheme.User:

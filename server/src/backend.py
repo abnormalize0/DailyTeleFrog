@@ -3,7 +3,6 @@
 """
 
 import json
-import time
 
 from sqlalchemy.orm import Session
 
@@ -87,32 +86,6 @@ def post_article(
     if status.is_error:
         return status, None
     return status, article_id
-
-
-def add_user(session: Session, user_info: dict) -> request_status.Status:
-    """Регистрирует нового пользователя.
-
-    Args:
-        session: сессия SQLAlchemy.
-        user_info: словарь с полями username, nickname, password, email,
-            avatar, description.
-
-    Returns:
-        `Status`:
-            - OK — пользователь успешно создан.
-            - Conflict — username или email уже заняты.
-    """
-    status = user.add_user(
-        session=session,
-        username=user_info["username"],
-        nickname=user_info["nickname"],
-        password=user_info["password"],
-        creation_date=round(time.time() * 1000),
-        email=user_info["email"],
-        avatar=user_info["avatar"],
-        description=user_info["description"],
-    )
-    return status
 
 
 def update_user_info(
@@ -286,23 +259,6 @@ def logout(
     auth.revoke_access_token(session, access_token)
     auth.revoke_refresh_token(session, refresh_token)
     return request_status.Status.ok()
-
-
-def resolve_token(
-    session: Session, access_token: str
-) -> tuple[request_status.Status, str | None]:
-    """Разрешает access token в username вызывающего — основа авторизации
-    для всех защищённых API-методов.
-
-    Args:
-        session: сессия SQLAlchemy.
-        access_token: значение access token (без префикса "Bearer ").
-
-    Returns:
-        Кортеж (`Status`, str) — OK и username, либо InvalidToken и `None`,
-        если токен отсутствует, не найден или истёк.
-    """
-    return auth.resolve_access_token(session, access_token)
 
 
 def change_password(

@@ -6,7 +6,6 @@
 from flask import Response
 
 from ... import backend
-from ... import request_status
 from ... import config
 from ... import log
 from .. import api_info
@@ -15,6 +14,7 @@ from ..shared import (
     get_bearer_token,
     get_session,
     no_content,
+    problem_response,
     read_body,
     require_auth,
 )
@@ -58,7 +58,7 @@ def api_auth_logout_post() -> Response:
         )
         if status.is_error:
             session.rollback()
-            return request_status.problem_response(status)
+            return problem_response(status)
 
         session.commit()
         return no_content()

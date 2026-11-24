@@ -13,6 +13,7 @@ from werkzeug.datastructures import Headers
 
 from . import config
 from . import request_status
+from .api.errors import problem_response
 
 # Поля тела запроса и заголовок, которые нельзя писать в лог в открытом виде.
 _SENSITIVE_BODY_FIELDS = {
@@ -137,7 +138,7 @@ def safe_api(func: Callable) -> Callable:
         except Exception:
             logger = logging.getLogger(config.log_server_api.path)
             logger.error(traceback.format_exc())
-            return request_status.problem_response(
+            return problem_response(
                 request_status.Status.error(
                     request_status.ErrorType.UnexpectedError,
                     "Unexpected error",

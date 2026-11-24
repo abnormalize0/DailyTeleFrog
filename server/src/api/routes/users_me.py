@@ -9,7 +9,6 @@
 from flask import Response
 
 from ... import backend
-from ... import request_status
 from ... import config
 from ... import log
 from .. import api_info
@@ -18,6 +17,7 @@ from ..shared import (
     get_session,
     json_response,
     no_content,
+    problem_response,
     read_body,
     read_query,
     require_auth,
@@ -73,7 +73,7 @@ def api_users_me_get() -> Response:
         )
         if status.is_error:
             session.rollback()
-            return request_status.problem_response(status)
+            return problem_response(status)
 
         session.commit()
         return json_response(data)
@@ -139,7 +139,7 @@ def api_users_me_patch() -> Response:
         status = backend.update_user_info(session, username, parameters)
         if status.is_error:
             session.rollback()
-            return request_status.problem_response(status)
+            return problem_response(status)
 
         session.commit()
         return no_content()
@@ -186,7 +186,7 @@ def api_users_me_delete() -> Response:
         status = backend.delete_user(session, parameters["password"], username)
         if status.is_error:
             session.rollback()
-            return request_status.problem_response(status)
+            return problem_response(status)
 
         session.commit()
         return no_content()

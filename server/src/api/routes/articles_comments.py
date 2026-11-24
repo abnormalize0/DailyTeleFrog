@@ -6,11 +6,17 @@
 from flask import Response
 
 from ... import backend
-from ... import request_status
 from ... import config
 from ... import log
 from .. import api_info
-from ..shared import app, get_session, json_response, read_body, require_auth
+from ..shared import (
+    app,
+    get_session,
+    json_response,
+    problem_response,
+    read_body,
+    require_auth,
+)
 
 
 @app.route("/articles/<int:article_id>/comments", methods=["POST"])
@@ -63,7 +69,7 @@ def api_articles_comments_post(article_id: int) -> Response:
         )
         if status.is_error:
             session.rollback()
-            return request_status.problem_response(status)
+            return problem_response(status)
 
         session.commit()
         return json_response(

@@ -16,7 +16,7 @@ SERVER_ROOT = Path(__file__).resolve().parent.parent
 # server/; в Docker переменная задана через --env-file .env и указывает на /app.
 WORKDIR = str(Path(os.getenv("MVP_PATH") or SERVER_ROOT) / "test_tmp")
 
-# Вид ошибки -> HTTP-код. Таблица повторяет request_status.ErrorType намеренно:
+# Вид ошибки -> HTTP-код. Таблица повторяет api/errors.py::ERROR_HTTP_MAP намеренно:
 # тесты проверяют контракт с клиентом, а не сверяют код сам с собой.
 ERROR_CODES = {
     "validation": 400,

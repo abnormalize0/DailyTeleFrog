@@ -6,11 +6,17 @@
 from flask import Response
 
 from ... import backend
-from ... import request_status
 from ... import config
 from ... import log
 from .. import api_info
-from ..shared import app, get_session, json_response, optional_auth, read_query
+from ..shared import (
+    app,
+    get_session,
+    json_response,
+    optional_auth,
+    problem_response,
+    read_query,
+)
 
 
 @app.route("/articles/<int:article_id>/data", methods=["GET"])
@@ -63,7 +69,7 @@ def api_articles_data_get(article_id: int) -> Response:
         )
         if status.is_error:
             session.rollback()
-            return request_status.problem_response(status)
+            return problem_response(status)
 
         session.commit()
         return json_response(data)

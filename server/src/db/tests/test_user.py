@@ -43,15 +43,18 @@ def test_verify_password_uses_stored_iterations() -> None:
 
 
 def test_add_user_stores_only_hash(session: Session) -> None:
-    status = user.add_user(session, "frog", "Frog", "password", 0, "frog@test.test")
+    status = user.add_user(session, "frog", "Frog", "password", "frog@test.test")
 
     assert not status.is_error
-    stored = session.query(scheme.User.password).filter_by(username="frog").scalar()
-    assert "password" not in stored
+    created = session.get(scheme.User, "frog")
+    assert created is not None
+    assert "password" not in created.password
+    assert isinstance(created.creation_date, int)
+    assert created.creation_date > 0
 
 
 def test_check_password(session: Session) -> None:
-    user.add_user(session, "frog", "Frog", "password", 0, "frog@test.test")
+    user.add_user(session, "frog", "Frog", "password", "frog@test.test")
 
     assert user.check_password(session, "password", username="frog")[1]
     assert user.check_password(session, "password", email="frog@test.test")[1]
@@ -64,8 +67,8 @@ def test_add_user_conflicts_ignore_case(session: Session, add_user: Callable) ->
     # поведение нельзя проверить без настоящей базы.
     add_user("frog")
 
-    same_username = user.add_user(session, "FROG", "n", "p", 0, "other@test.test")
-    same_email = user.add_user(session, "other", "n", "p", 0, "FROG@test.test")
+    same_username = user.add_user(session, "FROG", "n", "p", "other@test.test")
+    same_email = user.add_user(session, "other", "n", "p", "FROG@test.test")
 
     assert_error_status(
         same_username, ErrorType.Conflict, "User with username FROG already exists"
@@ -85,7 +88,7 @@ def test_delete_is_soft_and_keeps_names_taken(
     assert user.is_user_not_exist(session, username="frog")
     assert session.get(scheme.User, "frog").is_deleted
     assert_error_status(
-        user.add_user(session, "frog", "n", "p", 0, "new@test.test"),
+        user.add_user(session, "frog", "n", "p", "new@test.test"),
         ErrorType.Conflict,
         "User with username frog already exists",
     )
@@ -106,7 +109,7 @@ def test_add_user_lost_race(
     open_snapshot(session)
     commit_rows(user_row("frog"))
 
-    status = user.add_user(session, username, "n", "p", 0, email)
+    status = user.add_user(session, username, "n", "p", email)
 
     assert_error_status(
         status, ErrorType.Conflict, "Username or email is already taken"

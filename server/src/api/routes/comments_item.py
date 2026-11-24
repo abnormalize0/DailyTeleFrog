@@ -6,7 +6,6 @@
 from flask import Response
 
 from ... import backend
-from ... import request_status
 from ... import config
 from ... import log
 from ...db import comment as comment_db
@@ -17,6 +16,7 @@ from ..shared import (
     json_response,
     no_content,
     optional_auth,
+    problem_response,
     read_query,
     require_auth,
 )
@@ -73,7 +73,7 @@ def api_comments_item_get(comment_id: int) -> Response:
         )
         if status.is_error:
             session.rollback()
-            return request_status.problem_response(status)
+            return problem_response(status)
 
         session.commit()
         return json_response(data)
@@ -114,7 +114,7 @@ def api_comments_item_delete(comment_id: int) -> Response:
         status = comment_db.delete(session, comment_id, username)
         if status.is_error:
             session.rollback()
-            return request_status.problem_response(status)
+            return problem_response(status)
 
         session.commit()
         return no_content()

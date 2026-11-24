@@ -4,12 +4,18 @@
 
 from flask import Response
 
-from ... import backend
-from ... import request_status
 from ... import config
 from ... import log
+from ...db import user as user_db
 from .. import api_info
-from ..shared import app, fill_default, get_session, json_response, read_body
+from ..shared import (
+    app,
+    fill_default,
+    get_session,
+    json_response,
+    problem_response,
+    read_body,
+)
 
 
 @app.route("/users", methods=["POST"])
@@ -58,10 +64,18 @@ def api_users_post() -> Response:
         return error
     parameters = fill_default(parameters, api_info.users_post)
     with get_session() as session:
-        status = backend.add_user(session, parameters)
+        status = user_db.add_user(
+            session=session,
+            username=parameters["username"],
+            nickname=parameters["nickname"],
+            password=parameters["password"],
+            email=parameters["email"],
+            avatar=parameters["avatar"],
+            description=parameters["description"],
+        )
         if status.is_error:
             session.rollback()
-            return request_status.problem_response(status)
+            return problem_response(status)
 
         session.commit()
         return json_response({"username": parameters["username"]}, 201)

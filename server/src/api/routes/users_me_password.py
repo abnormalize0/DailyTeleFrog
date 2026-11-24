@@ -5,11 +5,17 @@
 from flask import Response
 
 from ... import backend
-from ... import request_status
 from ... import config
 from ... import log
 from .. import api_info
-from ..shared import app, get_session, no_content, read_body, require_auth
+from ..shared import (
+    app,
+    get_session,
+    no_content,
+    problem_response,
+    read_body,
+    require_auth,
+)
 
 
 @app.route("/users/me/password", methods=["PUT"])
@@ -59,7 +65,7 @@ def api_users_me_password_put() -> Response:
         )
         if status.is_error:
             session.rollback()
-            return request_status.problem_response(status)
+            return problem_response(status)
 
         session.commit()
         return no_content()

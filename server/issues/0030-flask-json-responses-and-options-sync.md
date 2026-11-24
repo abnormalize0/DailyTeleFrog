@@ -22,7 +22,7 @@ date: 2026-11-23
 
 ## Желаемое поведение
 - `src/log.py::log_request` преобразует результат обработчика через `flask.make_response(...)`, что позволяет всем маршрутам возвращать нативные значения Flask (`dict`, `(dict, 201, {"Location": ...})`, `("", 204)`).
-- Все обработчики `OPTIONS` в `src/api/api_info.py` возвращают `dict` напрямую, получая `Content-Type: application/json` от Flask; в `src/api/routes/` ручные обёртки `shared.json_response` и `shared.no_content` заменены на нативные возвраты Flask (`request_status.problem_response` сохраняется для ответов с нестандартным `Content-Type: application/problem+json`).
+- Все обработчики `OPTIONS` в `src/api/api_info.py` возвращают `dict` напрямую, получая `Content-Type: application/json` от Flask; в `src/api/routes/` ручные обёртки `shared.json_response` и `shared.no_content` заменены на нативные возвраты Flask (`problem_response` из `src/api/errors.py` сохраняется для ответов с нестандартным `Content-Type: application/problem+json`).
 - В `src/api/tests/` добавлена автоматическая проверка по `app.url_map` и `app.test_client()`:
   - каждый маршрут и HTTP-метод из `src/api/routes/` описан в `OPTIONS` (`api_info.py`);
   - в `api_info.py` нет «осиротевших» `OPTIONS` для несуществующих маршрутов или методов;

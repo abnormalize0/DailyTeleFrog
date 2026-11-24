@@ -1,43 +1,29 @@
 """
-Этот файл служит для хранения типа статуса и необходимых для него перечислений.
+Этот файл служит для хранения доменных статусов операций (`Status`, `StatusType`,
+`ErrorType`) без привязки к Flask и HTTP. Маппинг видов ошибок в HTTP-коды и
+ответы Problem Details находится на HTTP-слое в `src/api/errors.py`.
 """
 
-import json
 import enum
-
-from flask import Response
 
 
 class ErrorType(enum.Enum):
-    """Виды ошибок API. Значение — (slug, title, HTTP-код): одна таблица, из
-    которой строятся поля Problem Details (RFC 9457), чтобы код ответа и `type`
-    нельзя было рассинхронизировать. См. decisions/0004-rest-api.md.
+    """Доменные виды ошибок операций.
+
+    HTTP-коды и поля Problem Details (RFC 9457) сопоставляются с ними в
+    `src/api/errors.py` (см. decisions/0004-rest-api.md), чтобы нижние слои
+    (`src/db/`, `src/backend.py`) не зависели от веб-фреймворка.
     """
 
-    InvalidParameters = ("validation", "Invalid request parameters", 400)
-    InvalidToken = ("invalid-token", "Missing or invalid token", 401)
+    InvalidParameters = enum.auto()
+    InvalidToken = enum.auto()
     # Отдельно от InvalidToken: клиент на invalid-token обновляет токены через
     # /auth/refresh, а неверный пароль при входе так не лечится.
-    InvalidCredentials = ("invalid-credentials", "Invalid credentials", 401)
-    Forbidden = ("forbidden", "Forbidden", 403)
-    NotFound = ("not-found", "Resource not found", 404)
-    Conflict = ("conflict", "Resource conflict", 409)
-    UnexpectedError = ("internal-error", "Internal server error", 500)
-
-    def __init__(self, slug: str, title: str, http_code: int) -> None:
-        """Раскладывает значение перечисления по именованным полям.
-
-        Args:
-            slug: последняя часть URI в поле `type`.
-            title: короткое описание вида ошибки, одинаковое для всех её случаев.
-            http_code: HTTP-код ответа.
-
-        Returns:
-            None
-        """
-        self.slug = slug
-        self.title = title
-        self.http_code = http_code
+    InvalidCredentials = enum.auto()
+    Forbidden = enum.auto()
+    NotFound = enum.auto()
+    Conflict = enum.auto()
+    UnexpectedError = enum.auto()
 
 
 class StatusType(enum.Enum):
@@ -131,60 +117,40 @@ class Status:
         return self._status_type == StatusType.ERROR
 
     @property
-    def http_code(self) -> int:
-        """Возвращает HTTP-код ошибки.
+    def error_type(self) -> ErrorType | None:
+        """Возвращает вид ошибки или `None` для успешного статуса.
 
         Args:
             None
 
         Returns:
-            HTTP-код из таблицы `ErrorType`.
+            `ErrorType` при ошибке, иначе `None`.
         """
-        if self._error_type is None:
-            raise ValueError("OK status does not have an HTTP error code")
-        return self._error_type.http_code
+        return self._error_type
 
-    def problem(self) -> dict:
-        """Собирает тело ответа с ошибкой в формате Problem Details (RFC 9457).
+    @property
+    def msg(self) -> str | None:
+        """Возвращает текст описания ошибки или `None` для успешного статуса.
 
         Args:
             None
 
         Returns:
-            dict с полями type, title, status, detail и, для ошибок валидации,
-            errors. `type` относительный: стандарт не требует, чтобы по нему
-            открывалась страница, он лишь идентифицирует вид ошибки.
+            Строка сообщения при ошибке, иначе `None`.
         """
-        if self._error_type is None:
-            raise ValueError("OK status does not have Problem Details")
-        problem = {
-            "type": f"/errors/{self._error_type.slug}",
-            "title": self._error_type.title,
-            "status": self._error_type.http_code,
-            "detail": self._msg,
-        }
-        if self._errors:
-            problem["errors"] = self._errors
-        return problem
+        return self._msg
 
+    @property
+    def errors(self) -> list | None:
+        """Возвращает список ошибок полей или `None`.
 
-def problem_response(status: Status) -> Response:
-    """Строит HTTP-ответ с ошибкой из `Status`.
+        Args:
+            None
 
-    Живёт здесь, а не в api/shared.py, потому что нужна ещё и log.safe_api, а
-    log.py не должен зависеть от слоя api.
-
-    Args:
-        status: `Status` с ошибкой.
-
-    Returns:
-        Flask-`Response` с типом application/problem+json и кодом ошибки.
-    """
-    return Response(
-        json.dumps(status.problem()),
-        status=status.http_code,
-        mimetype="application/problem+json",
-    )
+        Returns:
+            Список словарей ошибок полей, если передан, иначе `None`.
+        """
+        return self._errors
 
 
 def not_found(entity: str, id_value: int | str) -> Status:

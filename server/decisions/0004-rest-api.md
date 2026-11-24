@@ -4,9 +4,9 @@ title: Устройство API. Классический REST, Problem Details,
 status: accepted
 implementation: done
 areas: [api, tests]
-files: [server/src/api/api.py, server/src/api/shared.py, server/src/api/routes/, server/src/api/api_info.py, server/src/request_status.py, server/src/log.py, server/tests/routes/, server/tests/conftest.py, server/tests/helpers.py]
+files: [server/src/api/api.py, server/src/api/errors.py, server/src/api/shared.py, server/src/api/routes/, server/src/api/api_info.py, server/src/request_status.py, server/src/log.py, server/tests/routes/, server/tests/conftest.py, server/tests/helpers.py]
 date: 2026-11-01
-updated: 2026-11-01
+updated: 2026-11-24
 superseded_by:
 supersedes: 0001
 ---
@@ -27,7 +27,7 @@ supersedes: 0001
 5. Идентификатор ресурса передаётся в пути, параметры GET в query-строке, данные POST/PUT/PATCH в JSON-теле. Список в query-строке передаётся повторением параметра: `?tag=a&tag=b`.
 6. GET читает, POST создаёт, PUT задаёт состояние, PATCH меняет часть полей, DELETE удаляет. PUT и DELETE идемпотентны.
 7. Успех: 200 с данными, 201 при создании (с `Location`, если у ресурса есть адрес), 204 без тела, если возвращать нечего. Служебного `status` в успешном ответе нет.
-8. Ошибка: настоящий HTTP-код и тело Problem Details (RFC 9457, `application/problem+json`). Вид ошибки задаётся только через `ErrorType` в `server/src/request_status.py`.
+8. Ошибка: настоящий HTTP-код и тело Problem Details (RFC 9457, `application/problem+json`). Вид ошибки задаётся через `ErrorType` в `server/src/request_status.py`, а HTTP-коды и Problem Details — в `server/src/api/errors.py`.
 
 ## Контекст
 В 0001 был принят половинчатый REST: настоящие коды и query-строка, но старые URL и свой объект `status` в ответе. Коды и query-строка ещё не были реализованы, когда пользователь решил перейти на классический REST: собственный формат пришлось бы объяснять клиенту и читателям проекта, а преимуществ он почти не давал.
@@ -102,7 +102,7 @@ if error:
 ...
 if status.is_error:
     session.rollback()
-    return request_status.problem_response(status)
+    return problem_response(status)
 
 session.commit()
 return json_response({"article_id": article_id}, 201, location=f"/articles/{article_id}")

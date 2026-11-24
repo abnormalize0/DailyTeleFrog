@@ -33,4 +33,4 @@ date: 2026-11-23
 - Оформлена новая запись в `decisions/` с разделением `400`/`422` и форматом `errors: [{"pointer", "detail"}]`.
 - Битый JSON / не-объект возвращает `400`, а все ошибки валидации (декларативные и императивные) возвращают `422 /errors/validation` с массивом `errors: [{"pointer", "detail"}]`.
 - `sort_column` и `sort_direction` валидируются декларативно через `api_info.articles_get` и отдаются в `OPTIONS /articles`.
-- Обновлены `src/request_status.py`, `src/api/shared.py`, `src/api/api_info.py`, `src/api/routes/`, `src/db/`, `tests/helpers.py`, все unit- и e2e-тесты; полный `make test` проходит.
+- Обновлены `src/request_status.py`, `src/api/errors.py`, `src/api/shared.py`, `src/api/api_info.py`, `src/api/routes/`, `src/db/`, `tests/helpers.py`, все unit- и e2e-тесты; полный `make test` проходит.
