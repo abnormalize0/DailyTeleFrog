@@ -138,10 +138,9 @@ def safe_api(func: Callable) -> Callable:
             logger = logging.getLogger(config.log_server_api.path)
             logger.error(traceback.format_exc())
             return request_status.problem_response(
-                request_status.Status(
-                    request_status.StatusType.ERROR,
+                request_status.Status.error(
                     request_status.ErrorType.UnexpectedError,
-                    msg="Unexpected error",
+                    "Unexpected error",
                 )
             )
 

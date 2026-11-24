@@ -68,10 +68,9 @@ def _self_reference() -> request_status.Status:
         `Status` с типом Forbidden: как и реакция на свою статью, это запрещённое
         действие над своим объектом, а не ошибка в формате запроса.
     """
-    return request_status.Status(
-        request_status.StatusType.ERROR,
-        error_type=request_status.ErrorType.Forbidden,
-        msg="User cannot subscribe to or block themselves",
+    return request_status.Status.error(
+        request_status.ErrorType.Forbidden,
+        "User cannot subscribe to or block themselves",
     )
 
 
@@ -85,10 +84,9 @@ def _unknown_target_user(username: str) -> request_status.Status:
         `Status` с типом InvalidParameters: 400, а не 404, потому что URL
         запроса существует, а неверна ссылка внутри тела (см. decisions/0004).
     """
-    return request_status.Status(
-        request_status.StatusType.ERROR,
-        error_type=request_status.ErrorType.InvalidParameters,
-        msg=f"Cannot find user with username: {username}",
+    return request_status.Status.error(
+        request_status.ErrorType.InvalidParameters,
+        f"Cannot find user with username: {username}",
     )
 
 
@@ -148,16 +146,14 @@ def add_user(
     # Без is_user_not_exist: username и email удалённого аккаунта тоже заняты,
     # его строка остаётся в таблице.
     if session.get(scheme.User, username) is not None:
-        return request_status.Status(
-            request_status.StatusType.ERROR,
-            error_type=request_status.ErrorType.Conflict,
-            msg=f"User with username {username} already exists",
+        return request_status.Status.error(
+            request_status.ErrorType.Conflict,
+            f"User with username {username} already exists",
         )
     if get_username_by_email(session, email) is not None:
-        return request_status.Status(
-            request_status.StatusType.ERROR,
-            error_type=request_status.ErrorType.Conflict,
-            msg=f"User with email {email} already exists",
+        return request_status.Status.error(
+            request_status.ErrorType.Conflict,
+            f"User with email {email} already exists",
         )
     user = scheme.User(
         username=username,
@@ -175,12 +171,11 @@ def add_user(
     try:
         session.flush()
     except IntegrityError:
-        return request_status.Status(
-            request_status.StatusType.ERROR,
-            error_type=request_status.ErrorType.Conflict,
-            msg="Username or email is already taken",
+        return request_status.Status.error(
+            request_status.ErrorType.Conflict,
+            "Username or email is already taken",
         )
-    return request_status.Status(request_status.StatusType.OK)
+    return request_status.Status.ok()
 
 
 def delete(session: Session, username: str) -> request_status.Status:
@@ -210,7 +205,7 @@ def delete(session: Session, username: str) -> request_status.Status:
         scheme.UserBlacklist.blocked_user == username
     ).delete()
     session.flush()
-    return request_status.Status(request_status.StatusType.OK)
+    return request_status.Status.ok()
 
 
 def get_username_by_email(session: Session, email: str) -> str | None:
@@ -250,7 +245,7 @@ def check_password(
             - OK и `False` — если пользователь не найден.
     """
     if is_user_not_exist(session=session, username=username, email=email):
-        return request_status.Status(request_status.StatusType.OK), False
+        return request_status.Status.ok(), False
     user_password: str
     if username:
         user_password = (
@@ -265,7 +260,7 @@ def check_password(
             .scalar()
         )
     return (
-        request_status.Status(request_status.StatusType.OK),
+        request_status.Status.ok(),
         _verify_password(password, user_password),
     )
 
@@ -292,7 +287,7 @@ def change_password(
     )
     user.password = _hash_password(password)
     session.flush()
-    return request_status.Status(request_status.StatusType.OK)
+    return request_status.Status.ok()
 
 
 def update_email(session: Session, username: str, email: str) -> request_status.Status:
@@ -312,10 +307,9 @@ def update_email(session: Session, username: str, email: str) -> request_status.
     """
     if is_user_not_exist(session=session, username=username):
         return request_status.not_found("user with username", username)
-    email_taken = request_status.Status(
-        request_status.StatusType.ERROR,
-        error_type=request_status.ErrorType.Conflict,
-        msg=f"User with email {email} already exists",
+    email_taken = request_status.Status.error(
+        request_status.ErrorType.Conflict,
+        f"User with email {email} already exists",
     )
     # Свой текущий email конфликтом не считается: повторный PATCH не должен падать.
     if get_username_by_email(session, email) not in (None, username):
@@ -329,7 +323,7 @@ def update_email(session: Session, username: str, email: str) -> request_status.
         session.flush()
     except IntegrityError:
         return email_taken
-    return request_status.Status(request_status.StatusType.OK)
+    return request_status.Status.ok()
 
 
 def update_nickname(
@@ -360,7 +354,7 @@ def update_nickname(
         )
     user.nickname = nickname
     session.flush()
-    return request_status.Status(request_status.StatusType.OK)
+    return request_status.Status.ok()
 
 
 def update_description(
@@ -385,7 +379,7 @@ def update_description(
     )
     user.description = description
     session.flush()
-    return request_status.Status(request_status.StatusType.OK)
+    return request_status.Status.ok()
 
 
 def update_avatar(
@@ -410,7 +404,7 @@ def update_avatar(
     )
     user.avatar = avatar
     session.flush()
-    return request_status.Status(request_status.StatusType.OK)
+    return request_status.Status.ok()
 
 
 def sub_user(session: Session, username: str, sub: str) -> request_status.Status:
@@ -448,7 +442,7 @@ def sub_user(session: Session, username: str, sub: str) -> request_status.Status
         session, scheme.UserSubscription, username=username, subscribed_user=sub
     )
     session.flush()
-    return request_status.Status(request_status.StatusType.OK)
+    return request_status.Status.ok()
 
 
 def block_user(
@@ -488,7 +482,7 @@ def block_user(
         session, scheme.UserBlacklist, username=username, blocked_user=blocked_user
     )
     session.flush()
-    return request_status.Status(request_status.StatusType.OK)
+    return request_status.Status.ok()
 
 
 def sub_tag(session: Session, username: str, tag_name: str) -> request_status.Status:
@@ -520,7 +514,7 @@ def sub_tag(session: Session, username: str, tag_name: str) -> request_status.St
         session, scheme.TagSubscription, username=username, tag_name=tag_name
     )
     session.flush()
-    return request_status.Status(request_status.StatusType.OK)
+    return request_status.Status.ok()
 
 
 def block_tag(session: Session, username: str, tag_name: str) -> request_status.Status:
@@ -550,7 +544,7 @@ def block_tag(session: Session, username: str, tag_name: str) -> request_status.
         session.delete(sub_tag)
     add_if_missing(session, scheme.TagBlacklist, username=username, tag_name=tag_name)
     session.flush()
-    return request_status.Status(request_status.StatusType.OK)
+    return request_status.Status.ok()
 
 
 def get_rating(
@@ -612,7 +606,7 @@ def get_rating(
         .count()
     )
     return (
-        request_status.Status(request_status.StatusType.OK),
+        request_status.Status.ok(),
         article_likes - article_dislikes + comment_likes - comment_dislikes,
     )
 
@@ -635,7 +629,7 @@ def _get_user_field(
     if is_user_not_exist(session=session, username=username):
         return request_status.not_found("user with username", username), None
     value = session.query(column).where(scheme.User.username == username).scalar()
-    return request_status.Status(request_status.StatusType.OK), value
+    return request_status.Status.ok(), value
 
 
 def _get_user_list_field(
@@ -660,7 +654,7 @@ def _get_user_list_field(
     if is_user_not_exist(session=session, username=username):
         return request_status.not_found("user with username", username), None
     rows = session.query(column).where(where_column == username).all()
-    return request_status.Status(request_status.StatusType.OK), [row[0] for row in rows]
+    return request_status.Status.ok(), [row[0] for row in rows]
 
 
 def get_email(
@@ -889,7 +883,7 @@ def preview(
     if row is None:
         return request_status.not_found("user with username", username), None
     if row.is_deleted:
-        return request_status.Status(request_status.StatusType.OK), {"is_deleted": True}
+        return request_status.Status.ok(), {"is_deleted": True}
 
     user_preview = {
         "avatar": row.avatar,
@@ -898,4 +892,4 @@ def preview(
         "username": row.username,
         "is_deleted": False,
     }
-    return request_status.Status(request_status.StatusType.OK), user_preview
+    return request_status.Status.ok(), user_preview

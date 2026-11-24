@@ -88,14 +88,13 @@ def delete(session: Session, article_id: int, username: str) -> request_status.S
     if article is None or (article.is_deleted and not is_author):
         return request_status.not_found("article with id", article_id)
     if not is_author:
-        return request_status.Status(
-            request_status.StatusType.ERROR,
-            error_type=request_status.ErrorType.Forbidden,
-            msg="User cannot delete someone else's article",
+        return request_status.Status.error(
+            request_status.ErrorType.Forbidden,
+            "User cannot delete someone else's article",
         )
     article.is_deleted = True
     session.flush()
-    return request_status.Status(request_status.StatusType.OK)
+    return request_status.Status.ok()
 
 
 def add_tags(
@@ -124,13 +123,12 @@ def add_tags(
     try:
         session.flush()
     except IntegrityError:
-        return request_status.Status(
-            request_status.StatusType.ERROR,
-            error_type=request_status.ErrorType.InvalidParameters,
-            msg="Article tags must be unique",
+        return request_status.Status.error(
+            request_status.ErrorType.InvalidParameters,
+            "Article tags must be unique",
             errors=[{"name": "tags", "reason": "must not contain duplicates"}],
         )
-    return request_status.Status(request_status.StatusType.OK)
+    return request_status.Status.ok()
 
 
 def is_liked(
@@ -149,9 +147,9 @@ def is_liked(
             - OK и `False` — если статья не существует.
     """
     if is_article_not_exist(session, article_id):
-        return request_status.Status(request_status.StatusType.OK), False
+        return request_status.Status.ok(), False
     return (
-        request_status.Status(request_status.StatusType.OK),
+        request_status.Status.ok(),
         not session.query(scheme.ArticleLike)
         .where(
             scheme.ArticleLike.article_id == article_id,
@@ -178,9 +176,9 @@ def is_disliked(
             - OK и `False` — если статья не существует.
     """
     if is_article_not_exist(session, article_id):
-        return request_status.Status(request_status.StatusType.OK), False
+        return request_status.Status.ok(), False
     return (
-        request_status.Status(request_status.StatusType.OK),
+        request_status.Status.ok(),
         not session.query(scheme.ArticleDislike)
         .where(
             scheme.ArticleDislike.article_id == article_id,
@@ -241,9 +239,7 @@ def likes_count(
     """
     if is_article_not_exist(session, article_id):
         return request_status.not_found("article with id", article_id), None
-    return request_status.Status(request_status.StatusType.OK), _count_likes(
-        session, article_id
-    )
+    return request_status.Status.ok(), _count_likes(session, article_id)
 
 
 def dislikes_count(
@@ -262,9 +258,7 @@ def dislikes_count(
     """
     if is_article_not_exist(session, article_id):
         return request_status.not_found("article with id", article_id), None
-    return request_status.Status(request_status.StatusType.OK), _count_dislikes(
-        session, article_id
-    )
+    return request_status.Status.ok(), _count_dislikes(session, article_id)
 
 
 def rating(
@@ -286,7 +280,7 @@ def rating(
     rating_value = _count_likes(session, article_id) - _count_dislikes(
         session, article_id
     )
-    return request_status.Status(request_status.StatusType.OK), rating_value
+    return request_status.Status.ok(), rating_value
 
 
 def comments_count(
@@ -314,7 +308,7 @@ def comments_count(
         )
         .count()
     )
-    return request_status.Status(request_status.StatusType.OK), comments_count
+    return request_status.Status.ok(), comments_count
 
 
 def get(
@@ -336,7 +330,7 @@ def get(
     article = (
         session.query(scheme.Article).where(scheme.Article.id == article_id).scalar()
     )
-    return request_status.Status(request_status.StatusType.OK), article
+    return request_status.Status.ok(), article
 
 
 def preview(
@@ -360,7 +354,7 @@ def preview(
         .where(scheme.ArticlePreview.article_id == article_id)
         .scalar()
     )
-    return request_status.Status(request_status.StatusType.OK), json.loads(preview)
+    return request_status.Status.ok(), json.loads(preview)
 
 
 def tags(
@@ -384,7 +378,7 @@ def tags(
         .where(scheme.ArticleTag.article_id == article_id)
         .all()
     )
-    return request_status.Status(request_status.StatusType.OK), [tag[0] for tag in tags]
+    return request_status.Status.ok(), [tag[0] for tag in tags]
 
 
 def like(session: Session, article_id: int, username: str) -> request_status.Status:
@@ -410,10 +404,9 @@ def like(session: Session, article_id: int, username: str) -> request_status.Sta
         .scalar()
     )
     if author_username == username:
-        return request_status.Status(
-            request_status.StatusType.ERROR,
-            error_type=request_status.ErrorType.Forbidden,
-            msg="User cannot like or dislike their own article",
+        return request_status.Status.error(
+            request_status.ErrorType.Forbidden,
+            "User cannot like or dislike their own article",
         )
     lock_user_reactions(session, username)
     existing_dislike = (
@@ -430,7 +423,7 @@ def like(session: Session, article_id: int, username: str) -> request_status.Sta
         session, scheme.ArticleLike, article_id=article_id, username=username
     )
     session.flush()
-    return request_status.Status(request_status.StatusType.OK)
+    return request_status.Status.ok()
 
 
 def dislike(session: Session, article_id: int, username: str) -> request_status.Status:
@@ -456,10 +449,9 @@ def dislike(session: Session, article_id: int, username: str) -> request_status.
         .scalar()
     )
     if author_username == username:
-        return request_status.Status(
-            request_status.StatusType.ERROR,
-            error_type=request_status.ErrorType.Forbidden,
-            msg="User cannot like or dislike their own article",
+        return request_status.Status.error(
+            request_status.ErrorType.Forbidden,
+            "User cannot like or dislike their own article",
         )
     lock_user_reactions(session, username)
     existing_like = (
@@ -476,7 +468,7 @@ def dislike(session: Session, article_id: int, username: str) -> request_status.
         session, scheme.ArticleDislike, article_id=article_id, username=username
     )
     session.flush()
-    return request_status.Status(request_status.StatusType.OK)
+    return request_status.Status.ok()
 
 
 def remove_like(
@@ -502,7 +494,7 @@ def remove_like(
         scheme.ArticleLike.article_id == article_id,
         scheme.ArticleLike.username == username,
     ).delete()
-    return request_status.Status(request_status.StatusType.OK)
+    return request_status.Status.ok()
 
 
 def remove_dislike(
@@ -527,7 +519,7 @@ def remove_dislike(
         scheme.ArticleDislike.article_id == article_id,
         scheme.ArticleDislike.username == username,
     ).delete()
-    return request_status.Status(request_status.StatusType.OK)
+    return request_status.Status.ok()
 
 
 def _rating_expression() -> ColumnElement:

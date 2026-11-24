@@ -46,36 +46,77 @@ class StatusType(enum.Enum):
 
 
 class Status:
-    _status_type = None
-    _error_type = None
-    _msg = None
-    _errors = None
-
     def __init__(
         self,
-        is_error: StatusType,
-        error_type: ErrorType = None,
-        msg: str = None,
-        errors: list = None,
+        status_type: StatusType,
+        error_type: ErrorType | None = None,
+        msg: str | None = None,
+        errors: list | None = None,
     ) -> None:
-        """Инициализирует объект статуса операции.
+        """Инициализирует объект статуса операции и проверяет его инварианты.
+
+        Предпочтительнее использовать фабрики `Status.ok()` и `Status.error(...)`.
 
         Args:
-            is_error: `StatusType` — OK или ERROR.
-            error_type: `ErrorType`, обязателен при is_error == ERROR.
-            msg: текст про этот конкретный случай, используется при is_error == ERROR.
+            status_type: `StatusType` — OK или ERROR.
+            error_type: `ErrorType`, обязателен при `status_type == StatusType.ERROR`.
+            msg: текст про этот конкретный случай, используется при ERROR.
             errors: список неверных полей запроса вида {"name", "reason"}, только
                 для ошибок валидации.
 
         Returns:
             None
         """
-        self._status_type = is_error
+        if not isinstance(status_type, StatusType):
+            raise TypeError("status_type must be a StatusType")
+        if status_type == StatusType.OK:
+            if error_type is not None or msg is not None or errors is not None:
+                raise ValueError("OK status must not have error_type, msg, or errors")
+        else:
+            if not isinstance(error_type, ErrorType):
+                raise TypeError("error_type must be an ErrorType for ERROR status")
+            if not isinstance(msg, str):
+                raise TypeError("msg must be a str for ERROR status")
+            if not msg.strip():
+                raise ValueError("msg must be a non-empty string for ERROR status")
+            if errors is not None and not isinstance(errors, list):
+                raise TypeError("errors must be a list or None")
 
-        if self.is_error:
-            self._error_type = error_type
-            self._msg = msg
-            self._errors = errors
+        self._status_type = status_type
+        self._error_type = error_type
+        self._msg = msg
+        self._errors = errors
+
+    @classmethod
+    def ok(cls) -> "Status":
+        """Создаёт успешный статус без полей ошибки.
+
+        Args:
+            None
+
+        Returns:
+            `Status` с типом `StatusType.OK`.
+        """
+        return cls(StatusType.OK)
+
+    @classmethod
+    def error(
+        cls,
+        error_type: ErrorType,
+        msg: str,
+        errors: list | None = None,
+    ) -> "Status":
+        """Создаёт статус ошибки с обязательными типом и сообщением.
+
+        Args:
+            error_type: вид ошибки из таблицы `ErrorType`.
+            msg: понятное пользователю описание ошибки (поле `detail`).
+            errors: список неверных полей запроса, только для ошибок валидации.
+
+        Returns:
+            `Status` с типом `StatusType.ERROR`.
+        """
+        return cls(StatusType.ERROR, error_type=error_type, msg=msg, errors=errors)
 
     @property
     def is_error(self) -> bool:
@@ -87,7 +128,7 @@ class Status:
         Returns:
             `True`, если статус — ошибка, иначе `False`.
         """
-        return not bool(self._status_type.value)
+        return self._status_type == StatusType.ERROR
 
     @property
     def http_code(self) -> int:
@@ -99,6 +140,8 @@ class Status:
         Returns:
             HTTP-код из таблицы `ErrorType`.
         """
+        if self._error_type is None:
+            raise ValueError("OK status does not have an HTTP error code")
         return self._error_type.http_code
 
     def problem(self) -> dict:
@@ -112,6 +155,8 @@ class Status:
             errors. `type` относительный: стандарт не требует, чтобы по нему
             открывалась страница, он лишь идентифицирует вид ошибки.
         """
+        if self._error_type is None:
+            raise ValueError("OK status does not have Problem Details")
         problem = {
             "type": f"/errors/{self._error_type.slug}",
             "title": self._error_type.title,
@@ -154,8 +199,4 @@ def not_found(entity: str, id_value: int | str) -> Status:
         `Status` с типом ERROR, error_type NotFound и сообщением
         "Cannot find {entity}: {id_value}".
     """
-    return Status(
-        StatusType.ERROR,
-        error_type=ErrorType.NotFound,
-        msg=f"Cannot find {entity}: {id_value}",
-    )
+    return Status.error(ErrorType.NotFound, f"Cannot find {entity}: {id_value}")

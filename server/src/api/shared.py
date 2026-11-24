@@ -81,10 +81,9 @@ def error_response(
         Ответ в формате Problem Details.
     """
     return request_status.problem_response(
-        request_status.Status(
-            request_status.StatusType.ERROR,
-            error_type=error_type,
-            msg=msg,
+        request_status.Status.error(
+            error_type,
+            msg,
             errors=errors,
         )
     )

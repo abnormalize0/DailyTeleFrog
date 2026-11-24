@@ -54,7 +54,7 @@ def get_article(
         if status.is_error:
             return status, None
 
-    return request_status.Status(request_status.StatusType.OK), data
+    return request_status.Status.ok(), data
 
 
 def post_article(
@@ -154,7 +154,7 @@ def update_user_info(
                 status = updater(session, username, value)
                 if status.is_error:
                     return status
-    return request_status.Status(request_status.StatusType.OK)
+    return request_status.Status.ok()
 
 
 def _incorrect_password() -> request_status.Status:
@@ -167,10 +167,9 @@ def _incorrect_password() -> request_status.Status:
         `Status` с типом Forbidden: 403, а не 401, потому что токен валиден и клиент
         не должен пытаться его обновлять.
     """
-    return request_status.Status(
-        request_status.StatusType.ERROR,
-        error_type=request_status.ErrorType.Forbidden,
-        msg="Incorrect password",
+    return request_status.Status.error(
+        request_status.ErrorType.Forbidden,
+        "Incorrect password",
     )
 
 
@@ -229,17 +228,16 @@ def login(
         return status, None
     if not is_password_correct:
         return (
-            request_status.Status(
-                request_status.StatusType.ERROR,
-                error_type=request_status.ErrorType.InvalidCredentials,
-                msg="Incorrect login or password",
+            request_status.Status.error(
+                request_status.ErrorType.InvalidCredentials,
+                "Incorrect login or password",
             ),
             None,
         )
     if not username:
         username = user.get_username_by_email(session, email)
     auth.delete_expired_tokens(session, username)
-    return request_status.Status(request_status.StatusType.OK), {
+    return request_status.Status.ok(), {
         "access_token": auth.create_access_token(session, username),
         "refresh_token": auth.create_refresh_token(session, username),
     }
@@ -265,7 +263,7 @@ def refresh_session(
         return status, None
     auth.revoke_refresh_token(session, refresh_token)
     auth.delete_expired_tokens(session, username)
-    return request_status.Status(request_status.StatusType.OK), {
+    return request_status.Status.ok(), {
         "access_token": auth.create_access_token(session, username),
         "refresh_token": auth.create_refresh_token(session, username),
     }
@@ -287,7 +285,7 @@ def logout(
     """
     auth.revoke_access_token(session, access_token)
     auth.revoke_refresh_token(session, refresh_token)
-    return request_status.Status(request_status.StatusType.OK)
+    return request_status.Status.ok()
 
 
 def resolve_token(
@@ -382,7 +380,7 @@ def get_comment_data(
             - NotFound и `None` — если комментария нет или удалена его статья.
     """
     if comment.is_deleted(session, comment_id):
-        return request_status.Status(request_status.StatusType.OK), {"is_deleted": True}
+        return request_status.Status.ok(), {"is_deleted": True}
     # Проверка сразу: is_liked/is_disliked для несуществующего объекта отдают
     # False, и без неё GET только этих полей вернул бы 200 вместо 404.
     if comment.is_comment_not_exist(session, comment_id):
@@ -402,7 +400,7 @@ def get_comment_data(
         status, data[key] = accessors[key]()
         if status.is_error:
             return status, None
-    return request_status.Status(request_status.StatusType.OK), data
+    return request_status.Status.ok(), data
 
 
 def get_article_data(
@@ -458,7 +456,7 @@ def get_article_data(
         status, data[key] = accessors[key]()
         if status.is_error:
             return status, None
-    return request_status.Status(request_status.StatusType.OK), data
+    return request_status.Status.ok(), data
 
 
 def get_user_data(
@@ -496,7 +494,7 @@ def get_user_data(
         status, data[key] = accessors[key]()
         if status.is_error:
             return status, None
-    return request_status.Status(request_status.StatusType.OK), data
+    return request_status.Status.ok(), data
 
 
 def get_article_preview(
@@ -540,7 +538,7 @@ def get_article_preview(
         if status.is_error:
             return status, None
 
-    return request_status.Status(request_status.StatusType.OK), data
+    return request_status.Status.ok(), data
 
 
 def pages_get(
@@ -593,4 +591,4 @@ def pages_get(
                 return status, None
             previews.append(preview)
         pages[index] = previews
-    return request_status.Status(request_status.StatusType.OK), pages
+    return request_status.Status.ok(), pages

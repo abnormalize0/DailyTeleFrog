@@ -124,24 +124,22 @@ def _resolve_token(
     """
     if not token:
         return (
-            request_status.Status(
-                request_status.StatusType.ERROR,
-                error_type=request_status.ErrorType.InvalidToken,
-                msg="Missing or invalid token",
+            request_status.Status.error(
+                request_status.ErrorType.InvalidToken,
+                "Missing or invalid token",
             ),
             None,
         )
     row = session.query(model).where(model.token == token).scalar()
     if row is None or row.expires_at < round(time.time() * 1000):
         return (
-            request_status.Status(
-                request_status.StatusType.ERROR,
-                error_type=request_status.ErrorType.InvalidToken,
-                msg="Missing or invalid token",
+            request_status.Status.error(
+                request_status.ErrorType.InvalidToken,
+                "Missing or invalid token",
             ),
             None,
         )
-    return request_status.Status(request_status.StatusType.OK), row.username
+    return request_status.Status.ok(), row.username
 
 
 def delete_expired_tokens(session: Session, username: str) -> None:

@@ -95,10 +95,9 @@ def add(
         if parent_exists is None:
             # 400, а не 404: URL запроса существует, неверна ссылка внутри тела.
             return (
-                request_status.Status(
-                    request_status.StatusType.ERROR,
-                    error_type=request_status.ErrorType.InvalidParameters,
-                    msg=f"Cannot find comment with id: {parent_id}",
+                request_status.Status.error(
+                    request_status.ErrorType.InvalidParameters,
+                    f"Cannot find comment with id: {parent_id}",
                 ),
                 None,
             )
@@ -111,7 +110,7 @@ def add(
     )
     session.add(comment)
     session.flush()
-    return request_status.Status(request_status.StatusType.OK), comment.id
+    return request_status.Status.ok(), comment.id
 
 
 def delete(session: Session, comment_id: int, username: str) -> request_status.Status:
@@ -138,14 +137,13 @@ def delete(session: Session, comment_id: int, username: str) -> request_status.S
     if comment is None:
         return request_status.not_found("comment with id", comment_id)
     if comment.author_username != username:
-        return request_status.Status(
-            request_status.StatusType.ERROR,
-            error_type=request_status.ErrorType.Forbidden,
-            msg="User cannot delete someone else's comment",
+        return request_status.Status.error(
+            request_status.ErrorType.Forbidden,
+            "User cannot delete someone else's comment",
         )
     comment.is_deleted = True
     session.flush()
-    return request_status.Status(request_status.StatusType.OK)
+    return request_status.Status.ok()
 
 
 def like(session: Session, comment_id: int, username: str) -> request_status.Status:
@@ -171,10 +169,9 @@ def like(session: Session, comment_id: int, username: str) -> request_status.Sta
         .scalar()
     )
     if author_username == username:
-        return request_status.Status(
-            request_status.StatusType.ERROR,
-            error_type=request_status.ErrorType.Forbidden,
-            msg="User cannot like or dislike their own comment",
+        return request_status.Status.error(
+            request_status.ErrorType.Forbidden,
+            "User cannot like or dislike their own comment",
         )
     lock_user_reactions(session, username)
     existing_dislike = (
@@ -191,7 +188,7 @@ def like(session: Session, comment_id: int, username: str) -> request_status.Sta
         session, scheme.CommentLike, comment_id=comment_id, username=username
     )
     session.flush()
-    return request_status.Status(request_status.StatusType.OK)
+    return request_status.Status.ok()
 
 
 def dislike(session: Session, comment_id: int, username: str) -> request_status.Status:
@@ -217,10 +214,9 @@ def dislike(session: Session, comment_id: int, username: str) -> request_status.
         .scalar()
     )
     if author_username == username:
-        return request_status.Status(
-            request_status.StatusType.ERROR,
-            error_type=request_status.ErrorType.Forbidden,
-            msg="User cannot like or dislike their own comment",
+        return request_status.Status.error(
+            request_status.ErrorType.Forbidden,
+            "User cannot like or dislike their own comment",
         )
     lock_user_reactions(session, username)
     existing_like = (
@@ -237,7 +233,7 @@ def dislike(session: Session, comment_id: int, username: str) -> request_status.
         session, scheme.CommentDislike, comment_id=comment_id, username=username
     )
     session.flush()
-    return request_status.Status(request_status.StatusType.OK)
+    return request_status.Status.ok()
 
 
 def remove_like(
@@ -263,7 +259,7 @@ def remove_like(
         scheme.CommentLike.comment_id == comment_id,
         scheme.CommentLike.username == username,
     ).delete()
-    return request_status.Status(request_status.StatusType.OK)
+    return request_status.Status.ok()
 
 
 def remove_dislike(
@@ -288,7 +284,7 @@ def remove_dislike(
         scheme.CommentDislike.comment_id == comment_id,
         scheme.CommentDislike.username == username,
     ).delete()
-    return request_status.Status(request_status.StatusType.OK)
+    return request_status.Status.ok()
 
 
 def _tree_node(comment: Row, comments: list) -> dict:
@@ -361,7 +357,7 @@ def from_article(
         if comment.parent_id is None
     ]
 
-    return request_status.Status(request_status.StatusType.OK), sorted_comments
+    return request_status.Status.ok(), sorted_comments
 
 
 def _count_likes(session: Session, comment_id: int) -> int:
@@ -414,9 +410,7 @@ def likes_count(
     """
     if is_comment_not_exist(session, comment_id):
         return request_status.not_found("comment with id", comment_id), None
-    return request_status.Status(request_status.StatusType.OK), _count_likes(
-        session, comment_id
-    )
+    return request_status.Status.ok(), _count_likes(session, comment_id)
 
 
 def dislikes_count(
@@ -435,9 +429,7 @@ def dislikes_count(
     """
     if is_comment_not_exist(session, comment_id):
         return request_status.not_found("comment with id", comment_id), None
-    return request_status.Status(request_status.StatusType.OK), _count_dislikes(
-        session, comment_id
-    )
+    return request_status.Status.ok(), _count_dislikes(session, comment_id)
 
 
 def rating(
@@ -459,7 +451,7 @@ def rating(
     rating_value = _count_likes(session, comment_id) - _count_dislikes(
         session, comment_id
     )
-    return request_status.Status(request_status.StatusType.OK), rating_value
+    return request_status.Status.ok(), rating_value
 
 
 def creation_date(
@@ -484,7 +476,7 @@ def creation_date(
         .scalar()
     )
 
-    return request_status.Status(request_status.StatusType.OK), date
+    return request_status.Status.ok(), date
 
 
 def is_liked(
@@ -503,9 +495,9 @@ def is_liked(
             - OK и `False` — если комментарий не существует.
     """
     if is_comment_not_exist(session, comment_id):
-        return request_status.Status(request_status.StatusType.OK), False
+        return request_status.Status.ok(), False
     return (
-        request_status.Status(request_status.StatusType.OK),
+        request_status.Status.ok(),
         not session.query(scheme.CommentLike)
         .where(
             scheme.CommentLike.comment_id == comment_id,
@@ -532,9 +524,9 @@ def is_disliked(
             - OK и `False` — если комментарий не существует.
     """
     if is_comment_not_exist(session, comment_id):
-        return request_status.Status(request_status.StatusType.OK), False
+        return request_status.Status.ok(), False
     return (
-        request_status.Status(request_status.StatusType.OK),
+        request_status.Status.ok(),
         not session.query(scheme.CommentDislike)
         .where(
             scheme.CommentDislike.comment_id == comment_id,
