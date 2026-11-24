@@ -31,7 +31,7 @@
 
 Реализуется сразу в едином формате ошибок и валидации из [0029](done/0029-unify-validation-422-and-pointer-detail.md).
 
-8. [0016](0016-mutable-default-in-type-defaults.md) — убрать разделяемый изменяемый список в `api_info.type_defaults`.
+8. ~~[0016](done/0016-mutable-default-in-type-defaults.md) — убрать разделяемый изменяемый список в `api_info.type_defaults`.~~ *(выполнено)*
 9. ~~[0010](done/0010-reject-invalid-json-body.md) — отклонять некорректное JSON-тело запроса во всех методах.~~ *(выполнено в рамках [0029](done/0029-unify-validation-422-and-pointer-detail.md))*
 10. [0014](0014-reject-unknown-request-fields.md) — отклонять неизвестные поля в JSON-теле и query-строке запросов.
 11. [0018](0018-reject-nul-and-control-chars.md) — запретить NUL-символы во всех входных данных и управляющие символы в однострочных полях.

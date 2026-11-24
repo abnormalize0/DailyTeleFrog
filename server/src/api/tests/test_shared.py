@@ -514,9 +514,55 @@ def test_fill_default() -> None:
     pattern = [
         {"name": "name", "type": "str"},
         {"name": "age", "type": "int"},
+        {"name": "title", "type": "str"},
+        {"name": "active", "type": "bool"},
     ]
 
     assert shared.fill_default({"name": "frog"}, pattern) == {
         "name": "frog",
-        "age": api_info.type_defaults["int"],
+        "age": None,
+        "title": "",
+        "active": True,
     }
+
+
+def test_fill_default_returns_independent_lists() -> None:
+    pattern = [
+        {"name": "include_tags", "type": "list"},
+        {"name": "exclude_tags", "type": "list"},
+    ]
+
+    first = shared.fill_default({}, pattern)
+    second = shared.fill_default({}, pattern)
+
+    assert first["include_tags"] == []
+    assert first["exclude_tags"] == []
+    assert first["include_tags"] is not first["exclude_tags"]
+    assert first["include_tags"] is not second["include_tags"]
+
+    first["include_tags"].append("rpg")
+
+    assert first["exclude_tags"] == []
+    assert second["include_tags"] == []
+    assert shared.fill_default({}, pattern)["include_tags"] == []
+
+
+def test_fill_default_returns_independent_dicts() -> None:
+    pattern = [
+        {"name": "meta", "type": "dict"},
+        {"name": "extra", "type": "dict"},
+    ]
+
+    first = shared.fill_default({}, pattern)
+    second = shared.fill_default({}, pattern)
+
+    assert first["meta"] == {}
+    assert first["extra"] == {}
+    assert first["meta"] is not first["extra"]
+    assert first["meta"] is not second["meta"]
+
+    first["meta"]["k"] = "v"
+
+    assert first["extra"] == {}
+    assert second["meta"] == {}
+    assert shared.fill_default({}, pattern)["meta"] == {}

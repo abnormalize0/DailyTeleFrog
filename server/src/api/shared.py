@@ -422,10 +422,11 @@ def fill_default(data: dict, pattern: list) -> dict:
         pattern: описание полей из api_info.
 
     Returns:
-        data, дополненный значениями из api_info.type_defaults там, где поле
-        отсутствовало.
+        data, дополненный результатами вызова фабрик из api_info.type_defaults
+        там, где поле отсутствовало (чтобы изменяемые типы получали новый
+        независимый экземпляр).
     """
     for value in pattern:
         if value["name"] not in data:
-            data[value["name"]] = api_info.type_defaults[value["type"]]
+            data[value["name"]] = api_info.type_defaults[value["type"]]()
     return data

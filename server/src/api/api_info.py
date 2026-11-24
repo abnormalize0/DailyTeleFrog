@@ -23,6 +23,8 @@ fill_default в shared.py проверяют по ним запросы, а об
 - "allowed": список допустимых значений скалярного поля.
 """
 
+from collections.abc import Callable
+
 from flask import Blueprint
 
 from ..db import scheme
@@ -65,11 +67,15 @@ _EMAIL_RULES = {
 # классы символов. Верхний предел защищает от очень длинных значений в запросе.
 _NEW_PASSWORD_RULES = {"min_length": 8, "max_length": 128}
 
-type_defaults = {
-    "int": None,
-    "str": "",
-    "list": [],
-    "bool": True,
+# Фабрики вместо готовых значений: для изменяемых типов (list, dict) каждый
+# вызов fill_default должен создавать новый независимый экземпляр, иначе мутация
+# поля в одном запросе изменит значение по умолчанию для остальных полей и запросов.
+type_defaults: dict[str, Callable[[], object]] = {
+    "int": lambda: None,
+    "str": str,
+    "list": list,
+    "dict": dict,
+    "bool": lambda: True,
 }
 
 
