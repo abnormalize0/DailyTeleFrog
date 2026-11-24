@@ -16,7 +16,8 @@ def test_error_type_table() -> None:
     # Таблица повторена в тесте намеренно: клиент опирается на эти значения,
     # и случайная правка ERROR_HTTP_MAP не должна проходить незамеченной.
     assert ERROR_HTTP_MAP == {
-        ErrorType.InvalidParameters: ("validation", "Invalid request parameters", 400),
+        ErrorType.BadRequest: ("bad-request", "Bad request", 400),
+        ErrorType.InvalidParameters: ("validation", "Invalid request parameters", 422),
         ErrorType.InvalidToken: ("invalid-token", "Missing or invalid token", 401),
         ErrorType.InvalidCredentials: (
             "invalid-credentials",
@@ -50,7 +51,7 @@ def test_problem_details_fields() -> None:
 
 
 def test_problem_details_includes_errors_only_when_present() -> None:
-    errors = [{"name": "title", "reason": "is required"}]
+    errors = [{"pointer": "/title", "detail": "is required"}]
     status = Status.error(ErrorType.InvalidParameters, "Bad", errors)
 
     assert problem_details(status)["errors"] == errors

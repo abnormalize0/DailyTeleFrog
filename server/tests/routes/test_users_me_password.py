@@ -65,7 +65,7 @@ def test_users_me_password_put(add_user: Callable) -> None:
     )
     assert_error(answer, "validation", "Wrong request parameters structure")
     assert answer.json()["errors"] == [
-        {"name": "new_password", "reason": "must be at least 8 characters"}
+        {"pointer": "/new_password", "detail": "must be at least 8 characters"}
     ]
 
     # Проверка, что без токена пароль не сменить.

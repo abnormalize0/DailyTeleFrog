@@ -23,16 +23,16 @@
 4. ~~[0033](done/0033-safe-status-interface.md) — сделать интерфейс `Status` безопасным через фабрики `Status.ok` / `Status.error` и валидацию в `__init__`.~~ *(выполнено)*
 5. ~~[0031](done/0031-decouple-db-from-flask-and-cleanup-proxies.md) — отвязать `src/db/` и `request_status.py` от Flask/HTTP и убрать однострочные прокси в `backend.py`.~~ *(выполнено)*
 6. ~~[0030](done/0030-flask-json-responses-and-options-sync.md) — перевести JSON-ответы API на нативный Flask и добавить проверку синхронности `OPTIONS`.~~ *(выполнено)*
-7. [0029](0029-unify-validation-422-and-pointer-detail.md) — разделить `400` и `422`, перейти на `pointer`/`detail` и унифицировать валидацию *(ключевая точка: все задачи этапа 2 пишутся уже под этот формат)*.
+7. ~~[0029](done/0029-unify-validation-422-and-pointer-detail.md) — разделить `400` и `422`, перейти на `pointer`/`detail` и унифицировать валидацию *(ключевая точка: все задачи этапа 2 пишутся уже под этот формат)*.~~ *(выполнено)*
 
 ---
 
 ## Этап 2. Валидация входных данных
 
-Реализуется сразу в едином формате ошибок и валидации из [0029](0029-unify-validation-422-and-pointer-detail.md).
+Реализуется сразу в едином формате ошибок и валидации из [0029](done/0029-unify-validation-422-and-pointer-detail.md).
 
 8. [0016](0016-mutable-default-in-type-defaults.md) — убрать разделяемый изменяемый список в `api_info.type_defaults`.
-9. [0010](0010-reject-invalid-json-body.md) — отклонять некорректное JSON-тело запроса во всех методах.
+9. ~~[0010](done/0010-reject-invalid-json-body.md) — отклонять некорректное JSON-тело запроса во всех методах.~~ *(выполнено в рамках [0029](done/0029-unify-validation-422-and-pointer-detail.md))*
 10. [0014](0014-reject-unknown-request-fields.md) — отклонять неизвестные поля в JSON-теле и query-строке запросов.
 11. [0018](0018-reject-nul-and-control-chars.md) — запретить NUL-символы во всех входных данных и управляющие символы в однострочных полях.
 12. [0011](0011-articles-indexes-validation.md) — ограничить значения и длину параметра `indexes` в `GET /articles`.

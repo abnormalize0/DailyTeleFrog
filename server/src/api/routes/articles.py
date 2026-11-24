@@ -6,13 +6,11 @@
 from flask.typing import ResponseReturnValue
 
 from ... import backend
-from ... import request_status
 from ... import config
 from ... import log
 from .. import api_info
 from ..shared import (
     app,
-    error_response,
     fill_default,
     get_session,
     optional_auth,
@@ -48,7 +46,9 @@ def api_articles_post() -> ResponseReturnValue:
         - article_id (int) — id созданной статьи.
 
     Ошибки:
-        - 400 /errors/validation — если в теле запроса отсутствует обязательное
+        - 400 /errors/bad-request — если тело не является корректным JSON-объектом
+          или отсутствует подходящий Content-Type.
+        - 422 /errors/validation — если в теле запроса отсутствует обязательное
           поле, у поля неверный тип, значение длиннее предела из
           api_info.articles_post, в title или в элементе tags нет ни одного
           видимого символа, body пустой (список полей в `errors`) или в tags есть
@@ -133,7 +133,7 @@ def api_articles_get() -> ResponseReturnValue:
           likes, dislikes, rating, comments_count, tags, is_liked, is_disliked.
 
     Ошибки:
-        - 400 /errors/validation — при неверных параметрах, в том числе если
+        - 422 /errors/validation — при неверных параметрах, в том числе если
           sort_column или sort_direction не равны одному из допустимых значений.
         - 401 /errors/invalid-token — если заголовок Authorization передан, но
           токен не найден или истёк.
@@ -154,18 +154,7 @@ def api_articles_get() -> ResponseReturnValue:
     parameters = fill_default(parameters, api_info.articles_get)
 
     sort_column = parameters.get("sort_column")
-    if sort_column and sort_column not in ["creation_date", "rating"]:
-        return error_response(
-            request_status.ErrorType.InvalidParameters,
-            'Parameter "sort_column" must have value "creation_date" or "rating"',
-        )
-
     sort_direction = parameters.get("sort_direction")
-    if sort_direction and sort_direction not in ["descending", "ascending"]:
-        return error_response(
-            request_status.ErrorType.InvalidParameters,
-            'Parameter "sort_direction" must have value "descending" or "ascending"',
-        )
 
     include = {}
     if parameters.get("include_tags"):

@@ -93,11 +93,13 @@ def add(
             .scalar()
         )
         if parent_exists is None:
-            # 400, а не 404: URL запроса существует, неверна ссылка внутри тела.
+            # 422, а не 404: URL запроса существует, неверна ссылка внутри тела.
+            detail = f"Cannot find comment with id: {parent_id}"
             return (
                 request_status.Status.error(
                     request_status.ErrorType.InvalidParameters,
-                    f"Cannot find comment with id: {parent_id}",
+                    detail,
+                    errors=[{"pointer": "/parent", "detail": detail}],
                 ),
                 None,
             )

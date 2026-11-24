@@ -122,7 +122,7 @@ def test_users_post() -> None:
         },
     )
     assert_error(answer, "validation", "Wrong request parameters structure")
-    assert answer.json()["errors"][0]["name"] == "description"
+    assert answer.json()["errors"][0]["pointer"] == "/description"
 
     # username is a primary key: same username with a different email must be rejected
     answer = requests.post(

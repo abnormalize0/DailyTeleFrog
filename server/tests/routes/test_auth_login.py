@@ -68,21 +68,34 @@ def test_auth_login_post(add_user: Callable) -> None:
     )
     assert_error(answer, "invalid-credentials", "Incorrect login or password")
 
-    # both username and email must be rejected
-    answer = requests.post(
-        LOCALHOST + endpoint,
-        json={"username": username, "email": email, "password": password},
-    )
-    assert_error(
-        answer, "validation", "User cannot log in with both username and email"
-    )
+    # both username and email must be rejected (even when one is empty)
+    for both in (
+        {"username": username, "email": "", "password": password},
+        {"username": "", "email": email, "password": password},
+        {"username": "", "email": "", "password": password},
+        {"username": username, "email": email, "password": password},
+    ):
+        answer = requests.post(LOCALHOST + endpoint, json=both)
+        assert_error(
+            answer, "validation", "User cannot log in with both username and email"
+        )
+        assert answer.json()["errors"] == [
+            {"pointer": "/username", "detail": "cannot be used together with email"},
+            {"pointer": "/email", "detail": "cannot be used together with username"},
+        ]
 
     # neither username nor email must be rejected, not crash
-    answer = requests.post(
-        LOCALHOST + endpoint,
-        json={"password": password},
-    )
-    assert_error(answer, "validation", "User must log in with username or email")
+    for empty_id in (
+        {"password": password},
+        {"username": "", "password": password},
+        {"email": "", "password": password},
+    ):
+        answer = requests.post(LOCALHOST + endpoint, json=empty_id)
+        assert_error(answer, "validation", "User must log in with username or email")
+        assert answer.json()["errors"] == [
+            {"pointer": "/username", "detail": "username or email is required"},
+            {"pointer": "/email", "detail": "username or email is required"},
+        ]
 
 
 def test_auth_login_removes_expired_tokens(

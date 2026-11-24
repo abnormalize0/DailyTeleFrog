@@ -36,7 +36,9 @@ def api_auth_refresh_post() -> ResponseReturnValue:
           (ротация).
 
     Ошибки:
-        - 400 /errors/validation — при некорректном теле запроса.
+        - 400 /errors/bad-request — если тело не является корректным JSON-объектом
+          или отсутствует подходящий Content-Type.
+        - 422 /errors/validation — при неверных значениях полей тела запроса.
         - 401 /errors/invalid-token — если refresh_token не найден или истёк
           (в этом случае нужно залогиниться заново через /auth/login).
 

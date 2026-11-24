@@ -19,7 +19,8 @@ WORKDIR = str(Path(os.getenv("MVP_PATH") or SERVER_ROOT) / "test_tmp")
 # Вид ошибки -> HTTP-код. Таблица повторяет api/errors.py::ERROR_HTTP_MAP намеренно:
 # тесты проверяют контракт с клиентом, а не сверяют код сам с собой.
 ERROR_CODES = {
-    "validation": 400,
+    "bad-request": 400,
+    "validation": 422,
     "invalid-token": 401,
     "invalid-credentials": 401,
     "forbidden": 403,
@@ -59,6 +60,9 @@ PATTERN_MISMATCH = "\x00 @"
 
 # Общий текст ошибки проверки структуры: причины по полям лежат в списке errors.
 STRUCTURE_ERROR = "Wrong request parameters structure"
+
+# Единый текст ошибки синтаксически некорректного тела запроса (400).
+BAD_BODY_ERROR = "Request body must be a JSON object"
 
 # В query-строке любое значение является строкой, поэтому неверный тип бывает
 # только у int и bool, а у списков — только у элементов (см. _wrong_query_value).
@@ -103,6 +107,16 @@ def assert_error(answer: requests.Response, error: str, detail: str) -> None:
     assert problem["status"] == code, problem
     assert problem["title"], problem
     assert problem["detail"] == detail, problem
+    if error == "validation":
+        errors = problem.get("errors")
+        assert isinstance(errors, list) and errors, problem
+        for item in errors:
+            assert set(item.keys()) == {"pointer", "detail"}, item
+            assert isinstance(item["pointer"], str), item
+            assert item["pointer"] == "" or item["pointer"].startswith("/"), item
+            assert isinstance(item["detail"], str) and item["detail"].strip(), item
+    else:
+        assert "errors" not in problem, problem
 
 
 def auth_headers(access_token: str) -> dict:
@@ -183,6 +197,8 @@ def _valid_value(field: dict) -> Any:
     Returns:
         Значение, проходящее проверку структуры.
     """
+    if field.get("allowed"):
+        return field["allowed"][0]
     if field.get("structure"):
         return [field["structure"][0]["name"]]
     if field.get("item_type") == "int":
@@ -229,7 +245,7 @@ def _too_long_value(field: dict) -> Any:
 def _assert_rejected(
     endpoint: str, method: str, key: str, params: dict, name: str, reason: str
 ) -> None:
-    """Отправляет запрос и проверяет, что сервер отверг параметр name с кодом 400 и
+    """Отправляет запрос и проверяет, что сервер отверг параметр name с кодом 422 и
     объяснил причину.
 
     Args:
@@ -245,8 +261,8 @@ def _assert_rejected(
     """
     answer = requests.request(method, LOCALHOST + endpoint, **{key: params})
     assert_error(answer, "validation", STRUCTURE_ERROR)
-    reasons = {error["name"]: error["reason"] for error in answer.json()["errors"]}
-    assert reasons.get(name, "").startswith(reason), answer.text
+    details = {error["pointer"]: error["detail"] for error in answer.json()["errors"]}
+    assert details.get(f"/{name}", "").startswith(reason), answer.text
 
 
 def _wrong_value_reason(field: dict, is_query: bool) -> str:
@@ -267,30 +283,34 @@ def _wrong_value_reason(field: dict, is_query: bool) -> str:
     return f"must be {field['type']}"
 
 
-def _check_body_is_required(endpoint: str, method: str, structure: list) -> None:
-    """Проверяет, что тело, не являющееся JSON-объектом, даёт 400 с перечнем
-    обязательных полей, а не 500.
+def _check_body_is_required(endpoint: str, method: str) -> None:
+    """Проверяет, что тело, не являющееся JSON-объектом, пустое тело или запрос без
+    подходящего Content-Type дают 400 /errors/bad-request для всех методов с JSON-телом,
+    включая методы без обязательных полей.
 
     Args:
         endpoint: путь запроса.
         method: HTTP-метод.
-        structure: описание параметров из `OPTIONS <endpoint>`.
 
     Returns:
         None
     """
-    required = {field["name"] for field in structure if field["is_required"]}
-    if not required:
-        return
-    for body in ("{broken", "[1, 2]"):
+    for body in ("{broken", "[1, 2]", '"str"', "123", "true", "null", ""):
         answer = requests.request(
             method,
             LOCALHOST + endpoint,
             data=body,
             headers={"Content-Type": "application/json"},
         )
-        assert_error(answer, "validation", STRUCTURE_ERROR)
-        assert {error["name"] for error in answer.json()["errors"]} == required
+        assert_error(answer, "bad-request", BAD_BODY_ERROR)
+    for headers in ({"Content-Type": "text/plain"}, None):
+        answer = requests.request(
+            method,
+            LOCALHOST + endpoint,
+            data='{"a": 1}',
+            headers=headers,
+        )
+        assert_error(answer, "bad-request", BAD_BODY_ERROR)
 
 
 def check_endpoint_structure(endpoint: str, method: str) -> None:
@@ -315,7 +335,7 @@ def check_endpoint_structure(endpoint: str, method: str) -> None:
     valid = {field["name"]: _valid_value(field) for field in structure}
 
     if not is_query:
-        _check_body_is_required(endpoint, method, structure)
+        _check_body_is_required(endpoint, method)
 
     for field in structure:
         name = field["name"]
@@ -380,6 +400,16 @@ def check_endpoint_structure(endpoint: str, method: str) -> None:
                 {**valid, name: invalid_text},
                 name,
                 "must be valid Unicode text",
+            )
+        if "allowed" in field:
+            bogus = "bogus_value" if field["type"] == "str" else -999999
+            _assert_rejected(
+                endpoint,
+                method,
+                key,
+                {**valid, name: bogus},
+                name,
+                "must be one of",
             )
         if field["is_required"]:
             without_field = {k: v for k, v in valid.items() if k != name}

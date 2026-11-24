@@ -8,6 +8,7 @@ from collections.abc import Callable
 import requests
 
 from tests.helpers import (
+    BAD_BODY_ERROR,
     LOCALHOST,
     assert_error,
     assert_ok,
@@ -190,6 +191,9 @@ def test_users_me_patch(add_user: Callable) -> None:
             headers=headers,
         )
         assert_error(answer, "validation", "Cannot find user with username: nobody")
+        assert answer.json()["errors"] == [
+            {"pointer": f"/{field}", "detail": "Cannot find user with username: nobody"}
+        ]
     assert read_field(ENDPOINT, "avatar", access_token) == avatar
 
     # Проверка, что PATCH применяет те же правила, что регистрация, и не меняет поля.
@@ -238,6 +242,25 @@ def test_users_me_patch(add_user: Callable) -> None:
         LOCALHOST + ENDPOINT, json={"nickname": nickname, "avatar": avatar}
     )
     assert_error(answer, "invalid-token", "Missing or invalid token")
+
+    # Проверка, что валидный пустой объект {} принимается как no-op (204),
+    # а битый JSON или неверный Content-Type возвращают 400 даже с токеном.
+    answer = requests.patch(LOCALHOST + ENDPOINT, json={}, headers=headers)
+    assert_ok(answer, 204)
+    assert read_field(ENDPOINT, "nickname", access_token) == user_name
+    for bad_body in ("{broken", "[1, 2]", ""):
+        answer = requests.patch(
+            LOCALHOST + ENDPOINT,
+            data=bad_body,
+            headers={**headers, "Content-Type": "application/json"},
+        )
+        assert_error(answer, "bad-request", BAD_BODY_ERROR)
+    answer = requests.patch(
+        LOCALHOST + ENDPOINT,
+        data='{"nickname": "x"}',
+        headers={**headers, "Content-Type": "text/plain"},
+    )
+    assert_error(answer, "bad-request", BAD_BODY_ERROR)
 
 
 def test_users_me_delete(add_user: Callable, add_article: Callable) -> None:

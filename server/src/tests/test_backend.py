@@ -174,6 +174,9 @@ def test_update_user_info_stops_at_first_error(
     assert_error_status(
         status, ErrorType.InvalidParameters, "Cannot find user with username: nobody"
     )
+    assert status.errors == [
+        {"pointer": "/sub-users", "detail": "Cannot find user with username: nobody"}
+    ]
     assert user.get_avatar(session, "frog")[1] is None
 
 
@@ -189,6 +192,9 @@ def test_post_article_rejects_duplicate_tags(
     assert_error_status(
         status, ErrorType.InvalidParameters, "Article tags must be unique"
     )
+    assert status.errors == [
+        {"pointer": "/tags", "detail": "must not contain duplicates"}
+    ]
     assert article_id is None
 
 

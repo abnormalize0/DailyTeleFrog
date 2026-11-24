@@ -176,7 +176,7 @@ def test_add_tags_rejects_duplicates_ignoring_case(
         status, ErrorType.InvalidParameters, "Article tags must be unique"
     )
     assert status.errors == [
-        {"name": "tags", "reason": "must not contain duplicates"}
+        {"pointer": "/tags", "detail": "must not contain duplicates"}
     ]
 
 

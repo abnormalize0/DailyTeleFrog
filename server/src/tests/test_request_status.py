@@ -23,12 +23,19 @@ def test_status_factories() -> None:
     assert ok.msg is None
     assert ok.errors is None
 
-    errors = [{"name": "title", "reason": "is required"}]
+    errors = [{"pointer": "/title", "detail": "is required"}]
     err = Status.error(ErrorType.InvalidParameters, "Bad", errors=errors)
     assert err.is_error
     assert err.error_type == ErrorType.InvalidParameters
     assert err.msg == "Bad"
     assert err.errors == errors
+
+    root_err = Status.error(
+        ErrorType.InvalidParameters,
+        "Bad",
+        errors=[{"pointer": "", "detail": "request is invalid"}],
+    )
+    assert root_err.errors == [{"pointer": "", "detail": "request is invalid"}]
 
 
 def test_status_is_error() -> None:
@@ -67,12 +74,48 @@ def test_status_error_rejects_blank_msg(blank_msg: str) -> None:
 
 
 def test_status_error_rejects_non_list_errors() -> None:
-    with pytest.raises(TypeError, match="list or None"):
+    with pytest.raises(TypeError, match="list"):
         Status.error(
             ErrorType.InvalidParameters,
             "Bad",
             errors="oops",  # type: ignore[arg-type]
         )
+
+
+@pytest.mark.parametrize(
+    "bad_errors",
+    [
+        None,
+        [],
+        ["not-a-dict"],
+        [{"name": "title", "reason": "is required"}],
+        [{"pointer": "/title"}],
+        [{"pointer": "/title", "detail": "ok", "extra": 1}],
+        [{"pointer": 123, "detail": "is required"}],
+        [{"pointer": "/title", "detail": 123}],
+        [{"pointer": "title", "detail": "is required"}],
+        [{"pointer": "   ", "detail": "is required"}],
+        [{"pointer": "/title", "detail": ""}],
+        [{"pointer": "/title", "detail": "   "}],
+    ],
+)
+def test_status_invalid_parameters_requires_valid_errors(bad_errors: object) -> None:
+    with pytest.raises((TypeError, ValueError)):
+        Status.error(
+            ErrorType.InvalidParameters,
+            "Bad",
+            errors=bad_errors,  # type: ignore[arg-type]
+        )
+
+
+def test_status_non_validation_error_rejects_errors() -> None:
+    for error_type in (ErrorType.BadRequest, ErrorType.NotFound):
+        with pytest.raises(ValueError, match="InvalidParameters"):
+            Status.error(
+                error_type,
+                "Bad",
+                errors=[{"pointer": "/title", "detail": "is required"}],
+            )
 
 
 @pytest.mark.parametrize(

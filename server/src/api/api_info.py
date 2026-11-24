@@ -19,7 +19,8 @@ fill_default в shared.py проверяют по ним запросы, а об
   хотя бы один видимый символ: пробелы, табы, переносы строк и непечатные символы
   видимыми не считаются;
 - "pattern" и "pattern_reason": регулярное выражение, которому значение должно
-  соответствовать целиком, и причина ошибки, если оно не соответствует.
+  соответствовать целиком, и причина ошибки, если оно не соответствует;
+- "allowed": список допустимых значений скалярного поля.
 """
 
 from flask import Blueprint
@@ -133,12 +134,19 @@ articles_get = [
         "is_required": False,
         "container": "query",
     },
-    {"name": "sort_column", "type": "str", "is_required": False, "container": "query"},
+    {
+        "name": "sort_column",
+        "type": "str",
+        "is_required": False,
+        "container": "query",
+        "allowed": ["creation_date", "rating"],
+    },
     {
         "name": "sort_direction",
         "type": "str",
         "is_required": False,
         "container": "query",
+        "allowed": ["descending", "ascending"],
     },
     {"name": "upper_date", "type": "int", "is_required": False, "container": "query"},
     {"name": "lower_date", "type": "int", "is_required": False, "container": "query"},

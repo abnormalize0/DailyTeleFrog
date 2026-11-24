@@ -52,8 +52,8 @@ def api_articles_like_put(article_id: int):
 ## 5. Шаблон тела метода
 
 Шаги идут в таком порядке (образец — `api_articles_post`):
-1. `read_body(api_info.<схема>)` или `read_query(api_info.<схема>)`. Обе функции возвращают `(параметры, ошибка)`. Если ошибка есть, сразу верни её: это готовый ответ 400.
-2. Остальные проверки параметров, которые можно сделать без БД, через `error_response(ErrorType.<вид>, "текст")`.
+1. `read_body(api_info.<схема>)` или `read_query(api_info.<схема>)`. Обе функции возвращают `(параметры, ошибка)`. Если ошибка есть, сразу верни её: это готовый ответ 400 (для невалидного JSON-тела) или 422 (для ошибок полей).
+2. Остальные проверки параметров, которые можно сделать без БД, через `error_response(ErrorType.<вид>, "текст", errors=...)` (для `InvalidParameters` список `errors` вида `[{"pointer": "/...", "detail": "..."}]` обязателен).
 3. `fill_default(…)` для необязательных полей (кроме PATCH: там отсутствие поля значит «не менять»).
 4. Сессия `with get_session() as session:`, затем `require_auth` или `optional_auth`, вызов `backend`/`db`. При ошибке `session.rollback()` и `return problem_response(status)` (импортируется из `..shared` / `src/api/errors.py`), при успехе `session.commit()`. Метод атомарен (см. `decisions/0009-api-atomicity.md`): при ответе 2xx применены все изменения, при любом другом ответе не изменилась ни одна строка. Поэтому на запрос приходится одна сессия и один `commit`, а `backend` и `db` делают только `flush`. Проверка перед записью не защищает от параллельного запроса: строку-связь добавляй через `rows.add_if_missing`, а уникальное значение защищай перехватом `IntegrityError` при `flush`. Взаимоисключающие строки в разных таблицах защищай блокировкой строки владельца; если метод за одну транзакцию меняет несколько полей или связей со ссылками на других пользователей, бери блокировки владельца и всех адресатов **до любых записей и в едином порядке по БД**, чтобы исключить дедлоки на составных запросах.
 5. Успешный ответ: нативные возвраты Flask — `return data`, `return data, 201, {"Location": ...}` или `return "", 204`.
@@ -62,7 +62,7 @@ def api_articles_like_put(article_id: int):
 
 Метод следует классическому REST (см. `dailytelefrog-backend`, раздел «Формат API»):
 - идентификатор ресурса в пути, параметры GET в query-строке, данные POST/PUT/PATCH в JSON-теле;
-- HTTP-код задаётся `ErrorType`: 400 `InvalidParameters`, 401 `InvalidToken` и `InvalidCredentials`, 403 `Forbidden`, 404 `NotFound`, 409 `Conflict`, 500 `UnexpectedError`;
+- HTTP-код задаётся `ErrorType`: 400 `BadRequest`, 422 `InvalidParameters` (с обязательным `errors: [{"pointer", "detail"}]`), 401 `InvalidToken` и `InvalidCredentials`, 403 `Forbidden`, 404 `NotFound`, 409 `Conflict`, 500 `UnexpectedError`;
 - PUT и DELETE идемпотентны: повторный вызов даёт тот же результат и ту же успешную реакцию;
 - каждое значение, которое попадает в БД, имеет предел в схеме `api_info.py`: `max_length` для `String(n)` (берётся из колонки), `max_bytes` для `Text`, `item_type` и `item_max_length` для списков. Иначе длинное значение вернётся как 500;
 - содержимое, которое не может быть пустым, помечается `not_blank` или `item_not_blank`, а поля с форматом получают `min_length` и `pattern` с `pattern_reason` (см. `decisions/0007-input-rules.md`). Новые поля учётной записи используют общие правила из `api_info.py`, чтобы PATCH и регистрация проверяли одно и то же.

@@ -72,7 +72,7 @@ def test_articles_comments_post(add_user: Callable, add_article: Callable) -> No
         )
         assert_error(answer, "validation", "Wrong request parameters structure")
         assert answer.json()["errors"] == [
-            {"name": "text", "reason": "must not be blank"}
+            {"pointer": "/text", "detail": "must not be blank"}
         ]
 
     # Попытка ответить на несуществующий комментарий.
@@ -82,6 +82,9 @@ def test_articles_comments_post(add_user: Callable, add_article: Callable) -> No
         headers=auth_headers(access_token),
     )
     assert_error(answer, "validation", "Cannot find comment with id: 1001")
+    assert answer.json()["errors"] == [
+        {"pointer": "/parent", "detail": "Cannot find comment with id: 1001"}
+    ]
 
     # Проверка, что к несуществующей статье комментарий не оставить.
     answer = requests.post(

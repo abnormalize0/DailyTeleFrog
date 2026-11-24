@@ -8,6 +8,7 @@ from collections.abc import Callable
 import requests
 
 from tests.helpers import (
+    BAD_BODY_ERROR,
     LOCALHOST,
     assert_error,
     assert_ok,
@@ -75,7 +76,7 @@ def test_articles_post(add_user: Callable, add_article: Callable) -> None:
         headers=auth_headers(access_token),
     )
     assert_error(answer, "validation", "Wrong request parameters structure")
-    assert answer.json()["errors"][0]["name"] == "preview"
+    assert answer.json()["errors"][0]["pointer"] == "/preview"
 
     # Проверка, что нельзя выставить статье одинаковые теги, в том числе отличающиеся
     # только регистром, и что статья при этом не создаётся.
@@ -89,7 +90,9 @@ def test_articles_post(add_user: Callable, add_article: Callable) -> None:
             headers=auth_headers(access_token),
         )
         assert_error(answer, "validation", "Article tags must be unique")
-        assert answer.json()["errors"][0]["name"] == "tags"
+        assert answer.json()["errors"] == [
+            {"pointer": "/tags", "detail": "must not contain duplicates"}
+        ]
     articles_after = len(
         requests.get(LOCALHOST + ENDPOINT, params={"indexes": 0}).json()["pages"]["0"]
     )
@@ -107,7 +110,7 @@ def test_articles_post(add_user: Callable, add_article: Callable) -> None:
         )
         assert_error(answer, "validation", "Wrong request parameters structure")
         assert answer.json()["errors"] == [
-            {"name": "tags", "reason": "items must not be blank"}
+            {"pointer": "/tags", "detail": "items must not be blank"}
         ]
     articles_after = len(
         requests.get(LOCALHOST + ENDPOINT, params={"indexes": 0}).json()["pages"]["0"]
@@ -136,13 +139,13 @@ def test_articles_post(add_user: Callable, add_article: Callable) -> None:
         "Missing or invalid token",
     )
 
-    # Проверка, что тело не в формате JSON даёт 400, а не 500.
+    # Проверка, что тело не в формате JSON даёт 400 /errors/bad-request, а не 500.
     answer = requests.post(
         LOCALHOST + ENDPOINT,
         data="{not json",
         headers={**auth_headers(access_token), "Content-Type": "application/json"},
     )
-    assert_error(answer, "validation", "Wrong request parameters structure")
+    assert_error(answer, "bad-request", BAD_BODY_ERROR)
 
 
 def test_articles_get(
@@ -169,28 +172,40 @@ def test_articles_get(
     like_article(article_3, access_token2)
     like_article(article_3, liker_token)
 
+    # Проверка, что допустимые значения sort_column и sort_direction отдаются в OPTIONS.
+    get_schema = {
+        field["name"]: field
+        for field in requests.options(LOCALHOST + ENDPOINT).json()["get"]
+    }
+    assert get_schema["sort_column"]["allowed"] == ["creation_date", "rating"]
+    assert get_schema["sort_direction"]["allowed"] == ["descending", "ascending"]
+
     # invalid sort_column / sort_direction values
     answer = requests.get(
         LOCALHOST + ENDPOINT,
         params={"indexes": 0, "sort_column": "bogus_column"},
         headers=headers,
     )
-    assert_error(
-        answer,
-        "validation",
-        'Parameter "sort_column" must have value "creation_date" or "rating"',
-    )
+    assert_error(answer, "validation", "Wrong request parameters structure")
+    assert answer.json()["errors"] == [
+        {
+            "pointer": "/sort_column",
+            "detail": "must be one of ['creation_date', 'rating']",
+        }
+    ]
 
     answer = requests.get(
         LOCALHOST + ENDPOINT,
         params={"indexes": 0, "sort_direction": "sideways"},
         headers=headers,
     )
-    assert_error(
-        answer,
-        "validation",
-        'Parameter "sort_direction" must have value "descending" or "ascending"',
-    )
+    assert_error(answer, "validation", "Wrong request parameters structure")
+    assert answer.json()["errors"] == [
+        {
+            "pointer": "/sort_direction",
+            "detail": "must be one of ['descending', 'ascending']",
+        }
+    ]
 
     # Проверка, что неверный токен не превращает запрос в анонимный.
     answer = requests.get(

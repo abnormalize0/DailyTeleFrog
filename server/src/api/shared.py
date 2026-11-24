@@ -271,37 +271,53 @@ def check_structure(data: dict, pattern: list) -> list:
         pattern: описание ожидаемых полей из api_info.
 
     Returns:
-        Список неверных полей вида {"name", "reason"}; пустой, если всё верно.
+        Список неверных полей вида {"pointer", "detail"}; пустой, если всё верно.
     """
     errors = []
     for element in pattern:
         name = element["name"]
+        pointer = f"/{name}"
         if name not in data:
             if element["is_required"]:
-                errors.append({"name": name, "reason": "is required"})
+                errors.append({"pointer": pointer, "detail": "is required"})
             continue
         value = data[name]
         if type(value) != getattr(builtins, element["type"]):
-            errors.append({"name": name, "reason": f"must be {element['type']}"})
+            errors.append({"pointer": pointer, "detail": f"must be {element['type']}"})
             continue
         # Раньше проверки размера: _stored_size кодирует значение в UTF-8.
         if not _is_valid_text(value):
-            errors.append({"name": name, "reason": "must be valid Unicode text"})
+            errors.append({"pointer": pointer, "detail": "must be valid Unicode text"})
+            continue
+        allowed_scalar = element.get("allowed")
+        if (
+            allowed_scalar is not None
+            and element["type"] != "list"
+            and value not in allowed_scalar
+        ):
+            errors.append(
+                {"pointer": pointer, "detail": f"must be one of {allowed_scalar}"}
+            )
             continue
         if element["type"] == "list":
             allowed = [field["name"] for field in element.get("structure", [])]
             if allowed and any(item not in allowed for item in value):
-                errors.append({"name": name, "reason": f"must be one of {allowed}"})
+                errors.append(
+                    {"pointer": pointer, "detail": f"must be one of {allowed}"}
+                )
                 continue
             item_type = getattr(builtins, element.get("item_type", ""), None)
             if item_type and any(type(item) != item_type for item in value):
                 errors.append(
-                    {"name": name, "reason": f"must contain {element['item_type']}"}
+                    {
+                        "pointer": pointer,
+                        "detail": f"must contain {element['item_type']}",
+                    }
                 )
                 continue
         reason = _check_limits(value, element)
         if reason:
-            errors.append({"name": name, "reason": reason})
+            errors.append({"pointer": pointer, "detail": reason})
     return errors
 
 
@@ -314,7 +330,7 @@ def _validated(data: dict, pattern: list) -> tuple:
 
     Returns:
         Кортеж (dict, None) — параметры, если они верны.
-        Кортеж (None, Response) — ответ 400, который метод должен сразу вернуть.
+        Кортеж (None, Response) — ответ 422, который метод должен сразу вернуть.
     """
     errors = check_structure(data, pattern)
     if errors:
@@ -333,11 +349,18 @@ def read_body(pattern: list) -> tuple:
         pattern: описание ожидаемых полей из api_info.
 
     Returns:
-        См. `_validated`. Тело, которое не является JSON-объектом, считается
-        пустым: клиент получит 400 с перечнем обязательных полей, а не 500.
+        Кортеж (dict, None) — параметры, если тело — JSON-объект и прошло проверку.
+        Кортеж (None, Response) — ответ 400 /errors/bad-request, если тело
+        не разобралось в JSON-объект, либо 422 /errors/validation при ошибках
+        значений полей (см. decisions/0011-validation-422-and-pointer-detail.md).
     """
     body = request.get_json(silent=True)
-    return _validated(body if isinstance(body, dict) else {}, pattern)
+    if not isinstance(body, dict):
+        return None, error_response(
+            request_status.ErrorType.BadRequest,
+            "Request body must be a JSON object",
+        )
+    return _validated(body, pattern)
 
 
 def _parse_query_value(value: str, type_name: str) -> int | bool | str:

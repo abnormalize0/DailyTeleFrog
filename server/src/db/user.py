@@ -75,19 +75,22 @@ def _self_reference() -> request_status.Status:
     )
 
 
-def _unknown_target_user(username: str) -> request_status.Status:
+def _unknown_target_user(username: str, pointer: str) -> request_status.Status:
     """Строит ошибку для ссылки на несуществующего пользователя в теле запроса.
 
     Args:
         username: username из тела запроса.
+        pointer: JSON Pointer на поле запроса (например, "/sub-users").
 
     Returns:
-        `Status` с типом InvalidParameters: 400, а не 404, потому что URL
-        запроса существует, а неверна ссылка внутри тела (см. decisions/0004).
+        `Status` с типом InvalidParameters: 422, а не 404, потому что URL
+        запроса существует, а неверна ссылка внутри тела (см. decisions/0004 и 0011).
     """
+    detail = f"Cannot find user with username: {username}"
     return request_status.Status.error(
         request_status.ErrorType.InvalidParameters,
-        f"Cannot find user with username: {username}",
+        detail,
+        errors=[{"pointer": pointer, "detail": detail}],
     )
 
 
@@ -426,7 +429,7 @@ def sub_user(session: Session, username: str, sub: str) -> request_status.Status
     if sub == username:
         return _self_reference()
     if is_user_not_exist(session=session, username=sub):
-        return _unknown_target_user(sub)
+        return _unknown_target_user(sub, "/sub-users")
     block_user = (
         session.query(scheme.UserBlacklist)
         .where(
@@ -466,7 +469,7 @@ def block_user(
     if blocked_user == username:
         return _self_reference()
     if is_user_not_exist(session=session, username=blocked_user):
-        return _unknown_target_user(blocked_user)
+        return _unknown_target_user(blocked_user, "/blocked-users")
     sub_user = (
         session.query(scheme.UserSubscription)
         .where(

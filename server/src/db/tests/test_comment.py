@@ -100,6 +100,12 @@ def test_add_rejects_parent_from_other_article(
         ErrorType.InvalidParameters,
         f"Cannot find comment with id: {foreign_parent}",
     )
+    assert status.errors == [
+        {
+            "pointer": "/parent",
+            "detail": f"Cannot find comment with id: {foreign_parent}",
+        }
+    ]
     assert comment_id is None
 
 
@@ -114,6 +120,9 @@ def test_add_rejects_deleted_parent(session: Session, add_user: Callable) -> Non
     assert_error_status(
         status, ErrorType.InvalidParameters, f"Cannot find comment with id: {parent}"
     )
+    assert status.errors == [
+        {"pointer": "/parent", "detail": f"Cannot find comment with id: {parent}"}
+    ]
 
 
 def test_delete_errors_and_idempotency(session: Session, add_user: Callable) -> None:

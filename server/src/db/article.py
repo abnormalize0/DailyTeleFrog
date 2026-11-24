@@ -126,7 +126,7 @@ def add_tags(
         return request_status.Status.error(
             request_status.ErrorType.InvalidParameters,
             "Article tags must be unique",
-            errors=[{"name": "tags", "reason": "must not contain duplicates"}],
+            errors=[{"pointer": "/tags", "detail": "must not contain duplicates"}],
         )
     return request_status.Status.ok()
 

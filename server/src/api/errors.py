@@ -15,9 +15,11 @@ from flask import Response
 from ..request_status import ErrorType, Status
 
 # Одна таблица для slug, title и HTTP-кода, чтобы код ответа и `type` нельзя
-# было рассинхронизировать (см. decisions/0004-rest-api.md).
+# было рассинхронизировать (см. decisions/0004-rest-api.md и
+# decisions/0011-validation-422-and-pointer-detail.md).
 ERROR_HTTP_MAP: dict[ErrorType, tuple[str, str, int]] = {
-    ErrorType.InvalidParameters: ("validation", "Invalid request parameters", 400),
+    ErrorType.BadRequest: ("bad-request", "Bad request", 400),
+    ErrorType.InvalidParameters: ("validation", "Invalid request parameters", 422),
     ErrorType.InvalidToken: ("invalid-token", "Missing or invalid token", 401),
     ErrorType.InvalidCredentials: ("invalid-credentials", "Invalid credentials", 401),
     ErrorType.Forbidden: ("forbidden", "Forbidden", 403),

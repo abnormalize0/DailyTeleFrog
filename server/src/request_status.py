@@ -11,10 +11,14 @@ class ErrorType(enum.Enum):
     """Доменные виды ошибок операций.
 
     HTTP-коды и поля Problem Details (RFC 9457) сопоставляются с ними в
-    `src/api/errors.py` (см. decisions/0004-rest-api.md), чтобы нижние слои
+    `src/api/errors.py` (см. decisions/0004-rest-api.md и
+    decisions/0011-validation-422-and-pointer-detail.md), чтобы нижние слои
     (`src/db/`, `src/backend.py`) не зависели от веб-фреймворка.
     """
 
+    # Синтаксически некорректный запрос (битый JSON, не-объект, неверный Content-Type): 400.
+    BadRequest = enum.auto()
+    # Семантическая ошибка валидации параметров или значений: 422 с массивом errors.
     InvalidParameters = enum.auto()
     InvalidToken = enum.auto()
     # Отдельно от InvalidToken: клиент на invalid-token обновляет токены через
@@ -47,8 +51,9 @@ class Status:
             status_type: `StatusType` — OK или ERROR.
             error_type: `ErrorType`, обязателен при `status_type == StatusType.ERROR`.
             msg: текст про этот конкретный случай, используется при ERROR.
-            errors: список неверных полей запроса вида {"name", "reason"}, только
-                для ошибок валидации.
+            errors: непустой список неверных полей вида {"pointer", "detail"},
+                обязателен для `InvalidParameters` и запрещён (`None`) для
+                остальных видов ошибок (см. decisions/0011-validation-422-and-pointer-detail.md).
 
         Returns:
             None
@@ -65,8 +70,28 @@ class Status:
                 raise TypeError("msg must be a str for ERROR status")
             if not msg.strip():
                 raise ValueError("msg must be a non-empty string for ERROR status")
-            if errors is not None and not isinstance(errors, list):
-                raise TypeError("errors must be a list or None")
+            if error_type == ErrorType.InvalidParameters:
+                if not isinstance(errors, list):
+                    raise TypeError("errors must be a list for InvalidParameters")
+                if not errors:
+                    raise ValueError("errors must be non-empty for InvalidParameters")
+                for item in errors:
+                    if not isinstance(item, dict):
+                        raise TypeError("each item in errors must be a dict")
+                    if set(item.keys()) != {"pointer", "detail"}:
+                        raise ValueError(
+                            "each item in errors must have only 'pointer' and 'detail'"
+                        )
+                    if not isinstance(item["pointer"], str) or not isinstance(
+                        item["detail"], str
+                    ):
+                        raise TypeError("error 'pointer' and 'detail' must be strings")
+                    if item["pointer"] != "" and not item["pointer"].startswith("/"):
+                        raise ValueError("error 'pointer' must be '' or start with '/'")
+                    if not item["detail"].strip():
+                        raise ValueError("error 'detail' must be a non-empty string")
+            elif errors is not None:
+                raise ValueError("errors is only allowed for InvalidParameters")
 
         self._status_type = status_type
         self._error_type = error_type
@@ -97,7 +122,9 @@ class Status:
         Args:
             error_type: вид ошибки из таблицы `ErrorType`.
             msg: понятное пользователю описание ошибки (поле `detail`).
-            errors: список неверных полей запроса, только для ошибок валидации.
+            errors: непустой список неверных полей вида {"pointer", "detail"};
+                обязателен для `InvalidParameters` и запрещён (`None`) для
+                остальных видов ошибок.
 
         Returns:
             `Status` с типом `StatusType.ERROR`.

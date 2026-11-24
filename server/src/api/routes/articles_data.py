@@ -43,7 +43,7 @@ def api_articles_data_get(article_id: int) -> ResponseReturnValue:
         is_disliked (bool).
 
     Ошибки:
-        - 400 /errors/validation — если requested_data отсутствует или содержит
+        - 422 /errors/validation — если requested_data отсутствует или содержит
           имя поля не из допустимого списка.
         - 401 /errors/invalid-token — если заголовок Authorization передан, но
           токен не найден или истёк.

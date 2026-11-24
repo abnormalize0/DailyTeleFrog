@@ -60,6 +60,9 @@ supersedes: 0001
 
 ### Виды ошибок
 
+> [!NOTE]
+> Коды `400` vs `422` (`BadRequest` / `InvalidParameters`) и формат `errors` (`pointer`/`detail` вместо `name`/`reason`) уточнены в [0011](0011-validation-422-and-pointer-detail.md).
+
 | `ErrorType` | `type` | Код | Когда |
 |---|---|---|---|
 | `InvalidParameters` | `/errors/validation` | 400 | Неверные параметры, значение длиннее предела, ссылка на несуществующий объект в теле запроса |

@@ -171,7 +171,10 @@ def test_sub_user_replaces_block(session: Session, add_user: Callable) -> None:
 def test_user_relations_errors(session: Session, add_user: Callable) -> None:
     add_user("frog")
 
-    for action in (user.sub_user, user.block_user):
+    for action, pointer in (
+        (user.sub_user, "/sub-users"),
+        (user.block_user, "/blocked-users"),
+    ):
         assert_error_status(
             action(session, "nobody", "frog"),
             ErrorType.NotFound,
@@ -182,11 +185,15 @@ def test_user_relations_errors(session: Session, add_user: Callable) -> None:
             ErrorType.Forbidden,
             "User cannot subscribe to or block themselves",
         )
+        status = action(session, "frog", "nobody")
         assert_error_status(
-            action(session, "frog", "nobody"),
+            status,
             ErrorType.InvalidParameters,
             "Cannot find user with username: nobody",
         )
+        assert status.errors == [
+            {"pointer": pointer, "detail": "Cannot find user with username: nobody"}
+        ]
 
 
 def test_get_rating_skips_deleted_content(session: Session, add_user: Callable) -> None:
@@ -217,11 +224,15 @@ def test_cannot_subscribe_to_deleted_user(session: Session, add_user: Callable) 
     add_user("toad")
     user.delete(session, "toad")
 
+    status = user.sub_user(session, "frog", "toad")
     assert_error_status(
-        user.sub_user(session, "frog", "toad"),
+        status,
         ErrorType.InvalidParameters,
         "Cannot find user with username: toad",
     )
+    assert status.errors == [
+        {"pointer": "/sub-users", "detail": "Cannot find user with username: toad"}
+    ]
 
 
 def test_update_email_conflict_keeps_old_value(

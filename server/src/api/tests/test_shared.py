@@ -14,11 +14,11 @@ NAME_FIELD = {"name": "name", "type": "str", "is_required": True}
 
 
 def test_error_response() -> None:
-    errors = [{"name": "title", "reason": "is required"}]
+    errors = [{"pointer": "/title", "detail": "is required"}]
 
     response = shared.error_response(ErrorType.InvalidParameters, "Bad", errors)
 
-    assert response.status_code == 400
+    assert response.status_code == 422
     assert response.get_json(force=True)["errors"] == errors
 
 
@@ -301,7 +301,7 @@ def test_check_structure_required_and_optional() -> None:
     pattern = [NAME_FIELD, {"name": "age", "type": "int", "is_required": False}]
 
     assert shared.check_structure({}, pattern) == [
-        {"name": "name", "reason": "is required"}
+        {"pointer": "/name", "detail": "is required"}
     ]
 
 
@@ -310,7 +310,7 @@ def test_check_structure_reports_all_errors() -> None:
 
     errors = shared.check_structure({"age": "old"}, pattern)
 
-    assert [error["name"] for error in errors] == ["name", "age"]
+    assert [error["pointer"] for error in errors] == ["/name", "/age"]
 
 
 def test_check_structure_does_not_accept_bool_as_int() -> None:
@@ -318,7 +318,7 @@ def test_check_structure_does_not_accept_bool_as_int() -> None:
     pattern = [{"name": "age", "type": "int", "is_required": True}]
 
     assert shared.check_structure({"age": True}, pattern) == [
-        {"name": "age", "reason": "must be int"}
+        {"pointer": "/age", "detail": "must be int"}
     ]
 
 
@@ -337,7 +337,7 @@ def test_check_structure_rejects_invalid_unicode(type_name: str, value: object) 
     pattern = [{"name": "field", "type": type_name, "is_required": True}]
 
     assert shared.check_structure({"field": value}, pattern) == [
-        {"name": "field", "reason": "must be valid Unicode text"}
+        {"pointer": "/field", "detail": "must be valid Unicode text"}
     ]
 
 
@@ -353,7 +353,7 @@ def test_check_structure_invalid_unicode_with_byte_limit() -> None:
 
     errors = shared.check_structure({"field": "\ud800"}, pattern)
 
-    assert errors == [{"name": "field", "reason": "must be valid Unicode text"}]
+    assert errors == [{"pointer": "/field", "detail": "must be valid Unicode text"}]
 
 
 def test_check_structure_list_allowed_values() -> None:
@@ -368,7 +368,30 @@ def test_check_structure_list_allowed_values() -> None:
 
     assert shared.check_structure({"requested_data": ["email"]}, pattern) == []
     errors = shared.check_structure({"requested_data": ["password"]}, pattern)
-    assert errors[0]["reason"] == "must be one of ['nickname', 'email']"
+    assert errors == [
+        {"pointer": "/requested_data", "detail": "must be one of ['nickname', 'email']"}
+    ]
+
+
+def test_check_structure_scalar_allowed_values() -> None:
+    pattern = [
+        {
+            "name": "sort_column",
+            "type": "str",
+            "is_required": False,
+            "allowed": ["creation_date", "rating"],
+        }
+    ]
+
+    assert shared.check_structure({}, pattern) == []
+    assert shared.check_structure({"sort_column": "rating"}, pattern) == []
+    for bad_value in ("bogus", ""):
+        assert shared.check_structure({"sort_column": bad_value}, pattern) == [
+            {
+                "pointer": "/sort_column",
+                "detail": "must be one of ['creation_date', 'rating']",
+            }
+        ]
 
 
 def test_check_structure_list_item_type() -> None:
@@ -378,7 +401,7 @@ def test_check_structure_list_item_type() -> None:
 
     assert shared.check_structure({"tags": ["a"]}, pattern) == []
     assert shared.check_structure({"tags": [1]}, pattern) == [
-        {"name": "tags", "reason": "must contain str"}
+        {"pointer": "/tags", "detail": "must contain str"}
     ]
 
 
@@ -386,21 +409,22 @@ def test_check_structure_applies_limits() -> None:
     pattern = [{**NAME_FIELD, "max_length": 2}]
 
     assert shared.check_structure({"name": "abc"}, pattern) == [
-        {"name": "name", "reason": "must be at most 2 characters"}
+        {"pointer": "/name", "detail": "must be at most 2 characters"}
     ]
 
 
-def test_read_body_invalid_unicode_is_400() -> None:
+def test_read_body_invalid_unicode_is_422() -> None:
     with shared.app.test_request_context(
         data='{"name": "\\ud800"}', content_type="application/json"
     ):
         data, response = shared.read_body([NAME_FIELD])
 
     assert data is None
+    assert response.status_code == 422
     problem = response.get_json(force=True)
     assert problem["detail"] == "Wrong request parameters structure"
     assert problem["errors"] == [
-        {"name": "name", "reason": "must be valid Unicode text"}
+        {"pointer": "/name", "detail": "must be valid Unicode text"}
     ]
 
 
@@ -409,19 +433,45 @@ def test_read_body_valid() -> None:
         assert shared.read_body([NAME_FIELD]) == ({"name": "frog"}, None)
 
 
-def test_read_body_broken_or_non_object_json_is_400() -> None:
-    bodies = ["{broken", "[1, 2]"]
-    for body in bodies:
-        with shared.app.test_request_context(
-            data=body, content_type="application/json"
-        ):
-            data, response = shared.read_body([NAME_FIELD])
+def test_read_body_accepts_empty_object_for_optional_schema() -> None:
+    optional_pattern = [{"name": "opt", "type": "str", "is_required": False}]
+    with shared.app.test_request_context(json={}):
+        assert shared.read_body(optional_pattern) == ({}, None)
 
-        assert data is None
-        assert response.status_code == 400
-        assert response.get_json(force=True)["errors"] == [
-            {"name": "name", "reason": "is required"}
-        ]
+
+@pytest.mark.parametrize(
+    "pattern",
+    [
+        [NAME_FIELD],
+        [{"name": "opt", "type": "str", "is_required": False}],
+    ],
+)
+@pytest.mark.parametrize(
+    "body, content_type",
+    [
+        ("{broken", "application/json"),
+        ("[1, 2]", "application/json"),
+        ('"str"', "application/json"),
+        ("123", "application/json"),
+        ("true", "application/json"),
+        ("null", "application/json"),
+        ("", "application/json"),
+        ('{"name": "frog"}', "text/plain"),
+        ('{"name": "frog"}', None),
+    ],
+)
+def test_read_body_broken_or_non_object_json_is_400(
+    pattern: list, body: str, content_type: str | None
+) -> None:
+    with shared.app.test_request_context(data=body, content_type=content_type):
+        data, response = shared.read_body(pattern)
+
+    assert data is None
+    assert response.status_code == 400
+    problem = response.get_json(force=True)
+    assert problem["type"] == "/errors/bad-request"
+    assert problem["detail"] == "Request body must be a JSON object"
+    assert "errors" not in problem
 
 
 def test_parse_query_value() -> None:
@@ -454,9 +504,9 @@ def test_read_query_rejects_wrong_type() -> None:
         data, response = shared.read_query(pattern)
 
     assert data is None
-    assert response.status_code == 400
+    assert response.status_code == 422
     assert response.get_json(force=True)["errors"] == [
-        {"name": "page", "reason": "must be int"}
+        {"pointer": "/page", "detail": "must be int"}
     ]
 
 

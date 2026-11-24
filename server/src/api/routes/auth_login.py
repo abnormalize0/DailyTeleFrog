@@ -46,8 +46,11 @@ def api_auth_login_post() -> ResponseReturnValue:
           /auth/refresh, когда access_token истечёт.
 
     Ошибки:
-        - 400 /errors/validation — при некорректном теле запроса, если переданы и
-          username, и email одновременно или если не передано ни то, ни другое.
+        - 400 /errors/bad-request — если тело не является корректным JSON-объектом
+          или отсутствует подходящий Content-Type.
+        - 422 /errors/validation — при неверных значениях полей тела запроса, если
+          переданы оба ключа username и email (даже с пустым значением одного из
+          них) либо не передан ни один непустой идентификатор.
         - 401 /errors/invalid-credentials — если пароль не совпадает с паролем
           найденного пользователя, либо пользователь с таким username/email не
           найден (одно и то же сообщение для обоих случаев, чтобы не раскрывать
@@ -60,16 +63,33 @@ def api_auth_login_post() -> ResponseReturnValue:
     parameters, error = read_body(api_info.auth_login_post)
     if error:
         return error
-    parameters = fill_default(parameters, api_info.auth_login_post)
-    if parameters["username"] and parameters["email"]:
+    # Проверяем взаимное исключение до fill_default: иначе явная передача обоих
+    # ключей с пустым значением одного из них ({"username": "a", "email": ""})
+    # выглядела бы как передача одного идентификатора.
+    if "username" in parameters and "email" in parameters:
         return error_response(
             request_status.ErrorType.InvalidParameters,
             "User cannot log in with both username and email",
+            errors=[
+                {
+                    "pointer": "/username",
+                    "detail": "cannot be used together with email",
+                },
+                {
+                    "pointer": "/email",
+                    "detail": "cannot be used together with username",
+                },
+            ],
         )
+    parameters = fill_default(parameters, api_info.auth_login_post)
     if not parameters["username"] and not parameters["email"]:
         return error_response(
             request_status.ErrorType.InvalidParameters,
             "User must log in with username or email",
+            errors=[
+                {"pointer": "/username", "detail": "username or email is required"},
+                {"pointer": "/email", "detail": "username or email is required"},
+            ],
         )
     with get_session() as session:
         status, tokens = backend.login(session, parameters)
