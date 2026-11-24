@@ -105,7 +105,7 @@ if status.is_error:
     return problem_response(status)
 
 session.commit()
-return json_response({"article_id": article_id}, 201, location=f"/articles/{article_id}")
+return {"article_id": article_id}, 201, {"Location": f"/articles/{article_id}"}
 ```
 
 ```json

@@ -8,7 +8,7 @@ from collections.abc import Callable
 from datetime import datetime
 from typing import Any
 
-from flask import Response, request
+from flask import Response, make_response, request
 from werkzeug.datastructures import Headers
 
 from . import config
@@ -69,7 +69,7 @@ def timer(log_file: config.DynamicPath) -> Callable:
     """
 
     def decorator(func: Callable) -> Callable:
-        def wrapper(*args: Any, **kwargs: Any) -> Response:
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             logger = logging.getLogger(log_file.path)
             start = datetime.now()
 
@@ -108,7 +108,9 @@ def log_request(func: Callable) -> Callable:
         logger.info(f"Body: {_redact_body(body) if body is not None else 'Empty'}")
         logger.info(f"Query: {request.args.to_dict(flat=False)}")
         logger.info(f"Headers: {_redact_headers(request.headers)}")
-        result = func(*args, **kwargs)
+        # Приводим нативный возврат Flask (dict, кортеж со статусом/заголовками) к Response,
+        # чтобы логирование ниже работало единообразно, а маршруты не строили Response вручную.
+        result = make_response(func(*args, **kwargs))
         # Тело пишем только у ошибок: успешные ответы /auth/login и /auth/refresh
         # содержат токены, которым в логе не место.
         details = result.get_data(as_text=True) if result.status_code >= 400 else ""

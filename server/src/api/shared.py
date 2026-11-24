@@ -90,35 +90,6 @@ def error_response(
     )
 
 
-def json_response(data: dict, code: int = 200, location: str = None) -> Response:
-    """Строит успешный JSON-ответ.
-
-    Args:
-        data: тело ответа.
-        code: HTTP-код, по умолчанию 200.
-        location: путь созданного ресурса для заголовка Location (ответы 201).
-
-    Returns:
-        Ответ с типом application/json.
-    """
-    headers = {"Location": location} if location else None
-    return Response(
-        json.dumps(data), status=code, mimetype="application/json", headers=headers
-    )
-
-
-def no_content() -> Response:
-    """Строит успешный ответ без тела (204), когда возвращать клиенту нечего.
-
-    Args:
-        None
-
-    Returns:
-        Пустой ответ с кодом 204.
-    """
-    return Response(status=204)
-
-
 def get_session() -> Session:
     """Открывает сессию SQLAlchemy, переиспользуя общий Engine между запросами.
 

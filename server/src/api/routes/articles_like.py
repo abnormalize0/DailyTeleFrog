@@ -3,19 +3,19 @@
 как ресурс, который ставится через PUT и снимается через DELETE.
 """
 
-from flask import Response
+from flask.typing import ResponseReturnValue
 
 from ... import config
 from ... import log
 from ...db import article
-from ..shared import app, get_session, no_content, problem_response, require_auth
+from ..shared import app, get_session, problem_response, require_auth
 
 
 @app.route("/articles/<int:article_id>/like", methods=["PUT"])
 @log.safe_api
 @log.log_request
 @log.timer(config.log_server_api)
-def api_articles_like_put(article_id: int) -> Response:
+def api_articles_like_put(article_id: int) -> ResponseReturnValue:
     """Ставит лайк авторизованного пользователя на статью.
 
     Принимает:
@@ -48,14 +48,14 @@ def api_articles_like_put(article_id: int) -> Response:
             return problem_response(status)
 
         session.commit()
-        return no_content()
+        return "", 204
 
 
 @app.route("/articles/<int:article_id>/like", methods=["DELETE"])
 @log.safe_api
 @log.log_request
 @log.timer(config.log_server_api)
-def api_articles_like_delete(article_id: int) -> Response:
+def api_articles_like_delete(article_id: int) -> ResponseReturnValue:
     """Снимает лайк авторизованного пользователя с статьи.
 
     Принимает:
@@ -85,4 +85,4 @@ def api_articles_like_delete(article_id: int) -> Response:
             return problem_response(status)
 
         session.commit()
-        return no_content()
+        return "", 204

@@ -104,6 +104,37 @@ def test_log_request_survives_broken_json() -> None:
         assert log.log_request(handler)().status_code == 204
 
 
+def test_log_request_handles_native_flask_returns(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    app = Flask(__name__)
+
+    with caplog.at_level(logging.INFO, logger=config.log_server_api.path):
+        with app.test_request_context():
+            dict_response = log.log_request(lambda: {"access_token": "issued-token"})()
+            created_response = log.log_request(
+                lambda: ({"article_id": 1}, 201, {"Location": "/articles/1"})
+            )()
+            no_content_response = log.log_request(lambda: ("", 204))()
+            error_response = log.log_request(lambda: ({"detail": "bad"}, 400))()
+
+    assert dict_response.status_code == 200
+    assert dict_response.mimetype == "application/json"
+    assert dict_response.get_json() == {"access_token": "issued-token"}
+    assert "issued-token" not in caplog.text
+
+    assert created_response.status_code == 201
+    assert created_response.mimetype == "application/json"
+    assert created_response.headers["Location"] == "/articles/1"
+    assert '"article_id"' not in caplog.text
+
+    assert no_content_response.status_code == 204
+    assert no_content_response.get_data() == b""
+
+    assert error_response.status_code == 400
+    assert "bad" in caplog.text
+
+
 def test_safe_api_passes_result() -> None:
     expected = Response(status=204)
 

@@ -3,7 +3,7 @@
 токенов по refresh token (ротация).
 """
 
-from flask import Response
+from flask.typing import ResponseReturnValue
 
 from ... import backend
 from ... import config
@@ -12,7 +12,6 @@ from .. import api_info
 from ..shared import (
     app,
     get_session,
-    json_response,
     problem_response,
     read_body,
 )
@@ -22,7 +21,7 @@ from ..shared import (
 @log.safe_api
 @log.log_request
 @log.timer(config.log_server_api)
-def api_auth_refresh_post() -> Response:
+def api_auth_refresh_post() -> ResponseReturnValue:
     """Выпускает новую пару токенов взамен истёкшего access token, по refresh token.
 
     Принимает (JSON-тело запроса, см. api_info.auth_refresh_post):
@@ -55,4 +54,4 @@ def api_auth_refresh_post() -> Response:
             return problem_response(status)
 
         session.commit()
-        return json_response(tokens)
+        return tokens

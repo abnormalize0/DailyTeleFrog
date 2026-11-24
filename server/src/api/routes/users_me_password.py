@@ -2,7 +2,7 @@
 Этот файл служит для хранения API-метода PUT /users/me/password — смена пароля.
 """
 
-from flask import Response
+from flask.typing import ResponseReturnValue
 
 from ... import backend
 from ... import config
@@ -11,7 +11,6 @@ from .. import api_info
 from ..shared import (
     app,
     get_session,
-    no_content,
     problem_response,
     read_body,
     require_auth,
@@ -22,7 +21,7 @@ from ..shared import (
 @log.safe_api
 @log.log_request
 @log.timer(config.log_server_api)
-def api_users_me_password_put() -> Response:
+def api_users_me_password_put() -> ResponseReturnValue:
     """Меняет пароль авторизованного пользователя.
 
     Принимает (JSON-тело запроса, см. api_info.users_me_password_put):
@@ -68,4 +67,4 @@ def api_users_me_password_put() -> Response:
             return problem_response(status)
 
         session.commit()
-        return no_content()
+        return "", 204

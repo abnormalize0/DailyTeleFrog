@@ -4,8 +4,6 @@
 сервер, ни БД не нужны: `session=None` безопасен там, где код не должен идти в БД.
 """
 
-import json
-
 import pytest
 from sqlalchemy.orm import Session
 
@@ -22,29 +20,6 @@ def test_error_response() -> None:
 
     assert response.status_code == 400
     assert response.get_json(force=True)["errors"] == errors
-
-
-def test_json_response_defaults() -> None:
-    response = shared.json_response({"id": 1})
-
-    assert response.status_code == 200
-    assert response.mimetype == "application/json"
-    assert json.loads(response.get_data(as_text=True)) == {"id": 1}
-    assert "Location" not in response.headers
-
-
-def test_json_response_location() -> None:
-    response = shared.json_response({"id": 1}, 201, "/articles/1")
-
-    assert response.status_code == 201
-    assert response.headers["Location"] == "/articles/1"
-
-
-def test_no_content() -> None:
-    response = shared.no_content()
-
-    assert response.status_code == 204
-    assert response.get_data() == b""
 
 
 def test_flask_errors_use_problem_details() -> None:

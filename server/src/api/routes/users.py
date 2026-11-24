@@ -2,7 +2,7 @@
 Этот файл служит для хранения API-метода POST /users — регистрация пользователя.
 """
 
-from flask import Response
+from flask.typing import ResponseReturnValue
 
 from ... import config
 from ... import log
@@ -12,7 +12,6 @@ from ..shared import (
     app,
     fill_default,
     get_session,
-    json_response,
     problem_response,
     read_body,
 )
@@ -22,7 +21,7 @@ from ..shared import (
 @log.safe_api
 @log.log_request
 @log.timer(config.log_server_api)
-def api_users_post() -> Response:
+def api_users_post() -> ResponseReturnValue:
     """Регистрирует нового пользователя.
 
     Принимает (JSON-тело запроса, см. api_info.users_post):
@@ -78,4 +77,4 @@ def api_users_post() -> Response:
             return problem_response(status)
 
         session.commit()
-        return json_response({"username": parameters["username"]}, 201)
+        return {"username": parameters["username"]}, 201

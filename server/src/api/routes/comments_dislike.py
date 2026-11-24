@@ -3,19 +3,19 @@
 как ресурс, который ставится через PUT и снимается через DELETE.
 """
 
-from flask import Response
+from flask.typing import ResponseReturnValue
 
 from ... import config
 from ... import log
 from ...db import comment
-from ..shared import app, get_session, no_content, problem_response, require_auth
+from ..shared import app, get_session, problem_response, require_auth
 
 
 @app.route("/comments/<int:comment_id>/dislike", methods=["PUT"])
 @log.safe_api
 @log.log_request
 @log.timer(config.log_server_api)
-def api_comments_dislike_put(comment_id: int) -> Response:
+def api_comments_dislike_put(comment_id: int) -> ResponseReturnValue:
     """Ставит дизлайк авторизованного пользователя на комментарий.
 
     Принимает:
@@ -48,14 +48,14 @@ def api_comments_dislike_put(comment_id: int) -> Response:
             return problem_response(status)
 
         session.commit()
-        return no_content()
+        return "", 204
 
 
 @app.route("/comments/<int:comment_id>/dislike", methods=["DELETE"])
 @log.safe_api
 @log.log_request
 @log.timer(config.log_server_api)
-def api_comments_dislike_delete(comment_id: int) -> Response:
+def api_comments_dislike_delete(comment_id: int) -> ResponseReturnValue:
     """Снимает дизлайк авторизованного пользователя с комментария.
 
     Принимает:
@@ -85,4 +85,4 @@ def api_comments_dislike_delete(comment_id: int) -> Response:
             return problem_response(status)
 
         session.commit()
-        return no_content()
+        return "", 204

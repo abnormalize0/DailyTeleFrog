@@ -4,7 +4,7 @@
 намеренно не «ресурсный» (см. decisions/0004-rest-api.md).
 """
 
-from flask import Response
+from flask.typing import ResponseReturnValue
 
 from ... import backend
 from ... import request_status
@@ -16,7 +16,6 @@ from ..shared import (
     error_response,
     fill_default,
     get_session,
-    json_response,
     problem_response,
     read_body,
 )
@@ -26,7 +25,7 @@ from ..shared import (
 @log.safe_api
 @log.log_request
 @log.timer(config.log_server_api)
-def api_auth_login_post() -> Response:
+def api_auth_login_post() -> ResponseReturnValue:
     """Проверяет пароль пользователя и выпускает пару токенов авторизации
     (используется при входе в систему).
 
@@ -79,4 +78,4 @@ def api_auth_login_post() -> Response:
             return problem_response(status)
 
         session.commit()
-        return json_response(tokens)
+        return tokens

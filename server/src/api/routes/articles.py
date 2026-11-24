@@ -3,7 +3,7 @@
 (POST) и лента статей с превью (GET).
 """
 
-from flask import Response
+from flask.typing import ResponseReturnValue
 
 from ... import backend
 from ... import request_status
@@ -15,7 +15,6 @@ from ..shared import (
     error_response,
     fill_default,
     get_session,
-    json_response,
     optional_auth,
     problem_response,
     read_body,
@@ -28,7 +27,7 @@ from ..shared import (
 @log.safe_api
 @log.log_request
 @log.timer(config.log_server_api)
-def api_articles_post() -> Response:
+def api_articles_post() -> ResponseReturnValue:
     """Публикует новую статью от имени авторизованного пользователя.
 
     Принимает (JSON-тело запроса, см. api_info.articles_post):
@@ -88,16 +87,14 @@ def api_articles_post() -> Response:
             return problem_response(status)
 
         session.commit()
-        return json_response(
-            {"article_id": article_id}, 201, location=f"/articles/{article_id}"
-        )
+        return {"article_id": article_id}, 201, {"Location": f"/articles/{article_id}"}
 
 
 @app.route("/articles", methods=["GET"])
 @log.safe_api
 @log.log_request
 @log.timer(config.log_server_api)
-def api_articles_get() -> Response:
+def api_articles_get() -> ResponseReturnValue:
     """Возвращает одну или несколько страниц ленты статей с превью каждой статьи.
 
     Принимает (query-строка, см. api_info.articles_get; список передаётся
@@ -213,4 +210,4 @@ def api_articles_get() -> Response:
             return problem_response(status)
 
         session.commit()
-        return json_response({"pages": pages})
+        return {"pages": pages}

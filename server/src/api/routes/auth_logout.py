@@ -3,7 +3,7 @@
 текущей сессии.
 """
 
-from flask import Response
+from flask.typing import ResponseReturnValue
 
 from ... import backend
 from ... import config
@@ -13,7 +13,6 @@ from ..shared import (
     app,
     get_bearer_token,
     get_session,
-    no_content,
     problem_response,
     read_body,
     require_auth,
@@ -24,7 +23,7 @@ from ..shared import (
 @log.safe_api
 @log.log_request
 @log.timer(config.log_server_api)
-def api_auth_logout_post() -> Response:
+def api_auth_logout_post() -> ResponseReturnValue:
     """Завершает текущую сессию: отзывает access и refresh токены.
 
     Принимает (JSON-тело запроса, см. api_info.auth_logout_post):
@@ -61,4 +60,4 @@ def api_auth_logout_post() -> Response:
             return problem_response(status)
 
         session.commit()
-        return no_content()
+        return "", 204

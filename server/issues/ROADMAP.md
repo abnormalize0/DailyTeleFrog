@@ -22,7 +22,7 @@
 
 4. ~~[0033](done/0033-safe-status-interface.md) — сделать интерфейс `Status` безопасным через фабрики `Status.ok` / `Status.error` и валидацию в `__init__`.~~ *(выполнено)*
 5. ~~[0031](done/0031-decouple-db-from-flask-and-cleanup-proxies.md) — отвязать `src/db/` и `request_status.py` от Flask/HTTP и убрать однострочные прокси в `backend.py`.~~ *(выполнено)*
-6. [0030](0030-flask-json-responses-and-options-sync.md) — перевести JSON-ответы API на нативный Flask и добавить проверку синхронности `OPTIONS`.
+6. ~~[0030](done/0030-flask-json-responses-and-options-sync.md) — перевести JSON-ответы API на нативный Flask и добавить проверку синхронности `OPTIONS`.~~ *(выполнено)*
 7. [0029](0029-unify-validation-422-and-pointer-detail.md) — разделить `400` и `422`, перейти на `pointer`/`detail` и унифицировать валидацию *(ключевая точка: все задачи этапа 2 пишутся уже под этот формат)*.
 
 ---

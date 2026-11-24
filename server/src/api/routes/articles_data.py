@@ -3,7 +3,7 @@
 данных о статье.
 """
 
-from flask import Response
+from flask.typing import ResponseReturnValue
 
 from ... import backend
 from ... import config
@@ -12,7 +12,6 @@ from .. import api_info
 from ..shared import (
     app,
     get_session,
-    json_response,
     optional_auth,
     problem_response,
     read_query,
@@ -23,7 +22,7 @@ from ..shared import (
 @log.safe_api
 @log.log_request
 @log.timer(config.log_server_api)
-def api_articles_data_get(article_id: int) -> Response:
+def api_articles_data_get(article_id: int) -> ResponseReturnValue:
     """Возвращает выбранные поля данных о статье.
 
     Принимает:
@@ -72,4 +71,4 @@ def api_articles_data_get(article_id: int) -> Response:
             return problem_response(status)
 
         session.commit()
-        return json_response(data)
+        return data

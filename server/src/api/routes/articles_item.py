@@ -3,7 +3,7 @@
 о статье (GET) и её удаление автором (DELETE).
 """
 
-from flask import Response
+from flask.typing import ResponseReturnValue
 
 from ... import backend
 from ... import config
@@ -12,8 +12,6 @@ from ...db import article as article_db
 from ..shared import (
     app,
     get_session,
-    json_response,
-    no_content,
     optional_auth,
     problem_response,
     require_auth,
@@ -24,7 +22,7 @@ from ..shared import (
 @log.safe_api
 @log.log_request
 @log.timer(config.log_server_api)
-def api_articles_item_get(article_id: int) -> Response:
+def api_articles_item_get(article_id: int) -> ResponseReturnValue:
     """Возвращает полную информацию о статье для отображения страницы статьи.
 
     Принимает:
@@ -71,14 +69,14 @@ def api_articles_item_get(article_id: int) -> Response:
             return problem_response(status)
 
         session.commit()
-        return json_response({"article": article})
+        return {"article": article}
 
 
 @app.route("/articles/<int:article_id>", methods=["DELETE"])
 @log.safe_api
 @log.log_request
 @log.timer(config.log_server_api)
-def api_articles_item_delete(article_id: int) -> Response:
+def api_articles_item_delete(article_id: int) -> ResponseReturnValue:
     """Удаляет статью авторизованного пользователя.
 
     Принимает:
@@ -112,4 +110,4 @@ def api_articles_item_delete(article_id: int) -> Response:
             return problem_response(status)
 
         session.commit()
-        return no_content()
+        return "", 204

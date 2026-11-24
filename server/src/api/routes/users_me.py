@@ -6,7 +6,7 @@
 токена, поэтому имя в пути ничего бы не значило и требовало бы лишней проверки.
 """
 
-from flask import Response
+from flask.typing import ResponseReturnValue
 
 from ... import backend
 from ... import config
@@ -15,8 +15,6 @@ from .. import api_info
 from ..shared import (
     app,
     get_session,
-    json_response,
-    no_content,
     problem_response,
     read_body,
     read_query,
@@ -28,7 +26,7 @@ from ..shared import (
 @log.safe_api
 @log.log_request
 @log.timer(config.log_server_api)
-def api_users_me_get() -> Response:
+def api_users_me_get() -> ResponseReturnValue:
     """Возвращает выбранные поля данных собственного профиля авторизованного пользователя.
 
     Принимает:
@@ -76,14 +74,14 @@ def api_users_me_get() -> Response:
             return problem_response(status)
 
         session.commit()
-        return json_response(data)
+        return data
 
 
 @app.route("/users/me", methods=["PATCH"])
 @log.safe_api
 @log.log_request
 @log.timer(config.log_server_api)
-def api_users_me_patch() -> Response:
+def api_users_me_patch() -> ResponseReturnValue:
     """Частично обновляет данные авторизованного пользователя: только те поля,
     что переданы в запросе.
 
@@ -142,14 +140,14 @@ def api_users_me_patch() -> Response:
             return problem_response(status)
 
         session.commit()
-        return no_content()
+        return "", 204
 
 
 @app.route("/users/me", methods=["DELETE"])
 @log.safe_api
 @log.log_request
 @log.timer(config.log_server_api)
-def api_users_me_delete() -> Response:
+def api_users_me_delete() -> ResponseReturnValue:
     """Удаляет аккаунт авторизованного пользователя.
 
     Принимает (JSON-тело запроса, см. api_info.users_me_delete):
@@ -189,4 +187,4 @@ def api_users_me_delete() -> Response:
             return problem_response(status)
 
         session.commit()
-        return no_content()
+        return "", 204

@@ -3,19 +3,19 @@
 сессий пользователя на всех устройствах.
 """
 
-from flask import Response
+from flask.typing import ResponseReturnValue
 
 from ... import config
 from ... import log
 from ...db import auth
-from ..shared import app, get_session, no_content, require_auth
+from ..shared import app, get_session, require_auth
 
 
 @app.route("/auth/logout-all", methods=["POST"])
 @log.safe_api
 @log.log_request
 @log.timer(config.log_server_api)
-def api_auth_logout_all_post() -> Response:
+def api_auth_logout_all_post() -> ResponseReturnValue:
     """Завершает все сессии пользователя: отзывает все его access и refresh токены.
 
     Принимает:
@@ -40,4 +40,4 @@ def api_auth_logout_all_post() -> Response:
             return auth_error
         auth.revoke_all_tokens(session, username)
         session.commit()
-        return no_content()
+        return "", 204

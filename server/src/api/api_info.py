@@ -22,7 +22,6 @@ fill_default в shared.py проверяют по ним запросы, а об
   соответствовать целиком, и причина ошибки, если оно не соответствует.
 """
 
-import json
 from flask import Blueprint
 
 from ..db import scheme
@@ -173,29 +172,29 @@ articles_get = [
 
 
 @info.route("/articles", methods=["OPTIONS"])
-def articles_info() -> str:
+def articles_info() -> dict:
     """Отвечает на OPTIONS /articles.
 
     Args:
         None
 
     Returns:
-        JSON-строка со схемами полей методов этого пути.
+        Словарь со схемами полей методов этого пути.
     """
-    return json.dumps({"post": articles_post, "get": articles_get})
+    return {"post": articles_post, "get": articles_get}
 
 
 @info.route("/articles/<int:article_id>", methods=["OPTIONS"])
-def articles_item_info(article_id: int) -> str:
+def articles_item_info(article_id: int) -> dict:
     """Отвечает на OPTIONS /articles/{id}.
 
     Args:
         article_id: id из пути, в ответе не используется.
 
     Returns:
-        JSON-строка со схемами полей методов этого пути.
+        Словарь со схемами полей методов этого пути.
     """
-    return json.dumps({"get": [], "delete": []})
+    return {"get": [], "delete": []}
 
 
 articles_data_get = [
@@ -218,42 +217,42 @@ articles_data_get = [
 
 
 @info.route("/articles/<int:article_id>/data", methods=["OPTIONS"])
-def articles_data_info(article_id: int) -> str:
+def articles_data_info(article_id: int) -> dict:
     """Отвечает на OPTIONS /articles/{id}/data.
 
     Args:
         article_id: id из пути, в ответе не используется.
 
     Returns:
-        JSON-строка со схемами полей методов этого пути.
+        Словарь со схемами полей методов этого пути.
     """
-    return json.dumps({"get": articles_data_get})
+    return {"get": articles_data_get}
 
 
 @info.route("/articles/<int:article_id>/like", methods=["OPTIONS"])
-def articles_like_info(article_id: int) -> str:
+def articles_like_info(article_id: int) -> dict:
     """Отвечает на OPTIONS /articles/{id}/like.
 
     Args:
         article_id: id из пути, в ответе не используется.
 
     Returns:
-        JSON-строка со схемами полей методов этого пути.
+        Словарь со схемами полей методов этого пути.
     """
-    return json.dumps({"put": [], "delete": []})
+    return {"put": [], "delete": []}
 
 
 @info.route("/articles/<int:article_id>/dislike", methods=["OPTIONS"])
-def articles_dislike_info(article_id: int) -> str:
+def articles_dislike_info(article_id: int) -> dict:
     """Отвечает на OPTIONS /articles/{id}/dislike.
 
     Args:
         article_id: id из пути, в ответе не используется.
 
     Returns:
-        JSON-строка со схемами полей методов этого пути.
+        Словарь со схемами полей методов этого пути.
     """
-    return json.dumps({"put": [], "delete": []})
+    return {"put": [], "delete": []}
 
 
 articles_comments_post = [
@@ -270,16 +269,16 @@ articles_comments_post = [
 
 
 @info.route("/articles/<int:article_id>/comments", methods=["OPTIONS"])
-def articles_comments_info(article_id: int) -> str:
+def articles_comments_info(article_id: int) -> dict:
     """Отвечает на OPTIONS /articles/{id}/comments.
 
     Args:
         article_id: id из пути, в ответе не используется.
 
     Returns:
-        JSON-строка со схемами полей методов этого пути.
+        Словарь со схемами полей методов этого пути.
     """
-    return json.dumps({"post": articles_comments_post})
+    return {"post": articles_comments_post}
 
 
 comments_item_get = [
@@ -301,42 +300,42 @@ comments_item_get = [
 
 
 @info.route("/comments/<int:comment_id>", methods=["OPTIONS"])
-def comments_item_info(comment_id: int) -> str:
+def comments_item_info(comment_id: int) -> dict:
     """Отвечает на OPTIONS /comments/{id}.
 
     Args:
         comment_id: id из пути, в ответе не используется.
 
     Returns:
-        JSON-строка со схемами полей методов этого пути.
+        Словарь со схемами полей методов этого пути.
     """
-    return json.dumps({"get": comments_item_get, "delete": []})
+    return {"get": comments_item_get, "delete": []}
 
 
 @info.route("/comments/<int:comment_id>/like", methods=["OPTIONS"])
-def comments_like_info(comment_id: int) -> str:
+def comments_like_info(comment_id: int) -> dict:
     """Отвечает на OPTIONS /comments/{id}/like.
 
     Args:
         comment_id: id из пути, в ответе не используется.
 
     Returns:
-        JSON-строка со схемами полей методов этого пути.
+        Словарь со схемами полей методов этого пути.
     """
-    return json.dumps({"put": [], "delete": []})
+    return {"put": [], "delete": []}
 
 
 @info.route("/comments/<int:comment_id>/dislike", methods=["OPTIONS"])
-def comments_dislike_info(comment_id: int) -> str:
+def comments_dislike_info(comment_id: int) -> dict:
     """Отвечает на OPTIONS /comments/{id}/dislike.
 
     Args:
         comment_id: id из пути, в ответе не используется.
 
     Returns:
-        JSON-строка со схемами полей методов этого пути.
+        Словарь со схемами полей методов этого пути.
     """
-    return json.dumps({"put": [], "delete": []})
+    return {"put": [], "delete": []}
 
 
 users_post = [
@@ -386,16 +385,16 @@ users_post = [
 
 
 @info.route("/users", methods=["OPTIONS"])
-def users_info() -> str:
+def users_info() -> dict:
     """Отвечает на OPTIONS /users.
 
     Args:
         None
 
     Returns:
-        JSON-строка со схемами полей методов этого пути.
+        Словарь со схемами полей методов этого пути.
     """
-    return json.dumps({"post": users_post})
+    return {"post": users_post}
 
 
 users_me_get = [
@@ -490,18 +489,16 @@ users_me_delete = [
 
 
 @info.route("/users/me", methods=["OPTIONS"])
-def users_me_info() -> str:
+def users_me_info() -> dict:
     """Отвечает на OPTIONS /users/me.
 
     Args:
         None
 
     Returns:
-        JSON-строка со схемами полей методов этого пути.
+        Словарь со схемами полей методов этого пути.
     """
-    return json.dumps(
-        {"get": users_me_get, "patch": users_me_patch, "delete": users_me_delete}
-    )
+    return {"get": users_me_get, "patch": users_me_patch, "delete": users_me_delete}
 
 
 users_me_password_put = [
@@ -522,16 +519,16 @@ users_me_password_put = [
 
 
 @info.route("/users/me/password", methods=["OPTIONS"])
-def users_me_password_info() -> str:
+def users_me_password_info() -> dict:
     """Отвечает на OPTIONS /users/me/password.
 
     Args:
         None
 
     Returns:
-        JSON-строка со схемами полей методов этого пути.
+        Словарь со схемами полей методов этого пути.
     """
-    return json.dumps({"put": users_me_password_put})
+    return {"put": users_me_password_put}
 
 
 auth_login_post = [
@@ -542,16 +539,16 @@ auth_login_post = [
 
 
 @info.route("/auth/login", methods=["OPTIONS"])
-def auth_login_info() -> str:
+def auth_login_info() -> dict:
     """Отвечает на OPTIONS /auth/login.
 
     Args:
         None
 
     Returns:
-        JSON-строка со схемами полей методов этого пути.
+        Словарь со схемами полей методов этого пути.
     """
-    return json.dumps({"post": auth_login_post})
+    return {"post": auth_login_post}
 
 
 auth_refresh_post = [
@@ -560,16 +557,16 @@ auth_refresh_post = [
 
 
 @info.route("/auth/refresh", methods=["OPTIONS"])
-def auth_refresh_info() -> str:
+def auth_refresh_info() -> dict:
     """Отвечает на OPTIONS /auth/refresh.
 
     Args:
         None
 
     Returns:
-        JSON-строка со схемами полей методов этого пути.
+        Словарь со схемами полей методов этого пути.
     """
-    return json.dumps({"post": auth_refresh_post})
+    return {"post": auth_refresh_post}
 
 
 auth_logout_post = [
@@ -578,26 +575,26 @@ auth_logout_post = [
 
 
 @info.route("/auth/logout", methods=["OPTIONS"])
-def auth_logout_info() -> str:
+def auth_logout_info() -> dict:
     """Отвечает на OPTIONS /auth/logout.
 
     Args:
         None
 
     Returns:
-        JSON-строка со схемами полей методов этого пути.
+        Словарь со схемами полей методов этого пути.
     """
-    return json.dumps({"post": auth_logout_post})
+    return {"post": auth_logout_post}
 
 
 @info.route("/auth/logout-all", methods=["OPTIONS"])
-def auth_logout_all_info() -> str:
+def auth_logout_all_info() -> dict:
     """Отвечает на OPTIONS /auth/logout-all.
 
     Args:
         None
 
     Returns:
-        JSON-строка со схемами полей методов этого пути.
+        Словарь со схемами полей методов этого пути.
     """
-    return json.dumps({"post": []})
+    return {"post": []}

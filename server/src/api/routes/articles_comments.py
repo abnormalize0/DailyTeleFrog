@@ -3,7 +3,7 @@
 добавление комментария или ответа на комментарий.
 """
 
-from flask import Response
+from flask.typing import ResponseReturnValue
 
 from ... import backend
 from ... import config
@@ -12,7 +12,6 @@ from .. import api_info
 from ..shared import (
     app,
     get_session,
-    json_response,
     problem_response,
     read_body,
     require_auth,
@@ -23,7 +22,7 @@ from ..shared import (
 @log.safe_api
 @log.log_request
 @log.timer(config.log_server_api)
-def api_articles_comments_post(article_id: int) -> Response:
+def api_articles_comments_post(article_id: int) -> ResponseReturnValue:
     """Добавляет комментарий (или ответ на комментарий) к статье от имени
     авторизованного пользователя.
 
@@ -72,6 +71,4 @@ def api_articles_comments_post(article_id: int) -> Response:
             return problem_response(status)
 
         session.commit()
-        return json_response(
-            {"id": comment_id}, 201, location=f"/comments/{comment_id}"
-        )
+        return {"id": comment_id}, 201, {"Location": f"/comments/{comment_id}"}
