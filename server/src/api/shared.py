@@ -186,21 +186,50 @@ def _stored_size(value: str | dict) -> int:
     return len(stored.encode("utf8"))
 
 
+def _contains_nul(value: object) -> bool:
+    """Проверяет, есть ли NUL-байт (`\\x00`) в значении или его вложенных элементах.
+
+    Проверку нельзя делать по строке `json.dumps(value)`: `json.dumps` экранирует
+    `\\x00` в `\\\\u0000`, поэтому поиск `"\\x00"` пропустит NUL-байт, а поиск
+    `"\\\\u0000"` даст ложное срабатывание на буквальную строку `r"\\u0000"`.
+
+    Args:
+        value: значение из запроса (строка, список, словарь или скаляр).
+
+    Returns:
+        `True`, если найден хотя бы один NUL-байт в строке, элементе списка
+        или ключе/значении словаря, иначе `False`.
+    """
+    if isinstance(value, str):
+        return "\x00" in value
+    if isinstance(value, list):
+        return any(_contains_nul(item) for item in value)
+    if isinstance(value, dict):
+        return any(
+            _contains_nul(key) or _contains_nul(item) for key, item in value.items()
+        )
+    return False
+
+
 def _is_valid_text(value: str | dict | list | int | bool) -> bool:
     """Проверяет, что все строки значения, в том числе вложенные и ключи словарей,
-    можно записать в UTF-8.
+    не содержат NUL-байт (`\\x00`) и могут быть записаны в UTF-8.
 
     JSON допускает одиночный суррогат вроде "\\ud800", Flask принимает его как
     строку Python, а упадёт такое значение только при хешировании пароля или записи
-    в MySQL и вернётся клиенту как 500. Проверять надо здесь, на входе: так клиент
-    получит понятную ошибку с именем поля на любом методе.
+    в MySQL и вернётся клиенту как 500. NUL-байт формально валиден в UTF-8, но
+    способен обрезать строки в C-инструментах и портить логи/вывод. Проверять
+    надо здесь, на входе: так клиент получит понятную ошибку с именем поля на
+    любом методе.
 
     Args:
         value: значение из запроса, тип которого уже проверен.
 
     Returns:
-        `True`, если значение можно записать в UTF-8, иначе `False`.
+        `True`, если значение не содержит `\\x00` и кодируется в UTF-8, иначе `False`.
     """
+    if _contains_nul(value):
+        return False
     try:
         json.dumps(value, ensure_ascii=False).encode("utf8")
     except UnicodeEncodeError:
@@ -257,6 +286,9 @@ def _check_limits(value: str | dict | list, element: dict) -> str | None:
     item_max_length = element.get("item_max_length")
     if item_max_length and any(len(item) > item_max_length for item in value):
         return f"items must be at most {item_max_length} characters"
+    item_pattern = element.get("item_pattern")
+    if item_pattern and any(not re.fullmatch(item_pattern, item) for item in value):
+        return element["item_pattern_reason"]
     return None
 
 
@@ -329,9 +361,9 @@ def check_structure(data: dict, pattern: list) -> list:
 def _unknown_field_error(key: str) -> dict:
     """Строит ошибку валидации для неизвестного поля.
 
-    Если имя ключа содержит одиночный суррогат, который нельзя закодировать в
-    UTF-8, не подставляет его в pointer, чтобы Status.errors всегда содержал
-    валидный Unicode.
+    Если имя ключа содержит NUL-байт или одиночный суррогат, который нельзя
+    закодировать в UTF-8, не подставляет его в pointer, чтобы Status.errors
+    всегда содержал валидный текст без NUL.
 
     Args:
         key: имя неизвестного поля.

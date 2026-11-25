@@ -20,6 +20,8 @@ fill_default в shared.py проверяют по ним запросы, а об
   видимыми не считаются;
 - "pattern" и "pattern_reason": регулярное выражение, которому значение должно
   соответствовать целиком, и причина ошибки, если оно не соответствует;
+- "item_pattern" и "item_pattern_reason": регулярное выражение, которому должен
+  соответствовать целиком каждый элемент списка, и причина ошибки;
 - "allowed": список допустимых значений скалярного поля.
 """
 
@@ -50,18 +52,39 @@ _USERNAME_RULES = {
     "pattern": "[A-Za-z0-9_-]+",
     "pattern_reason": "must contain only Latin letters, digits, _ and -",
 }
+# Однострочные поля не должны принимать ASCII-управляющие символы (\x00-\x1f, \x7f),
+# чтобы переносы строк, табы и прочие управляющие коды не попадали в заголовки,
+# имена, ссылки на аватар и теги. Шаблон совместим с JS RegExp.
+_NO_CONTROL_CHARS_PATTERN = "[^\\x00-\\x1f\\x7f]+"
+_NO_CONTROL_CHARS_REASON = "must not contain control characters"
+
 _NICKNAME_RULES = {
     "max_length": scheme.User.nickname.type.length,
     "not_blank": True,
-    "pattern": "[^\\x00-\\x1f\\x7f]+",
-    "pattern_reason": "must not contain control characters",
+    "pattern": _NO_CONTROL_CHARS_PATTERN,
+    "pattern_reason": _NO_CONTROL_CHARS_REASON,
 }
 _EMAIL_RULES = {
     "max_length": scheme.User.email.type.length,
     # Намеренно грубая проверка: полный синтаксис RFC 5322 сложен и всё равно не
     # доказывает, что адрес существует. Это покажет только письмо с подтверждением.
-    "pattern": "[^@\\s]+@[^@\\s]+\\.[^@\\s]+",
+    # Исключаем также ASCII-управляющие символы (\x00-\x1f, \x7f), которые могли
+    # бы не попасть под \s (например, \x00, \x07, \x7f).
+    "pattern": "[^@\\s\\x00-\\x1f\\x7f]+@[^@\\s\\x00-\\x1f\\x7f]+\\.[^@\\s\\x00-\\x1f\\x7f]+",
     "pattern_reason": "must be a valid email address",
+}
+_AVATAR_RULES = {
+    "max_length": scheme.User.avatar.type.length,
+    # Квантификатор * (а не +) сохраняет возможность сбросить аватар пустой строкой "".
+    "pattern": "[^\\x00-\\x1f\\x7f]*",
+    "pattern_reason": _NO_CONTROL_CHARS_REASON,
+}
+_TAG_ITEM_RULES = {
+    "item_type": "str",
+    "item_max_length": _TAG_MAX_LENGTH,
+    "item_not_blank": True,
+    "item_pattern": _NO_CONTROL_CHARS_PATTERN,
+    "item_pattern_reason": "items must not contain control characters",
 }
 # 8 символов — минимум из NIST SP 800-63B, он же не рекомендует требовать разные
 # классы символов. Верхний предел защищает от очень длинных значений в запросе.
@@ -99,6 +122,8 @@ articles_post = [
         "container": "body",
         "max_length": scheme.Article.title.type.length,
         "not_blank": True,
+        "pattern": _NO_CONTROL_CHARS_PATTERN,
+        "pattern_reason": _NO_CONTROL_CHARS_REASON,
     },
     {
         "name": "body",
@@ -120,9 +145,7 @@ articles_post = [
         "type": "list",
         "is_required": False,
         "container": "body",
-        "item_type": "str",
-        "item_max_length": _TAG_MAX_LENGTH,
-        "item_not_blank": True,
+        **_TAG_ITEM_RULES,
     },
 ]
 
@@ -386,7 +409,7 @@ users_post = [
         "type": "str",
         "is_required": False,
         "container": "body",
-        "max_length": scheme.User.avatar.type.length,
+        **_AVATAR_RULES,
     },
     {
         "name": "description",
@@ -453,7 +476,7 @@ users_me_patch = [
         "type": "str",
         "is_required": False,
         "container": "body",
-        "max_length": scheme.User.avatar.type.length,
+        **_AVATAR_RULES,
     },
     {
         "name": "description",
@@ -467,18 +490,14 @@ users_me_patch = [
         "type": "list",
         "is_required": False,
         "container": "body",
-        "item_type": "str",
-        "item_max_length": _TAG_MAX_LENGTH,
-        "item_not_blank": True,
+        **_TAG_ITEM_RULES,
     },
     {
         "name": "blocked-tags",
         "type": "list",
         "is_required": False,
         "container": "body",
-        "item_type": "str",
-        "item_max_length": _TAG_MAX_LENGTH,
-        "item_not_blank": True,
+        **_TAG_ITEM_RULES,
     },
     {
         "name": "sub-users",

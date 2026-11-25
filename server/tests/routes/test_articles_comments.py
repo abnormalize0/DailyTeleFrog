@@ -25,10 +25,10 @@ def test_articles_comments_post(add_user: Callable, add_article: Callable) -> No
     answer = requests.post(LOCALHOST + endpoint, json={"text": "text", "parent": -1})
     assert_error(answer, "invalid-token", "Missing or invalid token")
 
-    # Публикуем комментарий к статье.
+    # Публикуем комментарий к статье (включая переносы строк и таб).
     answer = requests.post(
         LOCALHOST + endpoint,
-        json={"text": "text", "parent": -1},
+        json={"text": "строка 1\nстрока 2\r\n\tотступ", "parent": -1},
         headers=auth_headers(access_token),
     )
     assert_ok(answer, 201)

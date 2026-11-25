@@ -164,6 +164,39 @@ def test_check_limits_reports_length_before_pattern() -> None:
     assert shared._check_limits("!!!", element) == "must be at most 2 characters"
 
 
+def test_check_limits_item_pattern() -> None:
+    element = {
+        "item_pattern": "[^\\x00-\\x1f\\x7f]+",
+        "item_pattern_reason": "items must not contain control characters",
+    }
+
+    assert shared._check_limits(["ok", "тег 1"], element) is None
+    assert shared._check_limits([], element) is None
+    # fullmatch: допустимое начало не должно маскировать управляющий символ в конце.
+    assert (
+        shared._check_limits(["ok", "bad\n"], element)
+        == "items must not contain control characters"
+    )
+    assert (
+        shared._check_limits(["ok", "bad\x7f"], element)
+        == "items must not contain control characters"
+    )
+
+
+def test_check_limits_reports_item_length_and_blank_before_item_pattern() -> None:
+    element = {
+        "item_max_length": 2,
+        "item_not_blank": True,
+        "item_pattern": "[a-z]+",
+        "item_pattern_reason": "bad item format",
+    }
+
+    assert shared._check_limits(["\t"], element) == "items must not be blank"
+    assert (
+        shared._check_limits(["!!!"], element) == "items must be at most 2 characters"
+    )
+
+
 def _field(pattern: list, name: str) -> dict:
     """Находит описание поля в схеме api_info.
 
@@ -207,7 +240,22 @@ def test_email_rules_accept(value: str) -> None:
 
 @pytest.mark.parametrize(
     "value",
-    ["", "plain", "@b.c", "a@", "a@b", "a@b.", "a b@c.d", "a@b@c.d", "a@b.c\n"],
+    [
+        "",
+        "plain",
+        "@b.c",
+        "a@",
+        "a@b",
+        "a@b.",
+        "a b@c.d",
+        "a@b@c.d",
+        "a@b.c\n",
+        "a\x00b@c.d",
+        "a\x01b@c.d",
+        "a@b\x07.c",
+        "a@b.c\x1f",
+        "a@b.c\x7f",
+    ],
 )
 def test_email_rules_reject(value: str) -> None:
     assert (
@@ -262,11 +310,71 @@ def test_login_does_not_apply_registration_rules() -> None:
 
 
 def test_patch_uses_registration_rules() -> None:
-    for name in ("nickname", "email"):
+    for name in ("nickname", "email", "avatar"):
         patch_field = _field(api_info.users_me_patch, name)
         post_field = _field(api_info.users_post, name)
 
         assert patch_field["pattern"] == post_field["pattern"]
+
+
+def test_article_title_rejects_control_chars() -> None:
+    field = _field(api_info.articles_post, "title")
+
+    assert shared._check_limits("Обычный заголовок 123", field) is None
+    for bad in ("a\nb", "a\rb", "a\tb", "a\x01b", "a\x7fb"):
+        assert shared._check_limits(bad, field) == "must not contain control characters"
+
+
+@pytest.mark.parametrize(
+    "pattern",
+    [api_info.users_post, api_info.users_me_patch],
+)
+def test_avatar_rules(pattern: list) -> None:
+    field = _field(pattern, "avatar")
+
+    # Пустая строка допустима: позволяет сбросить аватар.
+    assert shared._check_limits("", field) is None
+    assert shared._check_limits("https://example.com/a.png", field) is None
+    for bad in ("a\nb", "a\tb", "a\x01b", "a\x7fb"):
+        assert shared._check_limits(bad, field) == "must not contain control characters"
+
+
+@pytest.mark.parametrize(
+    "pattern, name",
+    [
+        (api_info.articles_post, "tags"),
+        (api_info.users_me_patch, "sub-tags"),
+        (api_info.users_me_patch, "blocked-tags"),
+    ],
+)
+def test_tags_reject_control_chars(pattern: list, name: str) -> None:
+    field = _field(pattern, name)
+
+    assert "item_pattern" in field
+    assert shared._check_limits(["rpg", "инди-игры"], field) is None
+    for bad in ("tag\n", "tag\t", "tag\x01", "tag\x7f"):
+        assert (
+            shared._check_limits(["ok", bad], field)
+            == "items must not contain control characters"
+        )
+
+
+def test_multiline_fields_allow_newlines_and_tabs() -> None:
+    for pattern, name in (
+        (api_info.articles_comments_post, "text"),
+        (api_info.users_post, "description"),
+        (api_info.users_me_patch, "description"),
+    ):
+        field = _field(pattern, name)
+        assert "pattern" not in field
+        assert shared._check_limits("line1\nline2\r\n\tindented", field) is None
+
+    for name in ("body", "preview"):
+        field = _field(api_info.articles_post, name)
+        assert "pattern" not in field
+        assert (
+            shared._check_limits({"text": "line1\nline2\r\n\tindented"}, field) is None
+        )
 
 
 @pytest.mark.parametrize(
@@ -344,7 +452,52 @@ def test_check_structure_rejects_invalid_unicode(type_name: str, value: object) 
 def test_check_structure_accepts_any_valid_unicode() -> None:
     pattern = [{"name": "field", "type": "str", "is_required": True}]
 
-    assert shared.check_structure({"field": "жаба 🐸 \x00"}, pattern) == []
+    assert shared.check_structure({"field": "жаба 🐸 \n\t\r"}, pattern) == []
+    # Буквальная последовательность \u0000 из 6 символов — не NUL-байт, должна приниматься.
+    assert shared.check_structure({"field": r"\u0000"}, pattern) == []
+
+
+@pytest.mark.parametrize(
+    "type_name, value",
+    [
+        ("str", "a\x00b"),
+        ("str", "\x00"),
+        ("list", ["ok", "a\x00b"]),
+        ("dict", {"key": "a\x00b"}),
+        ("dict", {"a\x00b": "value"}),
+        ("dict", {"key": ["a\x00b"]}),
+        ("dict", {"key": {"nested": "a\x00b"}}),
+    ],
+)
+def test_check_structure_rejects_nul_bytes(type_name: str, value: object) -> None:
+    pattern = [{"name": "field", "type": type_name, "is_required": True}]
+
+    assert shared.check_structure({"field": value}, pattern) == [
+        {"pointer": "/field", "detail": "must be valid Unicode text"}
+    ]
+
+
+def test_read_query_rejects_nul_bytes() -> None:
+    with shared.app.test_request_context("/?name=a%00b"):
+        data, response = shared.read_query([NAME_FIELD])
+
+    assert data is None
+    assert response.status_code == 422
+    assert response.get_json(force=True)["errors"] == [
+        {"pointer": "/name", "detail": "must be valid Unicode text"}
+    ]
+
+    tags_pattern = [
+        {"name": "tags", "type": "list", "is_required": True, "item_type": "str"}
+    ]
+    with shared.app.test_request_context("/?tags=ok&tags=a%00b"):
+        data, response = shared.read_query(tags_pattern)
+
+    assert data is None
+    assert response.status_code == 422
+    assert response.get_json(force=True)["errors"] == [
+        {"pointer": "/tags", "detail": "must be valid Unicode text"}
+    ]
 
 
 def test_check_structure_invalid_unicode_with_byte_limit() -> None:
@@ -693,6 +846,10 @@ def test_unknown_field_with_invalid_unicode_key() -> None:
 
     assert (
         shared.check_structure({"name": "frog", "\ud800": 1}, [NAME_FIELD]) == expected
+    )
+    assert (
+        shared.check_structure({"name": "frog", "bad\x00key": 1}, [NAME_FIELD])
+        == expected
     )
 
     with shared.app.test_request_context(

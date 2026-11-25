@@ -147,6 +147,29 @@ def test_articles_post(add_user: Callable, add_article: Callable) -> None:
     )
     assert_error(answer, "bad-request", BAD_BODY_ERROR)
 
+    # Проверка, что многострочный текст в body и preview с \n/\r/\t принимается,
+    # а вложенный NUL-байт в ключе словаря body отклоняется с 422.
+    answer = requests.post(
+        LOCALHOST + ENDPOINT,
+        json={
+            "title": "Многострочный контент",
+            "preview": {"text": "строка 1\n\tстрока 2"},
+            "body": {"block1": "абзац 1\r\n\tабзац 2"},
+        },
+        headers=auth_headers(access_token),
+    )
+    assert_ok(answer, 201)
+
+    answer = requests.post(
+        LOCALHOST + ENDPOINT,
+        json={**article, "body": {"bad\x00key": "value"}},
+        headers=auth_headers(access_token),
+    )
+    assert_error(answer, "validation", "Wrong request parameters structure")
+    assert answer.json()["errors"] == [
+        {"pointer": "/body", "detail": "must be valid Unicode text"}
+    ]
+
 
 def test_articles_get(
     add_user: Callable, add_article: Callable, like_article: Callable

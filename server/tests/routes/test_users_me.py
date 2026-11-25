@@ -84,18 +84,22 @@ def test_users_me_patch(add_user: Callable) -> None:
     assert answer.json()["name_history"] == [user_name]
     assert answer.json()["avatar"] == avatar
 
-    # Проверка, что непереданные поля не меняются.
+    # Проверка, что непереданные поля не меняются, а многострочный description
+    # с \n/\r/\t допустим.
     answer = requests.patch(
-        LOCALHOST + ENDPOINT, json={"description": "text"}, headers=headers
+        LOCALHOST + ENDPOINT,
+        json={"description": "строка 1\nстрока 2\r\n\tотступ"},
+        headers=headers,
     )
     assert_ok(answer, 204)
     answer = requests.get(
         LOCALHOST + ENDPOINT,
-        params={"requested_data": ["nickname", "description"]},
+        params={"requested_data": ["nickname", "description", "avatar"]},
         headers=headers,
     )
     assert answer.json()["nickname"] == nickname
-    assert answer.json()["description"] == "text"
+    assert answer.json()["description"] == "строка 1\nстрока 2\r\n\tотступ"
+    assert answer.json()["avatar"] == avatar
 
     # subscriptions and blacklists (tags and users)
     other_username, _, _, _, _, _ = add_user()
@@ -210,6 +214,11 @@ def test_users_me_patch(add_user: Callable) -> None:
         )
         assert_error(answer, "validation", "Wrong request parameters structure")
     assert read_field(ENDPOINT, "avatar", access_token) == avatar
+
+    # Проверка, что пустой avatar сбрасывает ссылку без ошибки.
+    answer = requests.patch(LOCALHOST + ENDPOINT, json={"avatar": ""}, headers=headers)
+    assert_ok(answer, 204)
+    assert read_field(ENDPOINT, "avatar", access_token) == ""
 
     # Проверка, что нельзя занять чужой email, а свой указать повторно можно.
     other_email = "other@email.email"

@@ -82,7 +82,8 @@ def test_users_post() -> None:
     assert_ok(answer, 201)
 
     # Проверка, что нижние границы правил ввода проходят: кириллица в nickname
-    # разрешена, а имя unlogged_user больше не служебное.
+    # разрешена, многострочное description с \n/\r/\t и пустой avatar допустимы,
+    # а имя unlogged_user больше не служебное.
     answer = requests.post(
         LOCALHOST + endpoint,
         json={
@@ -90,6 +91,8 @@ def test_users_post() -> None:
             "nickname": "Я",
             "email": "a@b.c",
             "password": "p" * 128,
+            "avatar": "",
+            "description": "строка 1\nстрока 2\r\n\tотступ",
         },
     )
     assert_ok(answer, 201)

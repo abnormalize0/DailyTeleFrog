@@ -52,11 +52,19 @@ INVALID_TEXT_VALUES = {
     "list": ["\ud800"],
 }
 
+# NUL-байт: валиден в UTF-8, но глобально запрещён во всех входных данных.
+NUL_TEXT_VALUES = {
+    "str": "a\x00b",
+    "dict": {"key": "a\x00b"},
+    "list": ["a\x00b"],
+}
+
 # Выглядит как пустота, хотя strip оставил бы от этой строки нулевой пробел.
 BLANK_TEXT = " \t\n\u00a0\u200b"
 
-# Нарушает все регулярные выражения из схем: управляющий символ и пробел.
-PATTERN_MISMATCH = "\x00 @"
+# Нарушает все регулярные выражения из схем: управляющий символ \x01 (без \x00,
+# чтобы проверка не перехватывалась раньше на этапе валидности текста) и пробел.
+PATTERN_MISMATCH = "\x01 @"
 
 # Общий текст ошибки проверки структуры: причины по полям лежат в списке errors.
 STRUCTURE_ERROR = "Wrong request parameters structure"
@@ -432,6 +440,15 @@ def check_endpoint_structure(endpoint: str, method: str) -> None:
                 name,
                 field["pattern_reason"],
             )
+        if "item_pattern" in field:
+            _assert_rejected(
+                endpoint,
+                method,
+                key,
+                {**valid, name: ["tag", PATTERN_MISMATCH]},
+                name,
+                field["item_pattern_reason"],
+            )
         # В query-строке суррогата быть не может: её декодирует сам Flask.
         invalid_text = INVALID_TEXT_VALUES.get(field["type"])
         if invalid_text is not None and not is_query:
@@ -440,6 +457,16 @@ def check_endpoint_structure(endpoint: str, method: str) -> None:
                 method,
                 key,
                 {**valid, name: invalid_text},
+                name,
+                "must be valid Unicode text",
+            )
+        nul_text = NUL_TEXT_VALUES.get(field["type"])
+        if nul_text is not None:
+            _assert_rejected(
+                endpoint,
+                method,
+                key,
+                {**valid, name: nul_text},
                 name,
                 "must be valid Unicode text",
             )
