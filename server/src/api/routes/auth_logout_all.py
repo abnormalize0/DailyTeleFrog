@@ -8,7 +8,7 @@ from flask.typing import ResponseReturnValue
 from ... import config
 from ... import log
 from ...db import auth
-from ..shared import app, get_session, require_auth
+from ..shared import app, get_session, require_auth, require_no_params
 
 
 @app.route("/auth/logout-all", methods=["POST"])
@@ -26,6 +26,7 @@ def api_auth_logout_all_post() -> ResponseReturnValue:
         204 без тела.
 
     Ошибки:
+        - 422 /errors/validation — если переданы лишние query-параметры или тело запроса.
         - 401 /errors/invalid-token — если заголовок Authorization отсутствует,
           токен не найден или истёк.
 
@@ -34,6 +35,9 @@ def api_auth_logout_all_post() -> ResponseReturnValue:
         Повторный вызов с тем же токеном даст 401. Если нужно завершить только текущую
         сессию, используется /auth/logout.
     """
+    error = require_no_params()
+    if error:
+        return error
     with get_session() as session:
         username, auth_error = require_auth(session)
         if auth_error:

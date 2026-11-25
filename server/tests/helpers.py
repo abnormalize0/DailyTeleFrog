@@ -203,6 +203,10 @@ def _valid_value(field: dict) -> Any:
         return [field["structure"][0]["name"]]
     if field.get("item_type") == "int":
         return [DEFAULT_VALUES["int"]]
+    # requests сериализует bool в query-строку как "True"/"False", а сервер ждёт
+    # строчный JSON-формат "true"/"false" (_parse_query_value).
+    if field.get("container") == "query" and field["type"] == "bool":
+        return "true"
     return DEFAULT_VALUES[field["type"]]
 
 
@@ -243,7 +247,13 @@ def _too_long_value(field: dict) -> Any:
 
 
 def _assert_rejected(
-    endpoint: str, method: str, key: str, params: dict, name: str, reason: str
+    endpoint: str,
+    method: str,
+    key: str,
+    params: dict,
+    name: str,
+    reason: str,
+    extra: dict | None = None,
 ) -> None:
     """Отправляет запрос и проверяет, что сервер отверг параметр name с кодом 422 и
     объяснил причину.
@@ -255,11 +265,15 @@ def _assert_rejected(
         params: параметры запроса.
         name: имя параметра, на который должен пожаловаться сервер.
         reason: начало ожидаемой причины; целиком она зависит от ограничений поля.
+        extra: дополнительные аргументы для requests.request (например, лишнее тело
+            или query-параметры в пару к основному контейнеру).
 
     Returns:
         None
     """
-    answer = requests.request(method, LOCALHOST + endpoint, **{key: params})
+    answer = requests.request(
+        method, LOCALHOST + endpoint, **{key: params, **(extra or {})}
+    )
     assert_error(answer, "validation", STRUCTURE_ERROR)
     details = {error["pointer"]: error["detail"] for error in answer.json()["errors"]}
     assert details.get(f"/{name}", "").startswith(reason), answer.text
@@ -315,9 +329,9 @@ def _check_body_is_required(endpoint: str, method: str) -> None:
 
 def check_endpoint_structure(endpoint: str, method: str) -> None:
     """Запрашивает описание параметров через `OPTIONS <endpoint>` и проверяет, что
-    метод отвергает с понятной причиной неверный тип, нарушение ограничений и
-    невалидный Unicode в каждом параметре, отсутствие обязательных и тело, не
-    являющееся JSON-объектом.
+    метод отвергает с понятной причиной неверный тип, нарушение ограничений,
+    невалидный Unicode в каждом параметре, неизвестные поля, отсутствие
+    обязательных и тело, не являющееся JSON-объектом.
 
     Args:
         endpoint: путь запроса.
@@ -328,14 +342,42 @@ def check_endpoint_structure(endpoint: str, method: str) -> None:
     """
     structure = requests.options(LOCALHOST + endpoint).json()[method]
     if not structure:
+        for key in ("params", "json"):
+            _assert_rejected(
+                endpoint,
+                method,
+                key,
+                {"unknown_field": "unexpected"},
+                "unknown_field",
+                "unknown field",
+            )
         return
 
     is_query = structure[0]["container"] == "query"
     key = "params" if is_query else "json"
+    other_key = "json" if is_query else "params"
     valid = {field["name"]: _valid_value(field) for field in structure}
 
     if not is_query:
         _check_body_is_required(endpoint, method)
+
+    _assert_rejected(
+        endpoint,
+        method,
+        key,
+        {**valid, "unknown_field": "unexpected"},
+        "unknown_field",
+        "unknown field",
+    )
+    _assert_rejected(
+        endpoint,
+        method,
+        key,
+        valid,
+        "unknown_field",
+        "unknown field",
+        extra={other_key: {"unknown_field": "unexpected"}},
+    )
 
     for field in structure:
         name = field["name"]

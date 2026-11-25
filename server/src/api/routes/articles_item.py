@@ -15,6 +15,7 @@ from ..shared import (
     optional_auth,
     problem_response,
     require_auth,
+    require_no_params,
 )
 
 
@@ -52,6 +53,7 @@ def api_articles_item_get(article_id: int) -> ResponseReturnValue:
             - tags (list[str]).
 
     Ошибки:
+        - 422 /errors/validation — если переданы лишние query-параметры или тело запроса.
         - 401 /errors/invalid-token — если заголовок Authorization передан, но
           токен не найден или истёк.
         - 404 /errors/not-found — если статьи с таким id не существует или она удалена.
@@ -59,6 +61,9 @@ def api_articles_item_get(article_id: int) -> ResponseReturnValue:
     Контракт:
         Метод только читает данные, побочных эффектов не имеет.
     """
+    error = require_no_params()
+    if error:
+        return error
     with get_session() as session:
         username, auth_error = optional_auth(session)
         if auth_error:
@@ -89,6 +94,7 @@ def api_articles_item_delete(article_id: int) -> ResponseReturnValue:
         204 без тела.
 
     Ошибки:
+        - 422 /errors/validation — если переданы лишние query-параметры или тело запроса.
         - 401 /errors/invalid-token — если заголовок Authorization отсутствует,
           токен не найден или истёк.
         - 403 /errors/forbidden — если вызывающий не автор статьи.
@@ -100,6 +106,9 @@ def api_articles_item_delete(article_id: int) -> ResponseReturnValue:
         неё (комментарии, лайки, теги, предпоказ), перестают быть доступны в API.
         Повторный вызов автором не считается ошибкой.
     """
+    error = require_no_params()
+    if error:
+        return error
     with get_session() as session:
         username, auth_error = require_auth(session)
         if auth_error:

@@ -264,7 +264,8 @@ def check_structure(data: dict, pattern: list) -> list:
     """Проверяет параметры запроса на соответствие ожидаемой структуре.
 
     Проверяет все поля сразу, а не до первой ошибки, чтобы клиент мог показать
-    пользователю все проблемы за один запрос.
+    пользователю все проблемы за один запрос. Поля, отсутствующие в схеме,
+    отклоняются как неизвестные.
 
     Args:
         data: параметры запроса.
@@ -318,21 +319,81 @@ def check_structure(data: dict, pattern: list) -> list:
         reason = _check_limits(value, element)
         if reason:
             errors.append({"pointer": pointer, "detail": reason})
+    known_names = {element["name"] for element in pattern}
+    for key in data:
+        if key not in known_names:
+            errors.append(_unknown_field_error(key))
     return errors
 
 
-def _validated(data: dict, pattern: list) -> tuple:
+def _unknown_field_error(key: str) -> dict:
+    """Строит ошибку валидации для неизвестного поля.
+
+    Если имя ключа содержит одиночный суррогат, который нельзя закодировать в
+    UTF-8, не подставляет его в pointer, чтобы Status.errors всегда содержал
+    валидный Unicode.
+
+    Args:
+        key: имя неизвестного поля.
+
+    Returns:
+        dict вида {"pointer", "detail"}.
+    """
+    if not _is_valid_text(key):
+        return {
+            "pointer": "",
+            "detail": "unknown field name must be valid Unicode text",
+        }
+    return {"pointer": f"/{key}", "detail": "unknown field"}
+
+
+def _unknown_query_errors() -> list:
+    """Возвращает ошибки для всех query-параметров, когда метод их не принимает.
+
+    Args:
+        None
+
+    Returns:
+        Список ошибок вида {"pointer": "/<имя>", "detail": "unknown field"}.
+    """
+    return [_unknown_field_error(name) for name in request.args]
+
+
+def _unexpected_body_errors() -> list:
+    """Возвращает ошибки для тела запроса, когда метод не принимает тело.
+
+    Если тело — непустой JSON-объект, перечисляет его ключи как unknown field;
+    для пустого `{}`, не-объекта, битого JSON или сырого текста возвращает
+    корневую ошибку (см. decisions/0011-validation-422-and-pointer-detail.md).
+
+    Args:
+        None
+
+    Returns:
+        Список ошибок вида {"pointer", "detail"}; пустой, если тело пустое.
+    """
+    if not request.get_data():
+        return []
+    body = request.get_json(silent=True)
+    if isinstance(body, dict) and body:
+        return [_unknown_field_error(key) for key in body]
+    return [{"pointer": "", "detail": "request body is not allowed"}]
+
+
+def _validated(data: dict, pattern: list, extra_errors: list | None = None) -> tuple:
     """Проверяет параметры и превращает результат в значение для метода.
 
     Args:
         data: параметры запроса.
         pattern: описание ожидаемых полей из api_info.
+        extra_errors: дополнительные ошибки (например, лишние параметры из
+            другого контейнера запроса).
 
     Returns:
         Кортеж (dict, None) — параметры, если они верны.
         Кортеж (None, Response) — ответ 422, который метод должен сразу вернуть.
     """
-    errors = check_structure(data, pattern)
+    errors = check_structure(data, pattern) + (extra_errors or [])
     if errors:
         return None, error_response(
             request_status.ErrorType.InvalidParameters,
@@ -344,6 +405,9 @@ def _validated(data: dict, pattern: list) -> tuple:
 
 def read_body(pattern: list) -> tuple:
     """Читает и проверяет параметры из JSON-тела запроса (POST, PATCH, PUT).
+
+    Query-строка у таких методов должна быть пустой: любые query-параметры
+    отклоняются как неизвестные.
 
     Args:
         pattern: описание ожидаемых полей из api_info.
@@ -360,7 +424,7 @@ def read_body(pattern: list) -> tuple:
             request_status.ErrorType.BadRequest,
             "Request body must be a JSON object",
         )
-    return _validated(body, pattern)
+    return _validated(body, pattern, _unknown_query_errors())
 
 
 def _parse_query_value(value: str, type_name: str) -> int | bool | str:
@@ -390,7 +454,8 @@ def _parse_query_value(value: str, type_name: str) -> int | bool | str:
 def read_query(pattern: list) -> tuple:
     """Читает и проверяет параметры из query-строки (GET).
 
-    Список передаётся повторением параметра: ?tag=a&tag=b.
+    Список передаётся повторением параметра: ?tag=a&tag=b. Тело запроса у
+    таких методов должно быть пустым.
 
     Args:
         pattern: описание ожидаемых полей из api_info.
@@ -411,7 +476,29 @@ def read_query(pattern: list) -> tuple:
             ]
         else:
             data[name] = _parse_query_value(request.args[name], element["type"])
-    return _validated(data, pattern)
+    # Неизвестные query-параметры тоже передаём в check_structure, чтобы все
+    # ошибки структуры собирались в одном месте и в одном формате.
+    for name in request.args:
+        if name not in data:
+            data[name] = request.args[name]
+    return _validated(data, pattern, _unexpected_body_errors())
+
+
+def require_no_params() -> Response | None:
+    """Проверяет, что в запросе нет ни query-параметров, ни тела запроса.
+
+    Используется методами с пустой схемой в api_info, чтобы лишние параметры
+    не игнорировались молча.
+
+    Args:
+        None
+
+    Returns:
+        Ответ 422 /errors/validation, если переданы query-параметры или тело,
+        иначе `None`.
+    """
+    _, error = _validated({}, [], _unknown_query_errors() + _unexpected_body_errors())
+    return error
 
 
 def fill_default(data: dict, pattern: list) -> dict:

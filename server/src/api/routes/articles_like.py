@@ -8,7 +8,7 @@ from flask.typing import ResponseReturnValue
 from ... import config
 from ... import log
 from ...db import article
-from ..shared import app, get_session, problem_response, require_auth
+from ..shared import app, get_session, problem_response, require_auth, require_no_params
 
 
 @app.route("/articles/<int:article_id>/like", methods=["PUT"])
@@ -28,6 +28,7 @@ def api_articles_like_put(article_id: int) -> ResponseReturnValue:
         204 без тела.
 
     Ошибки:
+        - 422 /errors/validation — если переданы лишние query-параметры или тело запроса.
         - 401 /errors/invalid-token — если заголовок Authorization отсутствует,
           токен не найден или истёк.
         - 403 /errors/forbidden — если вызывающий является автором статьи.
@@ -38,6 +39,9 @@ def api_articles_like_put(article_id: int) -> ResponseReturnValue:
         Существующий дизлайк этого же пользователя снимается автоматически
         (лайк и дизлайк взаимоисключающие).
     """
+    error = require_no_params()
+    if error:
+        return error
     with get_session() as session:
         username, auth_error = require_auth(session)
         if auth_error:
@@ -68,6 +72,7 @@ def api_articles_like_delete(article_id: int) -> ResponseReturnValue:
         204 без тела.
 
     Ошибки:
+        - 422 /errors/validation — если переданы лишние query-параметры или тело запроса.
         - 401 /errors/invalid-token — если заголовок Authorization отсутствует,
           токен не найден или истёк.
         - 404 /errors/not-found — если статьи не существует.
@@ -75,6 +80,9 @@ def api_articles_like_delete(article_id: int) -> ResponseReturnValue:
     Контракт:
         Идемпотентен: если лайка нет, это не ошибка, ответ тоже 204.
     """
+    error = require_no_params()
+    if error:
+        return error
     with get_session() as session:
         username, auth_error = require_auth(session)
         if auth_error:

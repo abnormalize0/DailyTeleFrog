@@ -413,6 +413,28 @@ def test_check_structure_applies_limits() -> None:
     ]
 
 
+def test_check_structure_rejects_unknown_fields() -> None:
+    pattern = [NAME_FIELD, {"name": "age", "type": "int", "is_required": False}]
+
+    assert shared.check_structure({"name": "frog", "extra": 1}, pattern) == [
+        {"pointer": "/extra", "detail": "unknown field"}
+    ]
+    assert shared.check_structure({"extra": 1}, []) == [
+        {"pointer": "/extra", "detail": "unknown field"}
+    ]
+    assert shared.check_structure(
+        {"name": "frog", "first": 1, "second": "x"}, pattern
+    ) == [
+        {"pointer": "/first", "detail": "unknown field"},
+        {"pointer": "/second", "detail": "unknown field"},
+    ]
+    assert shared.check_structure({"age": "old", "extra": 1}, pattern) == [
+        {"pointer": "/name", "detail": "is required"},
+        {"pointer": "/age", "detail": "must be int"},
+        {"pointer": "/extra", "detail": "unknown field"},
+    ]
+
+
 def test_read_body_invalid_unicode_is_422() -> None:
     with shared.app.test_request_context(
         data='{"name": "\\ud800"}', content_type="application/json"
@@ -508,6 +530,188 @@ def test_read_query_rejects_wrong_type() -> None:
     assert response.get_json(force=True)["errors"] == [
         {"pointer": "/page", "detail": "must be int"}
     ]
+
+
+def test_read_body_rejects_unknown_fields() -> None:
+    with shared.app.test_request_context(json={"name": "frog", "extra": 1}):
+        data, response = shared.read_body([NAME_FIELD])
+
+    assert data is None
+    assert response.status_code == 422
+    problem = response.get_json(force=True)
+    assert problem["type"] == "/errors/validation"
+    assert problem["detail"] == "Wrong request parameters structure"
+    assert problem["errors"] == [{"pointer": "/extra", "detail": "unknown field"}]
+
+    optional_pattern = [{"name": "nickname", "type": "str", "is_required": False}]
+    with shared.app.test_request_context(json={"nikname": "Vasya"}):
+        data, response = shared.read_body(optional_pattern)
+
+    assert data is None
+    assert response.status_code == 422
+    assert response.get_json(force=True)["errors"] == [
+        {"pointer": "/nikname", "detail": "unknown field"}
+    ]
+
+
+def test_read_query_rejects_unknown_fields() -> None:
+    pattern = [{"name": "page", "type": "int", "is_required": True}]
+
+    with shared.app.test_request_context("/?page=1&sort_by=rating"):
+        data, response = shared.read_query(pattern)
+
+    assert data is None
+    assert response.status_code == 422
+    problem = response.get_json(force=True)
+    assert problem["type"] == "/errors/validation"
+    assert problem["detail"] == "Wrong request parameters structure"
+    assert problem["errors"] == [{"pointer": "/sort_by", "detail": "unknown field"}]
+
+    with shared.app.test_request_context("/?page=1&foo=1&foo=2&bar=3&empty"):
+        data, response = shared.read_query(pattern)
+
+    assert data is None
+    assert response.status_code == 422
+    assert response.get_json(force=True)["errors"] == [
+        {"pointer": "/foo", "detail": "unknown field"},
+        {"pointer": "/bar", "detail": "unknown field"},
+        {"pointer": "/empty", "detail": "unknown field"},
+    ]
+
+
+def test_read_body_rejects_query_params() -> None:
+    with shared.app.test_request_context("/?extra=1", json={"name": "frog"}):
+        data, response = shared.read_body([NAME_FIELD])
+
+    assert data is None
+    assert response.status_code == 422
+    problem = response.get_json(force=True)
+    assert problem["type"] == "/errors/validation"
+    assert problem["detail"] == "Wrong request parameters structure"
+    assert problem["errors"] == [{"pointer": "/extra", "detail": "unknown field"}]
+
+    # Имя query-параметра может совпадать с полем тела — оно всё равно лишнее.
+    with shared.app.test_request_context("/?name=frog", json={"name": "frog"}):
+        data, response = shared.read_body([NAME_FIELD])
+
+    assert data is None
+    assert response.status_code == 422
+    assert response.get_json(force=True)["errors"] == [
+        {"pointer": "/name", "detail": "unknown field"}
+    ]
+
+    # Ошибки тела и query-строки собираются вместе за один запрос.
+    with shared.app.test_request_context("/?extra=1", json={}):
+        data, response = shared.read_body([NAME_FIELD])
+
+    assert data is None
+    assert response.status_code == 422
+    assert response.get_json(force=True)["errors"] == [
+        {"pointer": "/name", "detail": "is required"},
+        {"pointer": "/extra", "detail": "unknown field"},
+    ]
+
+
+def test_read_query_rejects_body() -> None:
+    pattern = [{"name": "page", "type": "int", "is_required": True}]
+
+    with shared.app.test_request_context("/?page=1", json={"extra": 1}):
+        data, response = shared.read_query(pattern)
+
+    assert data is None
+    assert response.status_code == 422
+    problem = response.get_json(force=True)
+    assert problem["type"] == "/errors/validation"
+    assert problem["detail"] == "Wrong request parameters structure"
+    assert problem["errors"] == [{"pointer": "/extra", "detail": "unknown field"}]
+
+    for body, content_type in (
+        ("{}", "application/json"),
+        ("[1, 2]", "application/json"),
+        ("{broken", "application/json"),
+        ("raw", "text/plain"),
+    ):
+        with shared.app.test_request_context(
+            "/?page=1", data=body, content_type=content_type
+        ):
+            data, response = shared.read_query(pattern)
+
+        assert data is None
+        assert response.status_code == 422
+        assert response.get_json(force=True)["errors"] == [
+            {"pointer": "", "detail": "request body is not allowed"}
+        ]
+
+
+def test_require_no_params() -> None:
+    with shared.app.test_request_context("/"):
+        assert shared.require_no_params() is None
+
+    with shared.app.test_request_context("/?extra=1&extra=2"):
+        response = shared.require_no_params()
+
+    assert response is not None
+    assert response.status_code == 422
+    assert response.get_json(force=True)["errors"] == [
+        {"pointer": "/extra", "detail": "unknown field"}
+    ]
+
+    with shared.app.test_request_context("/", json={"refresh_token": "abc"}):
+        response = shared.require_no_params()
+
+    assert response is not None
+    assert response.status_code == 422
+    assert response.get_json(force=True)["errors"] == [
+        {"pointer": "/refresh_token", "detail": "unknown field"}
+    ]
+
+    for body, content_type in (("{}", "application/json"), ("raw", "text/plain")):
+        with shared.app.test_request_context("/", data=body, content_type=content_type):
+            response = shared.require_no_params()
+
+        assert response is not None
+        assert response.status_code == 422
+        assert response.get_json(force=True)["errors"] == [
+            {"pointer": "", "detail": "request body is not allowed"}
+        ]
+
+    with shared.app.test_request_context("/?q=1", json={"b": 2}):
+        response = shared.require_no_params()
+
+    assert response is not None
+    assert response.status_code == 422
+    assert response.get_json(force=True)["errors"] == [
+        {"pointer": "/q", "detail": "unknown field"},
+        {"pointer": "/b", "detail": "unknown field"},
+    ]
+
+
+def test_unknown_field_with_invalid_unicode_key() -> None:
+    expected = [
+        {"pointer": "", "detail": "unknown field name must be valid Unicode text"}
+    ]
+
+    assert (
+        shared.check_structure({"name": "frog", "\ud800": 1}, [NAME_FIELD]) == expected
+    )
+
+    with shared.app.test_request_context(
+        data='{"name": "frog", "\\ud800": 1}', content_type="application/json"
+    ):
+        data, response = shared.read_body([NAME_FIELD])
+
+    assert data is None
+    assert response.status_code == 422
+    assert response.get_json(force=True)["errors"] == expected
+
+    with shared.app.test_request_context(
+        data='{"\\ud800": 1}', content_type="application/json"
+    ):
+        response = shared.require_no_params()
+
+    assert response is not None
+    assert response.status_code == 422
+    assert response.get_json(force=True)["errors"] == expected
 
 
 def test_fill_default() -> None:

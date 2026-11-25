@@ -17,6 +17,7 @@ from ..shared import (
     problem_response,
     read_query,
     require_auth,
+    require_no_params,
 )
 
 
@@ -94,6 +95,7 @@ def api_comments_item_delete(comment_id: int) -> ResponseReturnValue:
         204 без тела.
 
     Ошибки:
+        - 422 /errors/validation — если переданы лишние query-параметры или тело запроса.
         - 401 /errors/invalid-token — если заголовок Authorization отсутствует,
           токен не найден или истёк.
         - 403 /errors/forbidden — если вызывающий не автор комментария.
@@ -105,6 +107,9 @@ def api_comments_item_delete(comment_id: int) -> ResponseReturnValue:
         Отвечать на удалённый комментарий и ставить на него реакции нельзя. Повторный
         вызов автором не считается ошибкой.
     """
+    error = require_no_params()
+    if error:
+        return error
     with get_session() as session:
         username, auth_error = require_auth(session)
         if auth_error:
