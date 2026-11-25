@@ -927,3 +927,58 @@ def test_fill_default_returns_independent_dicts() -> None:
     assert first["extra"] == {}
     assert second["meta"] == {}
     assert shared.fill_default({}, pattern)["meta"] == {}
+
+
+def test_check_structure_list_max_items_and_item_min() -> None:
+    pattern = [
+        {
+            "name": "indexes",
+            "type": "list",
+            "is_required": True,
+            "item_type": "int",
+            "item_min": 0,
+            "max_items": 10,
+        }
+    ]
+
+    assert (
+        shared.check_structure({"indexes": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]}, pattern)
+        == []
+    )
+
+    # Повторы тоже учитываются в длине до дедупликации.
+    assert shared.check_structure({"indexes": [0] * 11}, pattern) == [
+        {"pointer": "/indexes", "detail": "must contain at most 10 items"}
+    ]
+
+    # item_min == 0 не должен игнорироваться как falsy.
+    for bad_indexes in ([-1], [0, -2]):
+        assert shared.check_structure({"indexes": bad_indexes}, pattern) == [
+            {"pointer": "/indexes", "detail": "items must be at least 0"}
+        ]
+
+    # Приоритет проверок: длина проверяется раньше минимального значения элементов,
+    # а тип элемента — раньше _check_limits.
+    assert shared.check_structure({"indexes": [-1] * 11}, pattern) == [
+        {"pointer": "/indexes", "detail": "must contain at most 10 items"}
+    ]
+    assert shared.check_structure({"indexes": ["abc"]}, pattern) == [
+        {"pointer": "/indexes", "detail": "must contain int"}
+    ]
+
+
+def test_read_query_articles_indexes_validation() -> None:
+    eleven_zeros = "&".join(["indexes=0"] * 11)
+    for query, expected_detail in (
+        ("/?indexes=-1", "items must be at least 0"),
+        ("/?indexes=0&indexes=-2", "items must be at least 0"),
+        (f"/?{eleven_zeros}", "must contain at most 10 items"),
+    ):
+        with shared.app.test_request_context(query):
+            data, response = shared.read_query(api_info.articles_get)
+
+        assert data is None
+        assert response.status_code == 422
+        assert response.get_json(force=True)["errors"] == [
+            {"pointer": "/indexes", "detail": expected_detail}
+        ]

@@ -6,6 +6,7 @@
 from collections.abc import Callable
 
 import pytest
+from sqlalchemy import event
 from sqlalchemy.orm import Session
 
 from src import backend
@@ -251,3 +252,52 @@ def test_user_data_of_unknown_user(session: Session) -> None:
         status, ErrorType.NotFound, "Cannot find user with username: nobody"
     )
     assert data is None
+
+
+def test_pages_get_deduplicates_indexes(session: Session, add_user: Callable) -> None:
+    add_user("frog")
+    article.post(session, "t1", {}, "frog", {})
+    article.post(session, "t2", {}, "frog", {})
+
+    queries = []
+
+    def count_query(*_args: object) -> None:
+        queries.append(1)
+
+    bind = session.get_bind()
+    bounds = {"upper": None, "lower": None}
+    event.listen(bind, "before_cursor_execute", count_query)
+    try:
+        status_single, pages_single = backend.pages_get(
+            session, None, [0], True, "creation_date", "descending", {}, {}, bounds
+        )
+        queries_single = len(queries)
+        queries.clear()
+
+        status_dup, pages_dup = backend.pages_get(
+            session,
+            None,
+            [0, 0, 0],
+            True,
+            "creation_date",
+            "descending",
+            {},
+            {},
+            bounds,
+        )
+        queries_duplicates = len(queries)
+    finally:
+        event.remove(bind, "before_cursor_execute", count_query)
+
+    assert not status_single.is_error
+    assert not status_dup.is_error
+    assert queries_single > 0
+    assert pages_dup == pages_single
+    assert queries_duplicates == queries_single
+
+    # Проверка сохранения порядка первого появления ключей при дедупликации.
+    status_order, pages_order = backend.pages_get(
+        session, None, [1, 0, 1], True, "creation_date", "descending", {}, {}, bounds
+    )
+    assert not status_order.is_error
+    assert list(pages_order.keys()) == [1, 0]

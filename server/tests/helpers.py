@@ -210,7 +210,13 @@ def _valid_value(field: dict) -> Any:
     if field.get("structure"):
         return [field["structure"][0]["name"]]
     if field.get("item_type") == "int":
-        return [DEFAULT_VALUES["int"]]
+        item_min = field.get("item_min")
+        val = (
+            max(DEFAULT_VALUES["int"], item_min)
+            if item_min is not None
+            else DEFAULT_VALUES["int"]
+        )
+        return [val]
     # requests сериализует bool в query-строку как "True"/"False", а сервер ждёт
     # строчный JSON-формат "true"/"false" (_parse_query_value).
     if field.get("container") == "query" and field["type"] == "bool":
@@ -448,6 +454,24 @@ def check_endpoint_structure(endpoint: str, method: str) -> None:
                 {**valid, name: ["tag", PATTERN_MISMATCH]},
                 name,
                 field["item_pattern_reason"],
+            )
+        if "max_items" in field:
+            _assert_rejected(
+                endpoint,
+                method,
+                key,
+                {**valid, name: [_valid_value(field)[0]] * (field["max_items"] + 1)},
+                name,
+                f"must contain at most {field['max_items']} items",
+            )
+        if "item_min" in field:
+            _assert_rejected(
+                endpoint,
+                method,
+                key,
+                {**valid, name: [field["item_min"] - 1]},
+                name,
+                f"items must be at least {field['item_min']}",
             )
         # В query-строке суррогата быть не может: её декодирует сам Flask.
         invalid_text = INVALID_TEXT_VALUES.get(field["type"])

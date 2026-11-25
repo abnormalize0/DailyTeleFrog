@@ -523,7 +523,7 @@ def pages_get(
 
     Returns:
         Кортеж (`Status`, dict) — OK и словарь {индекс страницы: список превью
-        статей}.
+        статей}. Повторяющиеся индексы дедуплицируются с сохранением порядка.
     """
     article_ids = article.pages_get(
         session,
@@ -537,7 +537,9 @@ def pages_get(
     )
 
     pages = {}
-    for index in indexes:
+    # Дедупликация сохраняет порядок первого появления, чтобы повторные индексы
+    # не вызывали лишние SQL-запросы для одной и той же страницы.
+    for index in dict.fromkeys(indexes):
         start = index * config.articles_per_page
         end = start + config.articles_per_page
         previews = []

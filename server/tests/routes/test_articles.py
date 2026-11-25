@@ -203,6 +203,52 @@ def test_articles_get(
     assert get_schema["sort_column"]["allowed"] == ["creation_date", "rating"]
     assert get_schema["sort_direction"]["allowed"] == ["descending", "ascending"]
 
+    # Проверка, что ограничения indexes (item_min и max_items) отдаются в OPTIONS.
+    assert get_schema["indexes"]["item_min"] == 0
+    assert get_schema["indexes"]["max_items"] == 10
+
+    # Проверка, что отрицательные indexes отклоняются с 422 до обращения к БД
+    # (даже с невалидным токеном возвращается 422, а не 401).
+    for bad_indexes in (-1, -2, [0, -1]):
+        answer = requests.get(
+            LOCALHOST + ENDPOINT,
+            params={"indexes": bad_indexes},
+            headers=auth_headers("bogus_token"),
+        )
+        assert_error(answer, "validation", "Wrong request parameters structure")
+        assert answer.json()["errors"] == [
+            {"pointer": "/indexes", "detail": "items must be at least 0"}
+        ]
+
+    # Проверка, что более 10 элементов в indexes (включая повторы) отклоняются с 422.
+    for too_many_indexes in (list(range(11)), [0] * 11):
+        answer = requests.get(
+            LOCALHOST + ENDPOINT,
+            params={"indexes": too_many_indexes},
+            headers=headers,
+        )
+        assert_error(answer, "validation", "Wrong request parameters structure")
+        assert answer.json()["errors"] == [
+            {"pointer": "/indexes", "detail": "must contain at most 10 items"}
+        ]
+
+    # Проверка, что ровно 10 элементов в indexes (включая повторы) принимаются успешно.
+    answer = requests.get(
+        LOCALHOST + ENDPOINT,
+        params={"indexes": list(range(10))},
+        headers=headers,
+    )
+    assert_ok(answer)
+    assert set(answer.json()["pages"].keys()) == {str(i) for i in range(10)}
+
+    answer = requests.get(
+        LOCALHOST + ENDPOINT,
+        params={"indexes": [0] * 10},
+        headers=headers,
+    )
+    assert_ok(answer)
+    assert set(answer.json()["pages"].keys()) == {"0"}
+
     # invalid sort_column / sort_direction values
     answer = requests.get(
         LOCALHOST + ENDPOINT,
@@ -389,3 +435,17 @@ def test_articles_get(
     )
     assert _page_ids(answer, "0") == paginated_ids[:5]
     assert _page_ids(answer, "1") == paginated_ids[5:]
+
+    # Проверка, что дубликаты в indexes в пределах лимита тихо дедуплицируются.
+    answer = requests.get(
+        LOCALHOST + ENDPOINT,
+        params={
+            "indexes": [0, 0, 1],
+            "include_tags": "pagination_tag",
+            "sort_column": "creation_date",
+            "sort_direction": "ascending",
+        },
+    )
+    assert _page_ids(answer, "0") == paginated_ids[:5]
+    assert _page_ids(answer, "1") == paginated_ids[5:]
+    assert set(answer.json()["pages"].keys()) == {"0", "1"}

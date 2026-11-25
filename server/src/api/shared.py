@@ -283,6 +283,12 @@ def _check_limits(value: str | dict | list, element: dict) -> str | None:
     max_bytes = element.get("max_bytes")
     if max_bytes and _stored_size(value) > max_bytes:
         return f"must be at most {max_bytes} bytes"
+    max_items = element.get("max_items")
+    if max_items is not None and len(value) > max_items:
+        return f"must contain at most {max_items} items"
+    item_min = element.get("item_min")
+    if item_min is not None and any(item < item_min for item in value):
+        return f"items must be at least {item_min}"
     item_max_length = element.get("item_max_length")
     if item_max_length and any(len(item) > item_max_length for item in value):
         return f"items must be at most {item_max_length} characters"
