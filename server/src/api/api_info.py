@@ -250,6 +250,7 @@ articles_data_get = [
             _requested_field("rating"),
             _requested_field("comments_count"),
             _requested_field("creation_date"),
+            _requested_field("tags"),
             _requested_field("is_liked"),
             _requested_field("is_disliked"),
         ],

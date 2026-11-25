@@ -26,6 +26,7 @@ def test_articles_data_get(add_user: Callable, add_article: Callable) -> None:
         "rating",
         "comments_count",
         "creation_date",
+        "tags",
         "is_liked",
         "is_disliked",
     ]
@@ -38,6 +39,24 @@ def test_articles_data_get(add_user: Callable, add_article: Callable) -> None:
     data = answer.json()
     for field in request_data:
         assert field in data
+    assert sorted(data["tags"]) == ["tag1", "tag2"]
+
+    # Проверка, что OPTIONS /articles/{id}/data включает "tags" в допустимые поля.
+    options_answer = requests.options(LOCALHOST + endpoint)
+    assert_ok(options_answer)
+    requested_data_schema = options_answer.json()["get"][0]
+    assert {"name": "tags"} in requested_data_schema["structure"]
+
+    # Проверка, что одиночный запрос requested_data=tags возвращает только поле tags.
+    answer = requests.get(
+        LOCALHOST + endpoint,
+        params={"requested_data": "tags"},
+        headers=auth_headers(access_token),
+    )
+    assert_ok(answer)
+    body = answer.json()
+    assert set(body) == {"tags"}
+    assert sorted(body["tags"]) == ["tag1", "tag2"]
 
     # test unlogged users (запрос без заголовка Authorization)
     answer = requests.get(LOCALHOST + endpoint, params={"requested_data": request_data})
@@ -68,3 +87,12 @@ def test_articles_data_get(add_user: Callable, add_article: Callable) -> None:
         params={"requested_data": "is_liked"},
     )
     assert_error(answer, "not-found", "Cannot find article with id: 2")
+
+    # Проверка, что для статьи без тегов возвращается пустой список.
+    article_id_no_tags = add_article(access_token, tags=[])
+    answer = requests.get(
+        f"{LOCALHOST}/articles/{article_id_no_tags}/data",
+        params={"requested_data": "tags"},
+    )
+    assert_ok(answer)
+    assert answer.json() == {"tags": []}

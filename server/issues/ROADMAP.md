@@ -36,7 +36,7 @@
 10. ~~[0014](done/0014-reject-unknown-request-fields.md) — отклонять неизвестные поля в JSON-теле и query-строке запросов.~~ *(выполнено)*
 11. ~~[0018](done/0018-reject-nul-and-control-chars.md) — запретить NUL-символы во всех входных данных и управляющие символы в однострочных полях.~~ *(выполнено)*
 12. ~~[0011](done/0011-articles-indexes-validation.md) — ограничить значения и длину параметра `indexes` в `GET /articles`.~~ *(выполнено)*
-13. [0020](0020-sync-article-data-tags-field.md) — синхронизировать поле `tags` в `GET /articles/{id}/data` между `api_info` и `backend`.
+13. ~~[0020](done/0020-sync-article-data-tags-field.md) — синхронизировать поле `tags` в `GET /articles/{id}/data` между `api_info` и `backend`.~~ *(выполнено)*
 14. [0042](0042-reject-duplicate-scalar-query-params.md) — отклонять дублирующиеся скалярные query-параметры в `shared.read_query`.
 15. [0043](0043-deduplicate-route-docstrings-validation-rules.md) — убрать дублирование правил валидации `api_info` в докстрингах роутов.
 

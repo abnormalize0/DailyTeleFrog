@@ -30,7 +30,8 @@ def api_articles_data_get(article_id: int) -> ResponseReturnValue:
         - requested_data (list, query-строка, обязательно, см.
           api_info.articles_data_get) — запрашиваемые поля, параметр повторяется:
           ?requested_data=likes&requested_data=rating. Допустимые значения: likes,
-          dislikes, rating, comments_count, creation_date, is_liked, is_disliked.
+          dislikes, rating, comments_count, creation_date, tags, is_liked,
+          is_disliked.
 
         Заголовок Authorization: Bearer <access_token> (опционально) — если
         передан и валиден, используется для is_liked/is_disliked; если не
@@ -39,7 +40,7 @@ def api_articles_data_get(article_id: int) -> ResponseReturnValue:
     Отдает:
         200 и JSON с одним ключом на каждое поле из requested_data: likes (int),
         dislikes (int), rating (int = likes - dislikes), comments_count (int),
-        creation_date (int, мс с 1970 года), is_liked (bool),
+        creation_date (int, мс с 1970 года), tags (list[str]), is_liked (bool),
         is_disliked (bool).
 
     Ошибки:
