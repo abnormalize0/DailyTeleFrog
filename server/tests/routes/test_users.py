@@ -150,3 +150,21 @@ def test_users_post() -> None:
         },
     )
     assert_error(answer, "conflict", "User with email test@,test.test already exists")
+
+    # Заглавные буквы в username запрещены и отклоняются с 422.
+    answer = requests.post(
+        LOCALHOST + endpoint,
+        json={
+            "username": "FrogUser",
+            "nickname": "Frog",
+            "email": "froguser@test.test",
+            "password": password,
+        },
+    )
+    assert_error(answer, "validation", "Wrong request parameters structure")
+    assert answer.json()["errors"] == [
+        {
+            "pointer": "/username",
+            "detail": "must contain only lowercase Latin letters, digits, _ and -",
+        }
+    ]

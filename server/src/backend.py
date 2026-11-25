@@ -192,7 +192,9 @@ def login(
               обоих случаев, чтобы не раскрывать существование аккаунта).
     """
     password = parameters["password"]
-    username = parameters["username"]
+    # Приводим username к нижнему регистру сразу на входе: логин регистронезависим,
+    # а в токены должен записываться канонический username в нижнем регистре.
+    username = parameters["username"].lower()
     email = parameters["email"]
     status, is_password_correct = user.check_password(
         session=session, password=password, username=username, email=email

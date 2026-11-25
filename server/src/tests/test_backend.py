@@ -301,3 +301,21 @@ def test_pages_get_deduplicates_indexes(session: Session, add_user: Callable) ->
     )
     assert not status_order.is_error
     assert list(pages_order.keys()) == [1, 0]
+
+
+def test_login_uppercase_username_normalizes_token(
+    session: Session, registered_username: str
+) -> None:
+    status, tokens = backend.login(
+        session, _credentials(username=registered_username.upper())
+    )
+
+    assert not status.is_error
+    assert (
+        auth.resolve_access_token(session, tokens["access_token"])[1]
+        == registered_username
+    )
+    assert (
+        auth.resolve_refresh_token(session, tokens["refresh_token"])[1]
+        == registered_username
+    )

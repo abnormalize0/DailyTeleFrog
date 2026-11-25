@@ -219,3 +219,35 @@ def test_reads_of_unknown_comment(session: Session, getter: Callable) -> None:
 
     assert_error_status(status, ErrorType.NotFound, "Cannot find comment with id: 0")
     assert value is None
+
+
+def test_username_case_insensitive_ownership(
+    session: Session, add_user: Callable
+) -> None:
+    add_user("frog")
+    add_user("reader")
+    article_id = article.post(session, "t", {}, "frog", {})
+    status, comment_id = comment.add(session, article_id, -1, "text", "FROG")
+    assert not status.is_error
+
+    assert session.get(comment.scheme.Comment, comment_id).author_username == "frog"
+    assert comment.is_liked(session, comment_id, None)[1] is False
+    assert comment.is_disliked(session, comment_id, None)[1] is False
+
+    for react in (comment.like, comment.dislike):
+        assert_error_status(
+            react(session, comment_id, "FROG"),
+            ErrorType.Forbidden,
+            "User cannot like or dislike their own comment",
+        )
+    comment.like(session, comment_id, "READER")
+    assert comment.is_liked(session, comment_id, "READER")[1] is True
+    comment.remove_like(session, comment_id, "READER")
+    assert comment.is_liked(session, comment_id, "reader")[1] is False
+
+    comment.dislike(session, comment_id, "READER")
+    assert comment.is_disliked(session, comment_id, "READER")[1] is True
+    comment.remove_dislike(session, comment_id, "READER")
+    assert comment.is_disliked(session, comment_id, "reader")[1] is False
+
+    assert not comment.delete(session, comment_id, "FROG").is_error

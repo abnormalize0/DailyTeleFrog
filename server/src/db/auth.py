@@ -39,6 +39,7 @@ def create_access_token(session: Session, username: str) -> str:
     Returns:
         Значение токена (str).
     """
+    username = username.lower()
     token = _generate_token()
     session.add(
         scheme.AccessToken(
@@ -61,6 +62,7 @@ def create_refresh_token(session: Session, username: str) -> str:
     Returns:
         Значение токена (str).
     """
+    username = username.lower()
     token = _generate_token()
     session.add(
         scheme.RefreshToken(
@@ -139,7 +141,7 @@ def _resolve_token(
             ),
             None,
         )
-    return request_status.Status.ok(), row.username
+    return request_status.Status.ok(), row.username.lower()
 
 
 def delete_expired_tokens(session: Session, username: str) -> None:
@@ -156,6 +158,7 @@ def delete_expired_tokens(session: Session, username: str) -> None:
     Returns:
         None
     """
+    username = username.lower()
     now = round(time.time() * 1000)
     for model in (scheme.AccessToken, scheme.RefreshToken):
         session.query(model).where(
@@ -217,6 +220,7 @@ def revoke_all_tokens(session: Session, username: str) -> None:
     Returns:
         None
     """
+    username = username.lower()
     session.query(scheme.AccessToken).where(
         scheme.AccessToken.username == username
     ).delete()

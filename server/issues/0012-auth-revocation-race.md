@@ -16,9 +16,9 @@ date: 2026-11-23
    - *Как возникает:* `_resolve_token` проверяет только наличие строки в `access_tokens`/`refresh_tokens` и `expires_at`, не связывая запрос с `users.is_deleted`.
    - *Негативный эффект:* любой токен удалённого аккаунта, переживший удаление (например, из-за гонок ниже), продолжает авторизовывать запросы. Методы `POST /articles`, `POST /articles/{id}/comments`, `PUT .../like`/`dislike` и `POST /auth/refresh` не перепроверяют `is_user_not_exist`, поэтому удалённый аккаунт может публиковать контент, ставить реакции и обновлять токены в нарушение `decisions/0005-soft-delete.md`.
 
-2. **Гонка `POST /auth/login` против `DELETE /users/me`, `PUT /users/me/password` и `POST /auth/logout-all` (`src/backend.py::login`, `delete_user`, `change_password`)**
-   - *Как возникает:* `login` читает хеш пароля и выполняет 600 000 итераций PBKDF2 (~200–500 мс — широкое окно для гонки), а затем выпускает новую пару токенов без блокировки строки пользователя. Пока идёт хеширование, параллельный `delete_user`, `change_password` или `logout-all` успевает закоммитить удаление аккаунта / смену пароля и `revoke_all_tokens`, после чего `login` коммитит свежую пару токенов.
-   - *Негативный эффект:* злоумышленник со старым паролем получает валидную сессию уже после смены пароля или удаления аккаунта, а при `logout-all` в системе остаётся сессия, инициированная до отзыва.
+2. **Гонка `POST /auth/login` против `DELETE /users/me`, `PUT /users/me/password` и `POST /auth/logout-all` (`src/backend.py::login`, `delete_user`, `change_password`) и TOCTOU при входе по `email`**
+   - *Как возникает:* `login` читает хеш пароля (внутри `user.check_password` проверка `is_deleted` и чтение `User.password` тоже разнесены на два запроса) и выполняет 600 000 итераций PBKDF2 (~200–500 мс — широкое окно для гонки), а при входе по `email` дополнительно делает отдельный `SELECT` в `user.get_username_by_email` уже после проверки пароля и выпускает новую пару токенов без блокировки строки пользователя. Пока идёт хеширование, параллельный `delete_user`, `change_password` или `logout-all` успевает закоммитить удаление аккаунта / смену пароля и `revoke_all_tokens`, после чего `login` коммитит свежую пару токенов; кроме того, если за время PBKDF2 пользователь A сменит `email`, а пользователь B займёт освободившийся адрес, `get_username_by_email` вернёт пользователя B и выдаст его токены по паролю A.
+   - *Негативный эффект:* злоумышленник со старым паролем получает валидную сессию уже после смены пароля или удаления аккаунта, при `logout-all` в системе остаётся сессия, инициированная до отзыва, а при смене `email` во время входа по почте токены могут быть выданы другому пользователю.
 
 3. **Гонка `POST /auth/refresh` против `DELETE /users/me`, `PUT /users/me/password` и `POST /auth/logout-all` (`src/backend.py::refresh_session`, `src/api/routes/auth_logout_all.py`)**
    - *Как возникает:* `refresh_session` успевает прочитать действующий `refresh_token` до коммита `revoke_all_tokens`. После того как `delete_user`, `change_password` или `logout-all` удаляет все токены и коммитит, `refresh_session` вызывает `revoke_refresh_token` (отсутствующий токен тихо игнорируется) и вставляет новую пару токенов.
@@ -27,6 +27,7 @@ date: 2026-11-23
 ## Желаемое поведение
 - `src/db/auth.py::_resolve_token` проверяет `User.is_deleted == False`: любой токен (и access, и refresh) удалённого аккаунта всегда отклоняется с `401 /errors/invalid-token`.
 - Операции `delete_user`, `change_password`, `logout-all`, `login` и `refresh_session` строго сериализуются эксклюзивной блокировкой (`FOR UPDATE`) на строке пользователя в `users`:
+  - при входе (`login`) по `username` и по `email` чтение `username`, хеша пароля и `is_deleted` с блокировкой строки пользователя выполняется атомарно за один запрос без повторного `get_username_by_email` после проверки пароля, чтобы исключить выдачу токенов другому пользователю при смене `email`;
   - после `DELETE /users/me` параллельный `login` или `refresh` не может выпустить действующие токены и получает `401`;
   - после `PUT /users/me/password` параллельный `login` со старым паролем или параллельный `refresh` со старым токеном не может выпустить действующие токены и получает `401`;
   - после `POST /auth/logout-all` параллельный `refresh` с ранее выданным токеном получает `401`, а `login`, начавшийся до `logout-all`, либо завершается раньше (и его токены отзываются), либо полностью выполняется уже после `logout-all`;
@@ -35,6 +36,7 @@ date: 2026-11-23
 
 ## Готово, когда
 - `auth.resolve_access_token` и `auth.resolve_refresh_token` отклоняют токены пользователя с `is_deleted = True`.
+- `login` (по `username` и по `email`) читает `username`, хеш пароля и `is_deleted` атомарно за один запрос с блокировкой строки пользователя без повторного `get_username_by_email` после проверки пароля.
 - Параллельные `login` и `refresh` против `DELETE /users/me`, `PUT /users/me/password` и `POST /auth/logout-all` не оставляют активных токенов после отзыва/удаления/смены пароля.
 - Параллельные `POST /auth/refresh` с одним `refresh_token` выдают ровно один `200`, а остальные завершаются с `401`.
 - Обновлены пометки о параллельном `POST /auth/refresh` в `issues/0006-account-security.md` и `decisions/0009-api-atomicity.md`.

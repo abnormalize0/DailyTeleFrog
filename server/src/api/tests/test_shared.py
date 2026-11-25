@@ -210,7 +210,7 @@ def _field(pattern: list, name: str) -> dict:
     return next(field for field in pattern if field["name"] == name)
 
 
-@pytest.mark.parametrize("value", ["abc", "a_b-c", "ABC123", "u" * 32])
+@pytest.mark.parametrize("value", ["abc", "a_b-c", "a123", "u" * 32])
 def test_username_rules_accept(value: str) -> None:
     assert shared._check_limits(value, _field(api_info.users_post, "username")) is None
 
@@ -221,10 +221,11 @@ def test_username_rules_accept(value: str) -> None:
         ("", "must be at least 3 characters"),
         ("ab", "must be at least 3 characters"),
         ("u" * 33, "must be at most 32 characters"),
-        ("имя", "must contain only Latin letters, digits, _ and -"),
-        ("a b", "must contain only Latin letters, digits, _ and -"),
-        ("a\x00b", "must contain only Latin letters, digits, _ and -"),
-        ("abc\n", "must contain only Latin letters, digits, _ and -"),
+        ("ABC123", "must contain only lowercase Latin letters, digits, _ and -"),
+        ("имя", "must contain only lowercase Latin letters, digits, _ and -"),
+        ("a b", "must contain only lowercase Latin letters, digits, _ and -"),
+        ("a\x00b", "must contain only lowercase Latin letters, digits, _ and -"),
+        ("abc\n", "must contain only lowercase Latin letters, digits, _ and -"),
     ],
 )
 def test_username_rules_reject(value: str, reason: str) -> None:

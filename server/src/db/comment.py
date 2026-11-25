@@ -81,6 +81,7 @@ def add(
             - InvalidParameters и `None` — если parent_id не -1 и не ссылается
               на существующий неудалённый комментарий этой статьи.
     """
+    username = username.lower()
     stored_parent_id = None if parent_id == -1 else parent_id
     if stored_parent_id is not None:
         parent_exists = (
@@ -130,6 +131,7 @@ def delete(session: Session, comment_id: int, username: str) -> request_status.S
             - NotFound — комментария нет или удалена его статья.
             - Forbidden — вызывающий не автор комментария.
     """
+    username = username.lower()
     comment = (
         session.query(scheme.Comment)
         .join(scheme.Article, scheme.Comment.article_id == scheme.Article.id)
@@ -138,7 +140,7 @@ def delete(session: Session, comment_id: int, username: str) -> request_status.S
     )
     if comment is None:
         return request_status.not_found("comment with id", comment_id)
-    if comment.author_username != username:
+    if comment.author_username is None or comment.author_username.lower() != username:
         return request_status.Status.error(
             request_status.ErrorType.Forbidden,
             "User cannot delete someone else's comment",
@@ -163,6 +165,7 @@ def like(session: Session, comment_id: int, username: str) -> request_status.Sta
             - NotFound — комментарий не найден.
             - Forbidden — username является его автором.
     """
+    username = username.lower()
     if is_comment_not_exist(session, comment_id):
         return request_status.not_found("comment with id", comment_id)
     author_username = (
@@ -170,7 +173,7 @@ def like(session: Session, comment_id: int, username: str) -> request_status.Sta
         .where(scheme.Comment.id == comment_id)
         .scalar()
     )
-    if author_username == username:
+    if author_username is not None and author_username.lower() == username:
         return request_status.Status.error(
             request_status.ErrorType.Forbidden,
             "User cannot like or dislike their own comment",
@@ -208,6 +211,7 @@ def dislike(session: Session, comment_id: int, username: str) -> request_status.
             - NotFound — комментарий не найден.
             - Forbidden — username является его автором.
     """
+    username = username.lower()
     if is_comment_not_exist(session, comment_id):
         return request_status.not_found("comment with id", comment_id)
     author_username = (
@@ -215,7 +219,7 @@ def dislike(session: Session, comment_id: int, username: str) -> request_status.
         .where(scheme.Comment.id == comment_id)
         .scalar()
     )
-    if author_username == username:
+    if author_username is not None and author_username.lower() == username:
         return request_status.Status.error(
             request_status.ErrorType.Forbidden,
             "User cannot like or dislike their own comment",
@@ -255,6 +259,7 @@ def remove_like(
             - OK — лайка больше нет.
             - NotFound — комментарий не найден.
     """
+    username = username.lower()
     if is_comment_not_exist(session, comment_id):
         return request_status.not_found("comment with id", comment_id)
     session.query(scheme.CommentLike).where(
@@ -280,6 +285,7 @@ def remove_dislike(
             - OK — дизлайка больше нет.
             - NotFound — комментарий не найден.
     """
+    username = username.lower()
     if is_comment_not_exist(session, comment_id):
         return request_status.not_found("comment with id", comment_id)
     session.query(scheme.CommentDislike).where(
@@ -308,7 +314,11 @@ def _tree_node(comment: Row, comments: list) -> dict:
         "answers": answers(comment.id, comments),
     }
     if not comment.is_deleted:
-        node["author_username"] = comment.author_username
+        node["author_username"] = (
+            comment.author_username.lower()
+            if comment.author_username is not None
+            else None
+        )
         node["text"] = comment.text
     return node
 
@@ -498,6 +508,9 @@ def is_liked(
     """
     if is_comment_not_exist(session, comment_id):
         return request_status.Status.ok(), False
+    if username is None:
+        return request_status.Status.ok(), False
+    username = username.lower()
     return (
         request_status.Status.ok(),
         not session.query(scheme.CommentLike)
@@ -527,6 +540,9 @@ def is_disliked(
     """
     if is_comment_not_exist(session, comment_id):
         return request_status.Status.ok(), False
+    if username is None:
+        return request_status.Status.ok(), False
+    username = username.lower()
     return (
         request_status.Status.ok(),
         not session.query(scheme.CommentDislike)

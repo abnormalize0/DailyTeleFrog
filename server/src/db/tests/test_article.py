@@ -315,3 +315,48 @@ def test_feed_anonymous_ignores_subscriptions_filter(
     article_id = _post(session, "author")
 
     assert _feed(session, include_nonsub=False) == [article_id]
+
+
+def test_username_case_insensitive_ownership(
+    session: Session, add_user: Callable
+) -> None:
+    add_user("frog")
+    add_user("reader")
+    article_id = article.post(session, "t", {}, "FROG", {})
+
+    assert session.get(scheme.Article, article_id).author_username == "frog"
+    for react in (article.like, article.dislike):
+        assert_error_status(
+            react(session, article_id, "FROG"),
+            ErrorType.Forbidden,
+            "User cannot like or dislike their own article",
+        )
+    article.like(session, article_id, "READER")
+    assert article.is_liked(session, article_id, "READER")[1] is True
+    article.remove_like(session, article_id, "READER")
+    assert article.is_liked(session, article_id, "reader")[1] is False
+
+    article.dislike(session, article_id, "READER")
+    assert article.is_disliked(session, article_id, "READER")[1] is True
+    article.remove_dislike(session, article_id, "READER")
+    assert article.is_disliked(session, article_id, "reader")[1] is False
+
+    user.sub_user(session, "reader", "FROG")
+    assert _feed(session, username="READER", include_nonsub=False) == [article_id]
+
+    assert not article.delete(session, article_id, "FROG").is_error
+
+
+def test_feed_include_tags_ignores_case_and_diacritics(
+    session: Session, add_user: Callable
+) -> None:
+    add_user("author")
+    article_id = _post(session, "author")
+    article.add_tags(session, ["game", "ёж"], article_id)
+
+    assert _feed(session, include={"tags": ["Game", "game"]}) == [article_id]
+    assert _feed(session, include={"tags": ["ёж", "еж"]}) == [article_id]
+    assert _feed(session, include={"tags": ["Game", "game", "ёж", "еж"]}) == [
+        article_id
+    ]
+    assert _feed(session, include={"tags": ["Game", "game", "missing"]}) == []

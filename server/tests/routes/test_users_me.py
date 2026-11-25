@@ -157,17 +157,18 @@ def test_users_me_patch(add_user: Callable) -> None:
     )
     assert_ok(answer, 204)
 
-    # Проверка, что нельзя подписаться на себя или заблокировать себя, а частичные
-    # изменения запроса откатываются.
+    # Проверка, что нельзя подписаться на себя или заблокировать себя (в том числе
+    # в другом регистре), а частичные изменения запроса откатываются.
     for field in ("sub-users", "blocked-users"):
-        answer = requests.patch(
-            LOCALHOST + ENDPOINT,
-            json={"avatar": "rolled_back", field: [own_username]},
-            headers=headers,
-        )
-        assert_error(
-            answer, "forbidden", "User cannot subscribe to or block themselves"
-        )
+        for target in (own_username, own_username.upper()):
+            answer = requests.patch(
+                LOCALHOST + ENDPOINT,
+                json={"avatar": "rolled_back", field: [target]},
+                headers=headers,
+            )
+            assert_error(
+                answer, "forbidden", "User cannot subscribe to or block themselves"
+            )
     answer = requests.get(
         LOCALHOST + ENDPOINT,
         params={"requested_data": ["sub_users", "blocked_users", "avatar"]},
@@ -176,6 +177,20 @@ def test_users_me_patch(add_user: Callable) -> None:
     assert own_username not in answer.json()["sub_users"]
     assert own_username not in answer.json()["blocked_users"]
     assert answer.json()["avatar"] == avatar
+
+    # Подписка и блокировка другого пользователя в верхнем регистре сохраняют
+    # канонический username в нижнем регистре.
+    for field, read_key in (
+        ("sub-users", "sub_users"),
+        ("blocked-users", "blocked_users"),
+    ):
+        answer = requests.patch(
+            LOCALHOST + ENDPOINT,
+            json={field: [other_username.upper()]},
+            headers=headers,
+        )
+        assert_ok(answer, 204)
+        assert read_field(ENDPOINT, read_key, access_token) == [other_username]
 
     # Проверка, что лимиты длины работают и в PATCH: значения предельной длины
     # сохраняются (слишком длинные отвергает check_endpoint_structure).

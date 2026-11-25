@@ -134,3 +134,103 @@ def test_auth_login_removes_expired_tokens(
     assert [row.token for row in after["refresh_tokens"]] == [
         answer.json()["refresh_token"]
     ]
+
+
+def test_auth_login_uppercase_username_normalizes_session(
+    add_user: Callable, db_engine: Engine, read_all_rows: Callable
+) -> None:
+    username, password, _, email, _, _ = add_user()
+
+    answer = requests.post(
+        LOCALHOST + "/auth/login",
+        json={"username": username.upper(), "password": password},
+    )
+    assert_ok(answer)
+    access_token = answer.json()["access_token"]
+    refresh_token = answer.json()["refresh_token"]
+    headers = auth_headers(access_token)
+
+    with db_engine.connect() as connection:
+        access_owner = connection.execute(
+            text("SELECT username FROM access_tokens WHERE token = :token"),
+            {"token": access_token},
+        ).scalar_one()
+        refresh_owner = connection.execute(
+            text("SELECT username FROM refresh_tokens WHERE token = :token"),
+            {"token": refresh_token},
+        ).scalar_one()
+    assert access_owner == username
+    assert refresh_owner == username
+
+    # Права владельца и авторство контента в сессии работают в нижнем регистре.
+    article_answer = requests.post(
+        LOCALHOST + "/articles",
+        json={
+            "title": "title",
+            "body": {"text": "body"},
+            "preview": {"text": "preview"},
+            "tags": ["tag1"],
+        },
+        headers=headers,
+    )
+    assert_ok(article_answer, 201)
+    article_id = article_answer.json()["article_id"]
+    rows = read_all_rows()
+    assert [
+        row.author_username for row in rows["articles"] if row.id == article_id
+    ] == [username]
+
+    for reaction in ("like", "dislike"):
+        react_answer = requests.put(
+            f"{LOCALHOST}/articles/{article_id}/{reaction}", headers=headers
+        )
+        assert_error(
+            react_answer,
+            "forbidden",
+            "User cannot like or dislike their own article",
+        )
+
+    comment_answer = requests.post(
+        f"{LOCALHOST}/articles/{article_id}/comments",
+        json={"text": "comment", "parent": -1},
+        headers=headers,
+    )
+    assert_ok(comment_answer, 201)
+    comment_id = comment_answer.json()["id"]
+    react_comment = requests.put(
+        f"{LOCALHOST}/comments/{comment_id}/like", headers=headers
+    )
+    assert_error(
+        react_comment,
+        "forbidden",
+        "User cannot like or dislike their own comment",
+    )
+    assert_ok(
+        requests.delete(f"{LOCALHOST}/comments/{comment_id}", headers=headers), 204
+    )
+    assert_ok(
+        requests.delete(f"{LOCALHOST}/articles/{article_id}", headers=headers), 204
+    )
+
+    # Повторный PATCH /users/me со своим текущим email не даёт ложный 409.
+    assert_ok(
+        requests.patch(LOCALHOST + "/users/me", json={"email": email}, headers=headers),
+        204,
+    )
+
+    # После refresh в новых токенах тоже остаётся канонический username.
+    refresh_answer = requests.post(
+        LOCALHOST + "/auth/refresh", json={"refresh_token": refresh_token}
+    )
+    assert_ok(refresh_answer)
+    with db_engine.connect() as connection:
+        new_access_owner = connection.execute(
+            text("SELECT username FROM access_tokens WHERE token = :token"),
+            {"token": refresh_answer.json()["access_token"]},
+        ).scalar_one()
+        new_refresh_owner = connection.execute(
+            text("SELECT username FROM refresh_tokens WHERE token = :token"),
+            {"token": refresh_answer.json()["refresh_token"]},
+        ).scalar_one()
+    assert new_access_owner == username
+    assert new_refresh_owner == username

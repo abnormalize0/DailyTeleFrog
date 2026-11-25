@@ -71,7 +71,7 @@ def test_add_user_conflicts_ignore_case(session: Session, add_user: Callable) ->
     same_email = user.add_user(session, "other", "n", "p", "FROG@test.test")
 
     assert_error_status(
-        same_username, ErrorType.Conflict, "User with username FROG already exists"
+        same_username, ErrorType.Conflict, "User with username frog already exists"
     )
     assert_error_status(
         same_email, ErrorType.Conflict, "User with email FROG@test.test already exists"
@@ -293,3 +293,31 @@ def test_reads_of_unknown_user(session: Session, getter: Callable) -> None:
         status, ErrorType.NotFound, "Cannot find user with username: nobody"
     )
     assert value is None
+
+
+def test_username_is_normalized_to_lowercase(
+    session: Session, add_user: Callable
+) -> None:
+    add_user("toad")
+    status = user.add_user(session, "Frog", "Frog", "password", "frog@test.test")
+    assert not status.is_error
+    created = session.query(scheme.User).where(scheme.User.username == "frog").one()
+    assert created.username == "frog"
+
+    # Обновление своего email при передаче username в верхнем регистре не конфликтует.
+    assert not user.update_email(session, "FROG", "frog@test.test").is_error
+
+    # Подписка на себя и блокировка себя в любом регистре отклоняются с Forbidden.
+    for action in (user.sub_user, user.block_user):
+        for caller, target in (("frog", "FROG"), ("FROG", "frog")):
+            assert_error_status(
+                action(session, caller, target),
+                ErrorType.Forbidden,
+                "User cannot subscribe to or block themselves",
+            )
+
+    # Чужие username в подписках и блокировках сохраняются в нижнем регистре.
+    assert not user.sub_user(session, "FROG", "TOAD").is_error
+    assert user.get_sub_user(session, "frog")[1] == ["toad"]
+    assert not user.block_user(session, "FROG", "TOAD").is_error
+    assert user.get_blacklist_user(session, "frog")[1] == ["toad"]

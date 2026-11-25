@@ -362,6 +362,14 @@ def test_articles_get(
     )
     assert _page_ids(answer) == [article_3]
 
+    # include_tags: дубликаты по регистру и диакритике не ломают выборку.
+    answer = requests.get(
+        LOCALHOST + ENDPOINT,
+        params={"indexes": 0, "include_tags": ["Tag1", "tag1"]},
+        headers=headers,
+    )
+    assert _page_ids(answer) == [article_3, article_1]
+
     # exclude_tags
     answer = requests.get(
         LOCALHOST + ENDPOINT,
@@ -466,3 +474,13 @@ def test_articles_get(
     assert _page_ids(answer, "0") == paginated_ids[:5]
     assert _page_ids(answer, "1") == paginated_ids[5:]
     assert set(answer.json()["pages"].keys()) == {"0", "1"}
+
+    yo_article = add_article(
+        access_token, tags=["ёж"], preview={"type": "text", "data": "yo"}
+    )
+    answer = requests.get(
+        LOCALHOST + ENDPOINT,
+        params={"indexes": 0, "include_tags": ["ёж", "еж"]},
+        headers=headers,
+    )
+    assert _page_ids(answer) == [yo_article]

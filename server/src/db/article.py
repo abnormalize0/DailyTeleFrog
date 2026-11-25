@@ -10,7 +10,7 @@ import json
 import time
 from sqlalchemy.orm import Session
 from sqlalchemy import func as sqlfunc
-from sqlalchemy import ColumnElement, select, or_, false
+from sqlalchemy import ColumnElement, exists, false, or_, select
 from sqlalchemy.exc import IntegrityError
 
 
@@ -47,6 +47,7 @@ def post(session: Session, title: str, body: dict, author: str, preview: dict) -
     Returns:
         id созданной статьи.
     """
+    author = author.lower()
     article = scheme.Article(
         title=title,
         # ensure_ascii=False: иначе каждая русская буква хранилась бы как \uXXXX и
@@ -81,10 +82,15 @@ def delete(session: Session, article_id: int, username: str) -> request_status.S
               посторонний не должен узнать, что такая статья была.
             - Forbidden — статья не удалена и вызывающий не её автор.
     """
+    username = username.lower()
     article = (
         session.query(scheme.Article).where(scheme.Article.id == article_id).scalar()
     )
-    is_author = article is not None and article.author_username == username
+    is_author = (
+        article is not None
+        and article.author_username is not None
+        and article.author_username.lower() == username
+    )
     if article is None or (article.is_deleted and not is_author):
         return request_status.not_found("article with id", article_id)
     if not is_author:
@@ -148,6 +154,9 @@ def is_liked(
     """
     if is_article_not_exist(session, article_id):
         return request_status.Status.ok(), False
+    if username is None:
+        return request_status.Status.ok(), False
+    username = username.lower()
     return (
         request_status.Status.ok(),
         not session.query(scheme.ArticleLike)
@@ -177,6 +186,9 @@ def is_disliked(
     """
     if is_article_not_exist(session, article_id):
         return request_status.Status.ok(), False
+    if username is None:
+        return request_status.Status.ok(), False
+    username = username.lower()
     return (
         request_status.Status.ok(),
         not session.query(scheme.ArticleDislike)
@@ -396,6 +408,7 @@ def like(session: Session, article_id: int, username: str) -> request_status.Sta
             - NotFound — статья не найдена.
             - Forbidden — username является её автором.
     """
+    username = username.lower()
     if is_article_not_exist(session, article_id):
         return request_status.not_found("article with id", article_id)
     author_username = (
@@ -403,7 +416,7 @@ def like(session: Session, article_id: int, username: str) -> request_status.Sta
         .where(scheme.Article.id == article_id)
         .scalar()
     )
-    if author_username == username:
+    if author_username is not None and author_username.lower() == username:
         return request_status.Status.error(
             request_status.ErrorType.Forbidden,
             "User cannot like or dislike their own article",
@@ -441,6 +454,7 @@ def dislike(session: Session, article_id: int, username: str) -> request_status.
             - NotFound — статья не найдена.
             - Forbidden — username является её автором.
     """
+    username = username.lower()
     if is_article_not_exist(session, article_id):
         return request_status.not_found("article with id", article_id)
     author_username = (
@@ -448,7 +462,7 @@ def dislike(session: Session, article_id: int, username: str) -> request_status.
         .where(scheme.Article.id == article_id)
         .scalar()
     )
-    if author_username == username:
+    if author_username is not None and author_username.lower() == username:
         return request_status.Status.error(
             request_status.ErrorType.Forbidden,
             "User cannot like or dislike their own article",
@@ -488,6 +502,7 @@ def remove_like(
             - OK — лайка больше нет.
             - NotFound — статья не найдена.
     """
+    username = username.lower()
     if is_article_not_exist(session, article_id):
         return request_status.not_found("article with id", article_id)
     session.query(scheme.ArticleLike).where(
@@ -513,6 +528,7 @@ def remove_dislike(
             - OK — дизлайка больше нет.
             - NotFound — статья не найдена.
     """
+    username = username.lower()
     if is_article_not_exist(session, article_id):
         return request_status.not_found("article with id", article_id)
     session.query(scheme.ArticleDislike).where(
@@ -574,6 +590,8 @@ def pages_get(
     query = session.query(scheme.Article.id).where(scheme.Article.is_deleted.is_(False))
 
     is_logged_in = username is not None
+    if username is not None:
+        username = username.lower()
 
     exclude_authors = set(exclude.get("authors") or [])
     exclude_tags = set(exclude.get("tags") or [])
@@ -610,18 +628,19 @@ def pages_get(
 
     include_tags = include.get("tags")
     if include_tags:
-        include_tags = set(include_tags)
-        query = query.where(
-            scheme.Article.id.in_(
-                select(scheme.ArticleTag.article_id)
-                .where(scheme.ArticleTag.tag_name.in_(include_tags))
-                .group_by(scheme.ArticleTag.article_id)
-                .having(
-                    sqlfunc.count(scheme.ArticleTag.tag_name.distinct())
-                    == len(include_tags)
+        # Проверяем каждый тег отдельным EXISTS, а не COUNT(DISTINCT) == len(set):
+        # MySQL (utf8mb4_0900_ai_ci) считает ["Game", "game"] или ["ёж", "еж"] одним
+        # тегом, тогда как Python set оставляет оба элемента, и COUNT никогда бы не
+        # совпал с размером множества.
+        for tag in dict.fromkeys(include_tags):
+            query = query.where(
+                exists(
+                    select(1).where(
+                        scheme.ArticleTag.article_id == scheme.Article.id,
+                        scheme.ArticleTag.tag_name == tag,
+                    )
                 )
             )
-        )
 
     if include_nonsub is False and is_logged_in:
         subscribed_authors = [

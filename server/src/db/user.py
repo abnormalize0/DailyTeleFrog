@@ -79,7 +79,7 @@ def _unknown_target_user(username: str, pointer: str) -> request_status.Status:
     """Строит ошибку для ссылки на несуществующего пользователя в теле запроса.
 
     Args:
-        username: username из тела запроса.
+        username: нормализованный username из тела запроса.
         pointer: JSON Pointer на поле запроса (например, "/sub-users").
 
     Returns:
@@ -113,7 +113,7 @@ def is_user_not_exist(
     query = session.query(scheme.User).where(scheme.User.is_deleted.is_(False))
     user = None
     if username:
-        user = query.where(scheme.User.username == username).scalar()
+        user = query.where(scheme.User.username == username.lower()).scalar()
     if email:
         user = query.where(scheme.User.email == email).scalar()
     return user is None
@@ -145,6 +145,9 @@ def add_user(
             - Conflict — username или email уже заняты. Откат транзакции делает
               API-метод.
     """
+    # Храним username строго в нижнем регистре, чтобы Python-сравнения не
+    # расходились с регистронезависимой collation MySQL (utf8mb4_0900_ai_ci).
+    username = username.lower()
     # Без is_user_not_exist: username и email удалённого аккаунта тоже заняты,
     # его строка остаётся в таблице.
     if session.get(scheme.User, username) is not None:
@@ -194,6 +197,7 @@ def delete(session: Session, username: str) -> request_status.Status:
             - OK — аккаунт удалён.
             - NotFound — пользователь не найден.
     """
+    username = username.lower()
     if is_user_not_exist(session=session, username=username):
         return request_status.not_found("user with username", username)
     user: scheme.User = (
@@ -246,6 +250,8 @@ def check_password(
               пользователя.
             - OK и `False` — если пользователь не найден.
     """
+    if username:
+        username = username.lower()
     if is_user_not_exist(session=session, username=username, email=email):
         return request_status.Status.ok(), False
     user_password: str
@@ -282,6 +288,7 @@ def change_password(
             - OK — пароль успешно изменен.
             - NotFound — пользователь не найден.
     """
+    username = username.lower()
     if is_user_not_exist(session=session, username=username):
         return request_status.not_found("user with username", username)
     user: scheme.User = (
@@ -307,6 +314,7 @@ def update_email(session: Session, username: str, email: str) -> request_status.
             - Conflict — email занят другим пользователем. Откат транзакции делает
               API-метод.
     """
+    username = username.lower()
     if is_user_not_exist(session=session, username=username):
         return request_status.not_found("user with username", username)
     email_taken = request_status.Status.error(
@@ -314,7 +322,8 @@ def update_email(session: Session, username: str, email: str) -> request_status.
         f"User with email {email} already exists",
     )
     # Свой текущий email конфликтом не считается: повторный PATCH не должен падать.
-    if get_username_by_email(session, email) not in (None, username):
+    owner = get_username_by_email(session, email)
+    if owner is not None and owner.lower() != username:
         return email_taken
     user: scheme.User = (
         session.query(scheme.User).where(scheme.User.username == username).scalar()
@@ -343,6 +352,7 @@ def update_nickname(
             - OK — nickname успешно обновлен.
             - NotFound — пользователь не найден.
     """
+    username = username.lower()
     if is_user_not_exist(session=session, username=username):
         return request_status.not_found("user with username", username)
     user: scheme.User = (
@@ -374,6 +384,7 @@ def update_description(
             - OK — описание успешно обновлено.
             - NotFound — пользователь не найден.
     """
+    username = username.lower()
     if is_user_not_exist(session=session, username=username):
         return request_status.not_found("user with username", username)
     user: scheme.User = (
@@ -399,6 +410,7 @@ def update_avatar(
             - OK — avatar успешно обновлен.
             - NotFound — пользователь не найден.
     """
+    username = username.lower()
     if is_user_not_exist(session=session, username=username):
         return request_status.not_found("user with username", username)
     user: scheme.User = (
@@ -424,6 +436,8 @@ def sub_user(session: Session, username: str, sub: str) -> request_status.Status
             - Forbidden — sub совпадает с username.
             - InvalidParameters — sub не существует.
     """
+    username = username.lower()
+    sub = sub.lower()
     if is_user_not_exist(session=session, username=username):
         return request_status.not_found("user with username", username)
     if sub == username:
@@ -464,6 +478,8 @@ def block_user(
             - Forbidden — blocked_user совпадает с username.
             - InvalidParameters — blocked_user не существует.
     """
+    username = username.lower()
+    blocked_user = blocked_user.lower()
     if is_user_not_exist(session=session, username=username):
         return request_status.not_found("user with username", username)
     if blocked_user == username:
@@ -500,6 +516,7 @@ def sub_tag(session: Session, username: str, tag_name: str) -> request_status.St
             - OK — подписка оформлена.
             - NotFound — username не найден.
     """
+    username = username.lower()
     if is_user_not_exist(session=session, username=username):
         return request_status.not_found("user with username", username)
     block_tag = (
@@ -532,6 +549,7 @@ def block_tag(session: Session, username: str, tag_name: str) -> request_status.
             - OK — блокировка оформлена.
             - NotFound — username не найден.
     """
+    username = username.lower()
     if is_user_not_exist(session=session, username=username):
         return request_status.not_found("user with username", username)
     sub_tag = (
@@ -564,6 +582,7 @@ def get_rating(
             - OK и рейтинг — если пользователь найден.
             - NotFound и `None` — если пользователь не найден.
     """
+    username = username.lower()
     if is_user_not_exist(session=session, username=username):
         return request_status.not_found("user with username", username), None
     user_articles = (
@@ -628,6 +647,7 @@ def _get_user_field(
             - OK и значение колонки — если пользователь найден.
             - NotFound и `None` — если пользователь не найден.
     """
+    username = username.lower()
     if is_user_not_exist(session=session, username=username):
         return request_status.not_found("user with username", username), None
     value = session.query(column).where(scheme.User.username == username).scalar()
@@ -653,6 +673,7 @@ def _get_user_list_field(
             - OK и список значений — если пользователь найден.
             - NotFound и `None` — если пользователь не найден.
     """
+    username = username.lower()
     if is_user_not_exist(session=session, username=username):
         return request_status.not_found("user with username", username), None
     rows = session.query(column).where(where_column == username).all()
@@ -764,12 +785,15 @@ def get_sub_user(
             - OK и список username'ов — если пользователь найден.
             - NotFound и `None` — если пользователь не найден.
     """
-    return _get_user_list_field(
+    status, users = _get_user_list_field(
         session,
         username,
         scheme.UserSubscription.subscribed_user,
         scheme.UserSubscription.username,
     )
+    if status.is_error:
+        return status, None
+    return status, [name.lower() for name in users]
 
 
 def get_blacklist_user(
@@ -786,12 +810,15 @@ def get_blacklist_user(
             - OK и список username'ов — если пользователь найден.
             - NotFound и `None` — если пользователь не найден.
     """
-    return _get_user_list_field(
+    status, users = _get_user_list_field(
         session,
         username,
         scheme.UserBlacklist.blocked_user,
         scheme.UserBlacklist.username,
     )
+    if status.is_error:
+        return status, None
+    return status, [name.lower() for name in users]
 
 
 def get_sub_tag(
@@ -871,6 +898,7 @@ def preview(
               видны, но данных аккаунта в них быть не должно.
             - NotFound и `None` — если пользователь не найден.
     """
+    username = username.lower()
     row = (
         session.query(
             scheme.User.avatar,
@@ -891,7 +919,7 @@ def preview(
         "avatar": row.avatar,
         "nickname": row.nickname,
         "description": row.description,
-        "username": row.username,
+        "username": row.username.lower(),
         "is_deleted": False,
     }
     return request_status.Status.ok(), user_preview

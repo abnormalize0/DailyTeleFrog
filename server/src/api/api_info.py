@@ -48,11 +48,12 @@ _TAG_MAX_LENGTH = scheme.ArticleTag.tag_name.type.length
 _USERNAME_RULES = {
     "min_length": 3,
     "max_length": scheme.User.username.type.length,
-    # Только латиница: username попадает в ссылки и служит логином, а похожие друг
-    # на друга кириллические и латинские буквы позволили бы выдавать себя за другого.
-    # Кириллица доступна в nickname.
-    "pattern": "[A-Za-z0-9_-]+",
-    "pattern_reason": "must contain only Latin letters, digits, _ and -",
+    # Только строчная латиница: username служит первичным ключом в utf8mb4_0900_ai_ci
+    # и попадает в ссылки, поэтому канонический регистр задаётся сразу на входе;
+    # похожие кириллические буквы запрещены, чтобы нельзя было выдать себя за другого
+    # (кириллица и заглавные буквы доступны в nickname).
+    "pattern": "[a-z0-9_-]+",
+    "pattern_reason": "must contain only lowercase Latin letters, digits, _ and -",
 }
 # Однострочные поля не должны принимать ASCII-управляющие символы (\x00-\x1f, \x7f),
 # чтобы переносы строк, табы и прочие управляющие коды не попадали в заголовки,

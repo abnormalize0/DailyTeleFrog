@@ -156,3 +156,39 @@ def test_revoke_all_tokens_touches_only_this_user(
 
     assert [row.token for row in session.query(scheme.AccessToken)] == [toad_access]
     assert [row.token for row in session.query(scheme.RefreshToken)] == [toad_refresh]
+
+
+def test_tokens_normalize_username_to_lowercase(
+    session: Session, add_user: Callable
+) -> None:
+    add_user("frog")
+
+    access = auth.create_access_token(session, "FROG")
+    refresh = auth.create_refresh_token(session, "FROG")
+
+    assert session.get(scheme.AccessToken, access).username == "frog"
+    assert session.get(scheme.RefreshToken, refresh).username == "frog"
+    assert auth.resolve_access_token(session, access)[1] == "frog"
+    assert auth.resolve_refresh_token(session, refresh)[1] == "frog"
+
+    # Legacy-запись со смешанным регистром в БД тоже отдаётся в нижнем регистре.
+    future = round(time.time() * 1000) + 60_000
+    session.add(
+        scheme.AccessToken(token="legacy_a", username="FROG", expires_at=future)
+    )
+    session.add(
+        scheme.RefreshToken(token="legacy_r", username="FROG", expires_at=future)
+    )
+    session.flush()
+    assert auth.resolve_access_token(session, "legacy_a")[1] == "frog"
+    assert auth.resolve_refresh_token(session, "legacy_r")[1] == "frog"
+
+    # delete_expired_tokens и revoke_all_tokens нормализуют переданный username.
+    session.get(scheme.AccessToken, access).expires_at = 1
+    session.flush()
+    auth.delete_expired_tokens(session, "FROG")
+    assert session.get(scheme.AccessToken, access) is None
+
+    auth.revoke_all_tokens(session, "FROG")
+    assert session.query(scheme.AccessToken).count() == 0
+    assert session.query(scheme.RefreshToken).count() == 0

@@ -59,6 +59,7 @@ def lock_user_reactions(session: Session, username: str) -> None:
     Returns:
         None
     """
+    username = username.lower()
     session.query(scheme.User.username).where(
         scheme.User.username == username
     ).with_for_update().first()
