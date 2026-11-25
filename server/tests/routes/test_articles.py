@@ -276,6 +276,23 @@ def test_articles_get(
         }
     ]
 
+    # Проверка, что дублирующиеся скалярные query-параметры отклоняются с 422.
+    for extra_params, pointer in (
+        ({"sort_column": ["rating", "creation_date"]}, "/sort_column"),
+        ({"sort_column": ["rating", "a\x00b"]}, "/sort_column"),
+        ({"upper_date": ["100", "bogus"]}, "/upper_date"),
+        ({"include_nonsub": ["true", "false"]}, "/include_nonsub"),
+    ):
+        answer = requests.get(
+            LOCALHOST + ENDPOINT,
+            params={"indexes": 0, **extra_params},
+            headers=headers,
+        )
+        assert_error(answer, "validation", "Wrong request parameters structure")
+        assert answer.json()["errors"] == [
+            {"pointer": pointer, "detail": "must not be repeated"}
+        ]
+
     # Проверка, что неверный токен не превращает запрос в анонимный.
     answer = requests.get(
         LOCALHOST + ENDPOINT,

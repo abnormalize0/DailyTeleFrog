@@ -344,8 +344,8 @@ def _check_body_is_required(endpoint: str, method: str) -> None:
 def check_endpoint_structure(endpoint: str, method: str) -> None:
     """Запрашивает описание параметров через `OPTIONS <endpoint>` и проверяет, что
     метод отвергает с понятной причиной неверный тип, нарушение ограничений,
-    невалидный Unicode в каждом параметре, неизвестные поля, отсутствие
-    обязательных и тело, не являющееся JSON-объектом.
+    невалидный Unicode в каждом параметре, неизвестные поля, повторение скалярных
+    query-параметров, отсутствие обязательных и тело, не являющееся JSON-объектом.
 
     Args:
         endpoint: путь запроса.
@@ -503,6 +503,15 @@ def check_endpoint_structure(endpoint: str, method: str) -> None:
                 {**valid, name: bogus},
                 name,
                 "must be one of",
+            )
+        if is_query and field["type"] != "list":
+            _assert_rejected(
+                endpoint,
+                method,
+                key,
+                {**valid, name: [valid[name], valid[name]]},
+                name,
+                "must not be repeated",
             )
         if field["is_required"]:
             without_field = {k: v for k, v in valid.items() if k != name}

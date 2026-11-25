@@ -982,3 +982,93 @@ def test_read_query_articles_indexes_validation() -> None:
         assert response.get_json(force=True)["errors"] == [
             {"pointer": "/indexes", "detail": expected_detail}
         ]
+
+
+def test_read_query_rejects_duplicate_scalar_params() -> None:
+    required_int = [{"name": "page", "type": "int", "is_required": True}]
+    with shared.app.test_request_context("/?page=1&page=2"):
+        data, response = shared.read_query(required_int)
+
+    assert data is None
+    assert response.status_code == 422
+    problem = response.get_json(force=True)
+    assert problem["type"] == "/errors/validation"
+    assert problem["detail"] == "Wrong request parameters structure"
+    assert problem["errors"] == [{"pointer": "/page", "detail": "must not be repeated"}]
+
+    for query, pointer in (
+        ("/?indexes=0&sort_column=rating&sort_column=creation_date", "/sort_column"),
+        ("/?indexes=0&sort_column=rating&sort_column=a%00b", "/sort_column"),
+        ("/?indexes=0&sort_column=a%00b&sort_column=rating", "/sort_column"),
+        ("/?indexes=0&upper_date=100&upper_date=bogus", "/upper_date"),
+        ("/?indexes=0&upper_date=bogus&upper_date=100", "/upper_date"),
+        ("/?indexes=0&include_nonsub=true&include_nonsub=false", "/include_nonsub"),
+    ):
+        with shared.app.test_request_context(query):
+            data, response = shared.read_query(api_info.articles_get)
+
+        assert data is None
+        assert response.status_code == 422
+        assert response.get_json(force=True)["errors"] == [
+            {"pointer": pointer, "detail": "must not be repeated"}
+        ]
+
+    with shared.app.test_request_context("/?name=&name="):
+        data, response = shared.read_query([NAME_FIELD])
+
+    assert data is None
+    assert response.status_code == 422
+    assert response.get_json(force=True)["errors"] == [
+        {"pointer": "/name", "detail": "must not be repeated"}
+    ]
+
+    # Одновременное дублирование двух разных скалярных параметров.
+    combined_pattern = [
+        {"name": "page", "type": "int", "is_required": True},
+        {"name": "sort", "type": "str", "is_required": False},
+    ]
+    with shared.app.test_request_context("/?page=1&page=2&sort=a&sort=b"):
+        data, response = shared.read_query(combined_pattern)
+
+    assert data is None
+    assert response.status_code == 422
+    assert response.get_json(force=True)["errors"] == [
+        {"pointer": "/page", "detail": "must not be repeated"},
+        {"pointer": "/sort", "detail": "must not be repeated"},
+    ]
+
+    # Дублирование скаляра вместе с ошибкой значения другого присутствующего поля.
+    with shared.app.test_request_context(
+        "/?indexes=0&sort_column=rating&sort_column=creation_date&upper_date=bogus"
+    ):
+        data, response = shared.read_query(api_info.articles_get)
+
+    assert data is None
+    assert response.status_code == 422
+    assert response.get_json(force=True)["errors"] == [
+        {"pointer": "/upper_date", "detail": "must be int"},
+        {"pointer": "/sort_column", "detail": "must not be repeated"},
+    ]
+
+    # Ошибки отсутствующего, неизвестного, дублирующегося параметров и лишнего тела
+    # собираются вместе за один запрос.
+    with shared.app.test_request_context(
+        "/?sort=a&sort=b&extra=1", json={"body_field": 1}
+    ):
+        data, response = shared.read_query(combined_pattern)
+
+    assert data is None
+    assert response.status_code == 422
+    assert response.get_json(force=True)["errors"] == [
+        {"pointer": "/page", "detail": "is required"},
+        {"pointer": "/extra", "detail": "unknown field"},
+        {"pointer": "/sort", "detail": "must not be repeated"},
+        {"pointer": "/body_field", "detail": "unknown field"},
+    ]
+
+    # Списочные параметры по-прежнему принимают несколько значений.
+    with shared.app.test_request_context("/?indexes=0&indexes=1&sort_column=rating"):
+        data, response = shared.read_query(api_info.articles_get)
+
+    assert response is None
+    assert data == {"indexes": [0, 1], "sort_column": "rating"}

@@ -492,7 +492,8 @@ def _parse_query_value(value: str, type_name: str) -> int | bool | str:
 def read_query(pattern: list) -> tuple:
     """Читает и проверяет параметры из query-строки (GET).
 
-    Список передаётся повторением параметра: ?tag=a&tag=b. Тело запроса у
+    Список передаётся повторением параметра: ?tag=a&tag=b. Повторение
+    скалярного параметра отклоняется как ошибка валидации. Тело запроса у
     таких методов должно быть пустым.
 
     Args:
@@ -502,24 +503,37 @@ def read_query(pattern: list) -> tuple:
         См. `_validated`.
     """
     data = {}
+    duplicate_names = set()
+    duplicate_errors = []
     for element in pattern:
         name = element["name"]
         if name not in request.args:
             continue
+        values = request.args.getlist(name)
         if element["type"] == "list":
             item_type = element.get("item_type", "str")
-            data[name] = [
-                _parse_query_value(value, item_type)
-                for value in request.args.getlist(name)
-            ]
+            data[name] = [_parse_query_value(value, item_type) for value in values]
+        elif len(values) > 1:
+            duplicate_names.add(name)
+            duplicate_errors.append(
+                {"pointer": f"/{name}", "detail": "must not be repeated"}
+            )
         else:
-            data[name] = _parse_query_value(request.args[name], element["type"])
+            data[name] = _parse_query_value(values[0], element["type"])
     # Неизвестные query-параметры тоже передаём в check_structure, чтобы все
     # ошибки структуры собирались в одном месте и в одном формате.
+    # Дублированные скаляры уже зафиксированы в duplicate_errors, поэтому их
+    # пропускаем здесь и исключаем из effective_pattern, чтобы check_structure
+    # не выдавал на них ложные unknown field или is required.
     for name in request.args:
-        if name not in data:
+        if name not in data and name not in duplicate_names:
             data[name] = request.args[name]
-    return _validated(data, pattern, _unexpected_body_errors())
+    effective_pattern = [
+        element for element in pattern if element["name"] not in duplicate_names
+    ]
+    return _validated(
+        data, effective_pattern, duplicate_errors + _unexpected_body_errors()
+    )
 
 
 def require_no_params() -> Response | None:
