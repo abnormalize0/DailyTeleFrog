@@ -38,7 +38,8 @@ def api_auth_refresh_post() -> ResponseReturnValue:
     Ошибки:
         - 400 /errors/bad-request — если тело не является корректным JSON-объектом
           или отсутствует подходящий Content-Type.
-        - 422 /errors/validation — при неверных значениях полей тела запроса.
+        - 422 /errors/validation — если параметры тела запроса нарушают схему
+          api_info.auth_refresh_post.
         - 401 /errors/invalid-token — если refresh_token не найден или истёк
           (в этом случае нужно залогиниться заново через /auth/login).
 

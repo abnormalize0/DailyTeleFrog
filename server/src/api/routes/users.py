@@ -42,11 +42,8 @@ def api_users_post() -> ResponseReturnValue:
     Ошибки:
         - 400 /errors/bad-request — если тело не является корректным JSON-объектом
           или отсутствует подходящий Content-Type.
-        - 422 /errors/validation — при неверных значениях полей тела запроса, в том
-          числе если значение нарушает ограничения из api_info.users_post: username
-          короче 3 символов или не из латинских букв, цифр, _ и -; в nickname нет
-          видимых символов или есть управляющие; email не похож на адрес; password
-          короче 8 или длиннее 128 символов.
+        - 422 /errors/validation — если параметры тела запроса нарушают схему
+          api_info.users_post.
         - 409 /errors/conflict — если пользователь с таким username или email уже
           зарегистрирован.
 

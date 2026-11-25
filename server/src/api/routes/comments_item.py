@@ -46,8 +46,8 @@ def api_comments_item_get(comment_id: int) -> ResponseReturnValue:
         вместо этих полей только is_deleted (True).
 
     Ошибки:
-        - 422 /errors/validation — если requested_data отсутствует или содержит
-          имя поля не из допустимого списка.
+        - 422 /errors/validation — если query-параметры нарушают схему
+          api_info.comments_item_get.
         - 401 /errors/invalid-token — если заголовок Authorization передан, но
           токен не найден или истёк.
         - 404 /errors/not-found — если комментария не существует или удалена его

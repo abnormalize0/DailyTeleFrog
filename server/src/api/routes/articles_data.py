@@ -44,8 +44,8 @@ def api_articles_data_get(article_id: int) -> ResponseReturnValue:
         is_disliked (bool).
 
     Ошибки:
-        - 422 /errors/validation — если requested_data отсутствует или содержит
-          имя поля не из допустимого списка.
+        - 422 /errors/validation — если query-параметры нарушают схему
+          api_info.articles_data_get.
         - 401 /errors/invalid-token — если заголовок Authorization передан, но
           токен не найден или истёк.
         - 404 /errors/not-found — если статьи не существует.

@@ -37,8 +37,8 @@ def api_users_me_password_put() -> ResponseReturnValue:
     Ошибки:
         - 400 /errors/bad-request — если тело не является корректным JSON-объектом
           или отсутствует подходящий Content-Type.
-        - 422 /errors/validation — при неверных значениях полей тела запроса, в том
-          числе если new_password короче 8 или длиннее 128 символов.
+        - 422 /errors/validation — если параметры тела запроса нарушают схему
+          api_info.users_me_password_put.
         - 401 /errors/invalid-token — если заголовок Authorization отсутствует,
           токен не найден или истёк.
         - 403 /errors/forbidden — если previous_password не совпадает с текущим

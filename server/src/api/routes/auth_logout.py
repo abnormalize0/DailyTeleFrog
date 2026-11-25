@@ -38,7 +38,8 @@ def api_auth_logout_post() -> ResponseReturnValue:
     Ошибки:
         - 400 /errors/bad-request — если тело не является корректным JSON-объектом
           или отсутствует подходящий Content-Type.
-        - 422 /errors/validation — при неверных значениях полей тела запроса.
+        - 422 /errors/validation — если параметры тела запроса нарушают схему
+          api_info.auth_logout_post.
         - 401 /errors/invalid-token — если заголовок Authorization отсутствует,
           access token не найден или истёк.
 

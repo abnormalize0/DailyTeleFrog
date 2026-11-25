@@ -43,9 +43,8 @@ def api_articles_comments_post(article_id: int) -> ResponseReturnValue:
     Ошибки:
         - 400 /errors/bad-request — если тело не является корректным JSON-объектом
           или отсутствует подходящий Content-Type.
-        - 422 /errors/validation — при неверных значениях полей тела запроса, если
-          в text нет ни одного видимого символа или он длиннее
-          api_info.TEXT_MAX_BYTES байт или если parent не равен -1 и не ссылается
+        - 422 /errors/validation — если параметры тела запроса нарушают схему
+          api_info.articles_comments_post, либо parent не равен -1 и не ссылается
           на существующий неудалённый комментарий именно этой статьи.
         - 401 /errors/invalid-token — если заголовок Authorization отсутствует,
           токен не найден или истёк.

@@ -38,7 +38,7 @@
 12. ~~[0011](done/0011-articles-indexes-validation.md) — ограничить значения и длину параметра `indexes` в `GET /articles`.~~ *(выполнено)*
 13. ~~[0020](done/0020-sync-article-data-tags-field.md) — синхронизировать поле `tags` в `GET /articles/{id}/data` между `api_info` и `backend`.~~ *(выполнено)*
 14. ~~[0042](done/0042-reject-duplicate-scalar-query-params.md) — отклонять дублирующиеся скалярные query-параметры в `shared.read_query`.~~ *(выполнено)*
-15. [0043](0043-deduplicate-route-docstrings-validation-rules.md) — убрать дублирование правил валидации `api_info` в докстрингах роутов.
+15. ~~[0043](done/0043-deduplicate-route-docstrings-validation-rules.md) — убрать дублирование правил валидации `api_info` в докстрингах роутов.~~ *(выполнено)*
 
 ---
 

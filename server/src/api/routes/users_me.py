@@ -48,8 +48,8 @@ def api_users_me_get() -> ResponseReturnValue:
         creation_date (int, мс с 1970 года), rating (int).
 
     Ошибки:
-        - 422 /errors/validation — если requested_data отсутствует или содержит
-          имя поля не из допустимого списка.
+        - 422 /errors/validation — если query-параметры нарушают схему
+          api_info.users_me_get.
         - 401 /errors/invalid-token — если заголовок Authorization отсутствует,
           токен не найден или истёк.
 
@@ -104,11 +104,9 @@ def api_users_me_patch() -> ResponseReturnValue:
     Ошибки:
         - 400 /errors/bad-request — если тело не является корректным JSON-объектом
           или отсутствует подходящий Content-Type.
-        - 422 /errors/validation — при неверных значениях полей тела запроса, если
-          значение нарушает ограничения из api_info.users_me_patch (nickname и email
-          проверяются как при регистрации, а в элементах sub-tags и blocked-tags
-          должен быть видимый символ) или если sub-users/blocked-users
-          содержит несуществующего или удалённого пользователя.
+        - 422 /errors/validation — если параметры тела запроса нарушают схему
+          api_info.users_me_patch, либо sub-users/blocked-users содержит
+          несуществующего или удалённого пользователя.
         - 401 /errors/invalid-token — если заголовок Authorization отсутствует,
           токен не найден или истёк.
         - 403 /errors/forbidden — если sub-users/blocked-users содержит самого
@@ -165,7 +163,8 @@ def api_users_me_delete() -> ResponseReturnValue:
     Ошибки:
         - 400 /errors/bad-request — если тело не является корректным JSON-объектом
           или отсутствует подходящий Content-Type.
-        - 422 /errors/validation — при неверных значениях полей тела запроса.
+        - 422 /errors/validation — если параметры тела запроса нарушают схему
+          api_info.users_me_delete.
         - 401 /errors/invalid-token — если заголовок Authorization отсутствует,
           токен не найден или истёк.
         - 403 /errors/forbidden — если password неверен.
