@@ -47,7 +47,7 @@
 Задача [0008](done/0008-case-insensitive-comparisons.md) идёт первой в этапе, так как устраняет расхождение регистра между MySQL и Python, от которого зависят проверки в `0009`, `0012`, `0015` и `0021`.
 
 16. ~~[0008](done/0008-case-insensitive-comparisons.md) — устранить расхождение сравнения строк (регистра) между MySQL и Python.~~ *(выполнено)*
-17. [0021](0021-user-lookup-ambiguous-args.md) — запретить одновременную передачу `username` и `email` в `is_user_not_exist` и `check_password`.
+17. ~~[0021](done/0021-user-lookup-ambiguous-args.md) — запретить одновременную передачу `username` и `email` в `is_user_not_exist` и `check_password`.~~ *(выполнено)*
 18. [0012](0012-auth-revocation-race.md) — исключить гонку отзыва токенов и удаления аккаунта против `login` и `refresh`.
 19. [0017](0017-login-timing-attack.md) — выровнять время ответа `POST /auth/login` при несуществующем пользователе (защита от timing-атаки).
 20. [0006](0006-account-security.md) — усилить безопасность аккаунтов (защита refresh-токенов, отзыв чужого токена в `POST /auth/logout`, rate limiting).

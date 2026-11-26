@@ -201,18 +201,20 @@ def test_users_me_patch(add_user: Callable) -> None:
     )
     assert_ok(answer, 204)
 
-    # Проверка, что на несуществующего пользователя нельзя подписаться или
-    # заблокировать его, а частичные изменения запроса откатываются.
+    # Проверка, что на несуществующего (в том числе пустого) пользователя нельзя
+    # подписаться или заблокировать его, а частичные изменения запроса откатываются.
     for field in ("sub-users", "blocked-users"):
-        answer = requests.patch(
-            LOCALHOST + ENDPOINT,
-            json={"avatar": "rolled_back", field: ["nobody"]},
-            headers=headers,
-        )
-        assert_error(answer, "validation", "Cannot find user with username: nobody")
-        assert answer.json()["errors"] == [
-            {"pointer": f"/{field}", "detail": "Cannot find user with username: nobody"}
-        ]
+        for target in ("nobody", ""):
+            answer = requests.patch(
+                LOCALHOST + ENDPOINT,
+                json={"avatar": "rolled_back", field: [target]},
+                headers=headers,
+            )
+            detail = f"Cannot find user with username: {target}"
+            assert_error(answer, "validation", detail)
+            assert answer.json()["errors"] == [
+                {"pointer": f"/{field}", "detail": detail}
+            ]
     assert read_field(ENDPOINT, "avatar", access_token) == avatar
 
     # Проверка, что PATCH применяет те же правила, что регистрация, и не меняет поля.

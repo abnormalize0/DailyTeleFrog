@@ -104,17 +104,25 @@ def is_user_not_exist(
 
     Args:
         session: сессия SQLAlchemy.
-        username: имя пользователя для поиска.
-        email: email пользователя для поиска.
+        username: имя пользователя для поиска (взаимоисключающе с email;
+            допустима пустая строка, если передан непустой email).
+        email: email пользователя для поиска (взаимоисключающе с username;
+            допустима пустая строка, если передан непустой username).
 
     Returns:
         `True`, если пользователь не найден или удалён, иначе `False`.
+
+    Raises:
+        ValueError: если переданы оба непустых идентификатора или не передан ни один.
     """
+    # Требуем ровно один непустой идентификатор, чтобы второй аргумент не
+    # перезаписывал результат первого и пустой вызов не маскировался под NotFound.
+    if bool(username) == bool(email):
+        raise ValueError("Specify exactly one of username or email")
     query = session.query(scheme.User).where(scheme.User.is_deleted.is_(False))
-    user = None
     if username:
         user = query.where(scheme.User.username == username.lower()).scalar()
-    if email:
+    else:
         user = query.where(scheme.User.email == email).scalar()
     return user is None
 
@@ -241,27 +249,33 @@ def check_password(
     Args:
         session: сессия SQLAlchemy.
         password: пароль для проверки.
-        username: имя пользователя для поиска.
-        email: email пользователя для поиска.
+        username: имя пользователя для поиска (взаимоисключающе с email;
+            допустима пустая строка, если передан непустой email).
+        email: email пользователя для поиска (взаимоисключающе с username;
+            допустима пустая строка, если передан непустой username).
 
     Returns:
         Кортеж (`Status`, bool):
             - OK и `True`/`False` — совпадает ли password с паролем найденного
               пользователя.
             - OK и `False` — если пользователь не найден.
+
+    Raises:
+        ValueError: если переданы оба непустых идентификатора или не передан ни один.
     """
+    if bool(username) == bool(email):
+        raise ValueError("Specify exactly one of username or email")
     if username:
         username = username.lower()
     if is_user_not_exist(session=session, username=username, email=email):
         return request_status.Status.ok(), False
-    user_password: str
     if username:
         user_password = (
             session.query(scheme.User.password)
             .where(scheme.User.username == username)
             .scalar()
         )
-    if email:
+    else:
         user_password = (
             session.query(scheme.User.password)
             .where(scheme.User.email == email)
@@ -442,7 +456,9 @@ def sub_user(session: Session, username: str, sub: str) -> request_status.Status
         return request_status.not_found("user with username", username)
     if sub == username:
         return _self_reference()
-    if is_user_not_exist(session=session, username=sub):
+    # Пустая строка может прийти из схемы PATCH /users/me или прямого вызова;
+    # отсекаем до is_user_not_exist, которая требует непустой идентификатор.
+    if not sub or is_user_not_exist(session=session, username=sub):
         return _unknown_target_user(sub, "/sub-users")
     block_user = (
         session.query(scheme.UserBlacklist)
@@ -484,7 +500,9 @@ def block_user(
         return request_status.not_found("user with username", username)
     if blocked_user == username:
         return _self_reference()
-    if is_user_not_exist(session=session, username=blocked_user):
+    # Пустая строка может прийти из схемы PATCH /users/me или прямого вызова;
+    # отсекаем до is_user_not_exist, которая требует непустой идентификатор.
+    if not blocked_user or is_user_not_exist(session=session, username=blocked_user):
         return _unknown_target_user(blocked_user, "/blocked-users")
     sub_user = (
         session.query(scheme.UserSubscription)

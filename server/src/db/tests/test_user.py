@@ -185,15 +185,11 @@ def test_user_relations_errors(session: Session, add_user: Callable) -> None:
             ErrorType.Forbidden,
             "User cannot subscribe to or block themselves",
         )
-        status = action(session, "frog", "nobody")
-        assert_error_status(
-            status,
-            ErrorType.InvalidParameters,
-            "Cannot find user with username: nobody",
-        )
-        assert status.errors == [
-            {"pointer": pointer, "detail": "Cannot find user with username: nobody"}
-        ]
+        for target in ("nobody", ""):
+            status = action(session, "frog", target)
+            detail = f"Cannot find user with username: {target}"
+            assert_error_status(status, ErrorType.InvalidParameters, detail)
+            assert status.errors == [{"pointer": pointer, "detail": detail}]
 
 
 def test_get_rating_skips_deleted_content(session: Session, add_user: Callable) -> None:
@@ -321,3 +317,77 @@ def test_username_is_normalized_to_lowercase(
     assert user.get_sub_user(session, "frog")[1] == ["toad"]
     assert not user.block_user(session, "FROG", "TOAD").is_error
     assert user.get_blacklist_user(session, "frog")[1] == ["toad"]
+
+
+@pytest.mark.parametrize(
+    "username, email",
+    [
+        ("frog", "frog@test.test"),
+        ("frog", "toad@test.test"),
+        (None, None),
+        ("", ""),
+        ("", None),
+        (None, ""),
+    ],
+)
+def test_is_user_not_exist_requires_single_identifier(
+    session: Session, add_user: Callable, username: str | None, email: str | None
+) -> None:
+    add_user("frog")
+    add_user("toad")
+
+    with pytest.raises(ValueError, match="Specify exactly one of username or email"):
+        user.is_user_not_exist(session, username=username, email=email)
+
+
+@pytest.mark.parametrize(
+    "username, email",
+    [
+        ("frog", "frog@test.test"),
+        ("frog", "toad@test.test"),
+        (None, None),
+        ("", ""),
+        ("", None),
+        (None, ""),
+    ],
+)
+def test_check_password_requires_single_identifier(
+    session: Session, username: str | None, email: str | None
+) -> None:
+    user.add_user(session, "frog", "Frog", "frog_pass", "frog@test.test")
+    user.add_user(session, "toad", "Toad", "toad_pass", "toad@test.test")
+
+    with pytest.raises(ValueError, match="Specify exactly one of username or email"):
+        user.check_password(session, "toad_pass", username=username, email=email)
+
+
+def test_user_lookup_accepts_empty_other_identifier(session: Session) -> None:
+    user.add_user(session, "frog", "Frog", "password", "frog@test.test")
+    user.add_user(session, "deleted", "Deleted", "password", "deleted@test.test")
+    user.delete(session, "deleted")
+
+    assert not user.is_user_not_exist(session, username="frog", email="")
+    assert not user.is_user_not_exist(session, username="", email="frog@test.test")
+    assert user.is_user_not_exist(session, username="nobody", email="")
+    assert user.is_user_not_exist(session, username="", email="nobody@test.test")
+    assert user.is_user_not_exist(session, email="deleted@test.test")
+
+    for kwargs in (
+        {"username": "frog", "email": ""},
+        {"username": "", "email": "frog@test.test"},
+    ):
+        status, ok = user.check_password(session, "password", **kwargs)
+        assert not status.is_error
+        assert ok
+
+    status, ok = user.check_password(
+        session, "wrong", username="", email="frog@test.test"
+    )
+    assert not status.is_error
+    assert not ok
+
+    status, ok = user.check_password(
+        session, "password", username="", email="nobody@test.test"
+    )
+    assert not status.is_error
+    assert not ok

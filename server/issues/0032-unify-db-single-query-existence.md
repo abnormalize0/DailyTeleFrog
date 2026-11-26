@@ -11,9 +11,10 @@ date: 2026-11-23
 В `src/db/` сосуществуют два конкурирующих паттерна проверки существования записи: часть функций делает один `SELECT` с `is_deleted == False` и проверяет `row is None` (`user.preview`, `article.delete`, `comment.delete`), а большинство остальных сначала вызывает `is_*_not_exist` и сразу следом делает второй почти идентичный `SELECT` той же строки.
 
 ## Как возникает и к чему приводит
-- *Как возникает:* в `src/db/user.py` (`delete`, `change_password`, `update_email`, `update_nickname`, `update_description`, `update_avatar`, `_get_user_field`), `src/db/article.py` (`get`, `like`, `dislike`) и `src/db/comment.py` (`like`, `dislike`, `creation_date`) проверка существования вынесена в отдельный `if is_*_not_exist(...): return not_found(...)`, после чего выполняется второй `SELECT` по тому же ключу.
+- *Как возникает:* в `src/db/user.py` (`delete`, `check_password`, `change_password`, `update_email`, `update_nickname`, `update_description`, `update_avatar`, `_get_user_field`), `src/db/article.py` (`get`, `like`, `dislike`) и `src/db/comment.py` (`like`, `dislike`, `creation_date`) проверка существования вынесена в отдельный `if is_*_not_exist(...): return not_found(...)`, после чего выполняется второй `SELECT` по тому же ключу.
 - *Негативный эффект:*
   - каждая такая операция делает 2 `SELECT` вместо 1;
+  - под `READ COMMITTED` между двумя `SELECT` возникает TOCTOU-окно (например, в `check_password`: если между `is_user_not_exist` и выборкой `User.password` сменится `email` или аккаунт будет мягко удалён, второй запрос вернёт `None` или не проверит `is_deleted`);
   - в кодовой базе закреплены два разных стиля для одной и той же задачи, что путает при добавлении новых функций в `src/db/` (дополняет оптимизацию составных чтений из `issues/0022-avoid-full-row-fetches.md`).
 
 ## Желаемое поведение
