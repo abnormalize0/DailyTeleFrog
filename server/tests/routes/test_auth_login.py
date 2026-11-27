@@ -2,6 +2,7 @@
 Этот файл служит для хранения теста на API-метод POST /auth/login.
 """
 
+import time
 from collections.abc import Callable
 
 import requests
@@ -234,3 +235,45 @@ def test_auth_login_uppercase_username_normalizes_session(
         ).scalar_one()
     assert new_access_owner == username
     assert new_refresh_owner == username
+
+
+def test_auth_login_timing_equalized(add_user: Callable) -> None:
+    endpoint = "/auth/login"
+    username, password, _, _, _, _ = add_user()
+    deleted_username, deleted_password, _, deleted_email, deleted_token, _ = add_user()
+    assert_ok(
+        requests.delete(
+            LOCALHOST + "/users/me",
+            json={"password": deleted_password},
+            headers=auth_headers(deleted_token),
+        ),
+        204,
+    )
+
+    # Берём минимум из двух прогонов, чтобы единичный всплеск CPU не завышал порог.
+    baseline_runs = []
+    for _ in range(2):
+        started = time.perf_counter()
+        answer = requests.post(
+            LOCALHOST + endpoint,
+            json={"username": username, "password": password + "wrong"},
+        )
+        elapsed = time.perf_counter() - started
+        assert_error(answer, "invalid-credentials", "Incorrect login or password")
+        baseline_runs.append(elapsed)
+    baseline = min(baseline_runs)
+    assert baseline > 0.02
+
+    # Проверка, что время ответа для несуществующего и удалённого пользователя
+    # сопоставимо со временем ответа при неверном пароле существующего аккаунта.
+    for payload in (
+        {"username": "nobody", "password": password},
+        {"email": "nobody@test.test", "password": password},
+        {"username": deleted_username, "password": deleted_password},
+        {"email": deleted_email, "password": deleted_password},
+    ):
+        started = time.perf_counter()
+        answer = requests.post(LOCALHOST + endpoint, json=payload)
+        elapsed = time.perf_counter() - started
+        assert_error(answer, "invalid-credentials", "Incorrect login or password")
+        assert elapsed >= baseline * 0.4

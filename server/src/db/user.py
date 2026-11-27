@@ -21,6 +21,14 @@ from .. import request_status
 _PASSWORD_HASH_NAME = "sha256"
 _PASSWORD_HASH_ITERATIONS = 600_000
 _PASSWORD_SALT_BYTES = 16
+# Фиктивный хеш с теми же параметрами PBKDF2 для несуществующих и удалённых
+# аккаунтов: проверка против него выравнивает время ответа и не тратит CPU на
+# генерацию хеша при старте модуля.
+_DUMMY_PASSWORD_HASH = (
+    f"{_PASSWORD_HASH_ITERATIONS}"
+    f"${'00' * _PASSWORD_SALT_BYTES}"
+    f"${'00' * hashlib.new(_PASSWORD_HASH_NAME).digest_size}"
+)
 
 
 def _hash_password(password: str) -> str:
@@ -253,6 +261,8 @@ def authenticate(
     против смены пароля, удаления аккаунта и logout-all, исключает повторное
     чтение после проверки пароля и предотвращает дедлок с `update_email`
     (встречный порядок блокировок индекса `email` и `PRIMARY`).
+    Даже если пользователь не найден или удалён, проверка PBKDF2 всё равно
+    выполняется против фиктивного хеша для защиты от timing-атак.
 
     Args:
         session: сессия SQLAlchemy.
@@ -277,20 +287,21 @@ def authenticate(
     """
     if bool(username) == bool(email):
         raise ValueError("Specify exactly one of username or email")
+    row = None
+    email_matches = False
     if username:
         target_username = username.lower()
-        if is_user_not_exist(session=session, username=target_username):
-            return request_status.Status.ok(), None
-        row = (
-            session.query(scheme.User.username, scheme.User.password)
-            .where(
-                scheme.User.username == target_username,
-                scheme.User.is_deleted.is_(False),
+        if not is_user_not_exist(session=session, username=target_username):
+            row = (
+                session.query(scheme.User.username, scheme.User.password)
+                .where(
+                    scheme.User.username == target_username,
+                    scheme.User.is_deleted.is_(False),
+                )
+                .with_for_update(read=not for_update)
+                .first()
             )
-            .with_for_update(read=not for_update)
-            .first()
-        )
-        email_matches = True
+            email_matches = True
     else:
         # Сначала находим username без блокировки, а блокируем строго по PRIMARY KEY
         # без email в WHERE: иначе оптимизатор пошёл бы по индексу email (email ->
@@ -300,23 +311,28 @@ def authenticate(
             .where(scheme.User.email == email, scheme.User.is_deleted.is_(False))
             .scalar()
         )
-        if found_username is None:
-            return request_status.Status.ok(), None
-        row = (
-            session.query(
-                scheme.User.username,
-                scheme.User.password,
-                (scheme.User.email == email).label("email_matches"),
+        if found_username is not None:
+            row = (
+                session.query(
+                    scheme.User.username,
+                    scheme.User.password,
+                    (scheme.User.email == email).label("email_matches"),
+                )
+                .where(
+                    scheme.User.username == found_username,
+                    scheme.User.is_deleted.is_(False),
+                )
+                .with_for_update(read=not for_update)
+                .first()
             )
-            .where(
-                scheme.User.username == found_username,
-                scheme.User.is_deleted.is_(False),
-            )
-            .with_for_update(read=not for_update)
-            .first()
-        )
-        email_matches = bool(row is not None and row.email_matches)
-    if row is None or not email_matches or not _verify_password(password, row.password):
+            email_matches = bool(row is not None and row.email_matches)
+    # Запускаем PBKDF2 даже при отсутствии пользователя или его удалении, чтобы
+    # время ответа не раскрывало существование аккаунта (timing-атака).
+    stored_hash = (
+        row.password if row is not None and email_matches else _DUMMY_PASSWORD_HASH
+    )
+    password_ok = _verify_password(password, stored_hash)
+    if row is None or not email_matches or not password_ok:
         return request_status.Status.ok(), None
     return request_status.Status.ok(), row.username.lower()
 
@@ -346,7 +362,8 @@ def check_password(
         Кортеж (`Status`, bool):
             - OK и `True`/`False` — совпадает ли password с паролем найденного
               пользователя.
-            - OK и `False` — если пользователь не найден.
+            - OK и `False` — если пользователь не найден или удалён (PBKDF2 при
+              этом выполняется против фиктивного хеша для защиты от timing-атак).
 
     Raises:
         ValueError: если переданы оба непустых идентификатора или не передан ни один.

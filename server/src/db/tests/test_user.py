@@ -4,6 +4,7 @@
 """
 
 import hashlib
+import time
 from collections.abc import Callable
 
 import pytest
@@ -21,6 +22,16 @@ def test_hash_password_format() -> None:
     assert len(salt) == user._PASSWORD_SALT_BYTES * 2
     # 32 байта SHA-256 в hex.
     assert len(digest) == 64
+
+
+def test_dummy_password_hash_format() -> None:
+    iterations, salt, digest = user._DUMMY_PASSWORD_HASH.split("$")
+
+    assert int(iterations) == user._PASSWORD_HASH_ITERATIONS
+    assert len(salt) == user._PASSWORD_SALT_BYTES * 2
+    assert len(digest) == hashlib.new(user._PASSWORD_HASH_NAME).digest_size * 2
+    bytes.fromhex(salt)
+    bytes.fromhex(digest)
 
 
 def test_hash_password_is_salted() -> None:
@@ -410,3 +421,44 @@ def test_authenticate(session: Session) -> None:
             ValueError, match="Specify exactly one of username or email"
         ):
             user.authenticate(session, "password", username=username, email=email)
+
+
+def test_authenticate_and_check_password_run_pbkdf2_for_missing_and_deleted_users(
+    session: Session,
+) -> None:
+    user.add_user(session, "frog", "Frog", "password", "frog@test.test")
+    user.add_user(session, "deleted", "Deleted", "password", "deleted@test.test")
+    user.delete(session, "deleted")
+
+    # Берём минимум CPU-времени из двух прогонов, чтобы задержки ОС/БД и
+    # единичный всплеск CPU не искажали порог.
+    baseline_runs = []
+    for _ in range(2):
+        started = time.process_time()
+        status, result = user.authenticate(session, "wrong", username="frog")
+        elapsed = time.process_time() - started
+        assert not status.is_error
+        assert result is None
+        baseline_runs.append(elapsed)
+    baseline = min(baseline_runs)
+    assert baseline > 0.02
+
+    for kwargs in (
+        {"username": "nobody"},
+        {"email": "nobody@test.test"},
+        {"username": "deleted"},
+        {"email": "deleted@test.test"},
+    ):
+        started = time.process_time()
+        status, result = user.authenticate(session, "password", **kwargs)
+        elapsed = time.process_time() - started
+        assert not status.is_error
+        assert result is None
+        assert elapsed >= baseline * 0.4
+
+        started = time.process_time()
+        status, ok = user.check_password(session, "password", **kwargs)
+        elapsed = time.process_time() - started
+        assert not status.is_error
+        assert not ok
+        assert elapsed >= baseline * 0.4
