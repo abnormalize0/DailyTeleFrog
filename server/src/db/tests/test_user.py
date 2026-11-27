@@ -391,3 +391,22 @@ def test_user_lookup_accepts_empty_other_identifier(session: Session) -> None:
     )
     assert not status.is_error
     assert not ok
+
+
+def test_authenticate(session: Session) -> None:
+    user.add_user(session, "frog", "Frog", "password", "frog@test.test")
+    user.add_user(session, "deleted", "Deleted", "password", "deleted@test.test")
+    user.delete(session, "deleted")
+
+    assert user.authenticate(session, "password", username="FROG")[1] == "frog"
+    assert user.authenticate(session, "password", email="FROG@test.test")[1] == "frog"
+    assert user.authenticate(session, "wrong", username="frog")[1] is None
+    assert user.authenticate(session, "password", username="nobody")[1] is None
+    assert user.authenticate(session, "password", username="deleted")[1] is None
+    assert user.authenticate(session, "password", email="deleted@test.test")[1] is None
+
+    for username, email in (("frog", "frog@test.test"), (None, None), ("", "")):
+        with pytest.raises(
+            ValueError, match="Specify exactly one of username or email"
+        ):
+            user.authenticate(session, "password", username=username, email=email)

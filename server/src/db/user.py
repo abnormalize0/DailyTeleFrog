@@ -238,6 +238,89 @@ def get_username_by_email(session: Session, email: str) -> str | None:
     )
 
 
+def authenticate(
+    session: Session,
+    password: str,
+    username: str | None = None,
+    email: str | None = None,
+    for_update: bool = False,
+) -> tuple[request_status.Status, str | None]:
+    """Проверяет пароль пользователя, найденного по username или email, под
+    блокировкой строки пользователя и возвращает его username.
+
+    Чтение username, хеша пароля и проверка is_deleted выполняются с блокировкой
+    строго по первичному ключу (`PRIMARY`): это закрывает гонку на время PBKDF2
+    против смены пароля, удаления аккаунта и logout-all, исключает повторное
+    чтение после проверки пароля и предотвращает дедлок с `update_email`
+    (встречный порядок блокировок индекса `email` и `PRIMARY`).
+
+    Args:
+        session: сессия SQLAlchemy.
+        password: пароль для проверки.
+        username: имя пользователя для поиска (взаимоисключающе с email;
+            допустима пустая строка, если передан непустой email).
+        email: email пользователя для поиска (взаимоисключающе с username;
+            допустима пустая строка, если передан непустой username).
+        for_update: если `True`, берёт эксклюзивную блокировку (`FOR UPDATE`, для
+            операций, меняющих строку `users`); если `False`, берёт разделяемую
+            (`FOR SHARE`, для `login` — не блокирует параллельные входы, статьи и
+            реакции, но ждёт `FOR UPDATE`).
+
+    Returns:
+        Кортеж (`Status`, str | None):
+            - OK и username (в нижнем регистре) — если пользователь найден, не удалён
+              и password совпадает.
+            - OK и `None` — если пользователь не найден, удалён или пароль неверен.
+
+    Raises:
+        ValueError: если переданы оба непустых идентификатора или не передан ни один.
+    """
+    if bool(username) == bool(email):
+        raise ValueError("Specify exactly one of username or email")
+    if username:
+        target_username = username.lower()
+        if is_user_not_exist(session=session, username=target_username):
+            return request_status.Status.ok(), None
+        row = (
+            session.query(scheme.User.username, scheme.User.password)
+            .where(
+                scheme.User.username == target_username,
+                scheme.User.is_deleted.is_(False),
+            )
+            .with_for_update(read=not for_update)
+            .first()
+        )
+        email_matches = True
+    else:
+        # Сначала находим username без блокировки, а блокируем строго по PRIMARY KEY
+        # без email в WHERE: иначе оптимизатор пошёл бы по индексу email (email ->
+        # PRIMARY), что даёт дедлок с update_email (PRIMARY -> email).
+        found_username = (
+            session.query(scheme.User.username)
+            .where(scheme.User.email == email, scheme.User.is_deleted.is_(False))
+            .scalar()
+        )
+        if found_username is None:
+            return request_status.Status.ok(), None
+        row = (
+            session.query(
+                scheme.User.username,
+                scheme.User.password,
+                (scheme.User.email == email).label("email_matches"),
+            )
+            .where(
+                scheme.User.username == found_username,
+                scheme.User.is_deleted.is_(False),
+            )
+            .with_for_update(read=not for_update)
+            .first()
+        )
+        email_matches = bool(row is not None and row.email_matches)
+    if row is None or not email_matches or not _verify_password(password, row.password):
+        return request_status.Status.ok(), None
+    return request_status.Status.ok(), row.username.lower()
+
+
 def check_password(
     session: Session,
     password: str,
@@ -245,6 +328,11 @@ def check_password(
     email: str | None = None,
 ) -> tuple[request_status.Status, bool]:
     """Проверяет пароль пользователя, найденного по username или email.
+
+    Блокирует строку пользователя (FOR UPDATE) до конца транзакции, чтобы
+    последующие изменения (удаление аккаунта, смена пароля) выполнялись
+    последовательно с параллельными проверками и выпуском токенов и без
+    дедлока повышения блокировки S -> X.
 
     Args:
         session: сессия SQLAlchemy.
@@ -263,28 +351,14 @@ def check_password(
     Raises:
         ValueError: если переданы оба непустых идентификатора или не передан ни один.
     """
-    if bool(username) == bool(email):
-        raise ValueError("Specify exactly one of username or email")
-    if username:
-        username = username.lower()
-    if is_user_not_exist(session=session, username=username, email=email):
-        return request_status.Status.ok(), False
-    if username:
-        user_password = (
-            session.query(scheme.User.password)
-            .where(scheme.User.username == username)
-            .scalar()
-        )
-    else:
-        user_password = (
-            session.query(scheme.User.password)
-            .where(scheme.User.email == email)
-            .scalar()
-        )
-    return (
-        request_status.Status.ok(),
-        _verify_password(password, user_password),
+    status, authenticated_username = authenticate(
+        session=session,
+        password=password,
+        username=username,
+        email=email,
+        for_update=True,
     )
+    return status, authenticated_username is not None
 
 
 def change_password(
@@ -460,6 +534,17 @@ def sub_user(session: Session, username: str, sub: str) -> request_status.Status
     # отсекаем до is_user_not_exist, которая требует непустой идентификатор.
     if not sub or is_user_not_exist(session=session, username=sub):
         return _unknown_target_user(sub, "/sub-users")
+    # Берём FOR SHARE на целевом пользователе до изменения связей: выравнивает
+    # порядок блокировок с user.delete (users -> связи), исключая deadlock 1213,
+    # и не даёт сохранить подписку на удаляемый параллельно аккаунт.
+    target = (
+        session.query(scheme.User.username)
+        .where(scheme.User.username == sub, scheme.User.is_deleted.is_(False))
+        .with_for_update(read=True)
+        .first()
+    )
+    if target is None:
+        return _unknown_target_user(sub, "/sub-users")
     block_user = (
         session.query(scheme.UserBlacklist)
         .where(
@@ -503,6 +588,17 @@ def block_user(
     # Пустая строка может прийти из схемы PATCH /users/me или прямого вызова;
     # отсекаем до is_user_not_exist, которая требует непустой идентификатор.
     if not blocked_user or is_user_not_exist(session=session, username=blocked_user):
+        return _unknown_target_user(blocked_user, "/blocked-users")
+    # Берём FOR SHARE на целевом пользователе до изменения связей: выравнивает
+    # порядок блокировок с user.delete (users -> связи), исключая deadlock 1213,
+    # и не даёт сохранить блокировку на удаляемый параллельно аккаунт.
+    target = (
+        session.query(scheme.User.username)
+        .where(scheme.User.username == blocked_user, scheme.User.is_deleted.is_(False))
+        .with_for_update(read=True)
+        .first()
+    )
+    if target is None:
         return _unknown_target_user(blocked_user, "/blocked-users")
     sub_user = (
         session.query(scheme.UserSubscription)

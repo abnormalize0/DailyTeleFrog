@@ -39,8 +39,9 @@ def api_auth_logout_all_post() -> ResponseReturnValue:
     if error:
         return error
     with get_session() as session:
-        username, auth_error = require_auth(session)
+        username, auth_error = require_auth(session, lock_user=True)
         if auth_error:
+            session.rollback()
             return auth_error
         auth.revoke_all_tokens(session, username)
         session.commit()

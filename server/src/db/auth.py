@@ -8,6 +8,7 @@ import secrets
 import time
 
 from . import scheme
+from .rows import lock_user
 from .. import config
 from .. import request_status
 from sqlalchemy.orm import Session
@@ -86,8 +87,9 @@ def resolve_access_token(
 
     Returns:
         Кортеж (`Status`, str):
-            - OK и username — если токен существует и не истёк.
-            - InvalidToken и `None` — если токен отсутствует, не найден или истёк.
+            - OK и username — если токен существует, не истёк и аккаунт не удалён.
+            - InvalidToken и `None` — если токен отсутствует, не найден, истёк или
+              аккаунт владельца удалён.
     """
     return _resolve_token(session, scheme.AccessToken, token)
 
@@ -103,8 +105,9 @@ def resolve_refresh_token(
 
     Returns:
         Кортеж (`Status`, str):
-            - OK и username — если токен существует и не истёк.
-            - InvalidToken и `None` — если токен отсутствует, не найден или истёк.
+            - OK и username — если токен существует, не истёк и аккаунт не удалён.
+            - InvalidToken и `None` — если токен отсутствует, не найден, истёк или
+              аккаунт владельца удалён.
     """
     return _resolve_token(session, scheme.RefreshToken, token)
 
@@ -112,7 +115,8 @@ def resolve_refresh_token(
 def _resolve_token(
     session: Session, model: type, token: str
 ) -> tuple[request_status.Status, str | None]:
-    """Общая проверка для AccessToken/RefreshToken: найден и не истёк ли токен.
+    """Общая проверка для AccessToken/RefreshToken: токен найден, не истёк, а
+    аккаунт владельца не помечен удалённым.
 
     Args:
         session: сессия SQLAlchemy.
@@ -121,8 +125,9 @@ def _resolve_token(
 
     Returns:
         Кортеж (`Status`, str):
-            - OK и username — если токен существует и не истёк.
-            - InvalidToken и `None` — если токен отсутствует, не найден или истёк.
+            - OK и username — если токен существует, не истёк и аккаунт не удалён.
+            - InvalidToken и `None` — если токен отсутствует, не найден, истёк или
+              аккаунт владельца удалён.
     """
     if not token:
         return (
@@ -132,7 +137,15 @@ def _resolve_token(
             ),
             None,
         )
-    row = session.query(model).where(model.token == token).scalar()
+    # Выбираем скалярные колонки вместо ORM-объекта, чтобы при повторной проверке
+    # под блокировкой в READ COMMITTED читать актуальное состояние БД, а не кэш
+    # identity map. Проверка User.is_deleted выполняется в этом же запросе.
+    row = (
+        session.query(model.username, model.expires_at)
+        .join(scheme.User, model.username == scheme.User.username)
+        .where(model.token == token, scheme.User.is_deleted.is_(False))
+        .first()
+    )
     if row is None or row.expires_at < round(time.time() * 1000):
         return (
             request_status.Status.error(
@@ -177,14 +190,12 @@ def revoke_refresh_token(session: Session, token: str) -> None:
     Returns:
         None
     """
-    row = (
-        session.query(scheme.RefreshToken)
-        .where(scheme.RefreshToken.token == token)
-        .scalar()
-    )
-    if row is not None:
-        session.delete(row)
-        session.flush()
+    # Массовый DELETE вместо SELECT + session.delete: при параллельных logout и
+    # refresh/logout-all последний не падает с StaleDataError на уже удалённой строке.
+    session.query(scheme.RefreshToken).where(
+        scheme.RefreshToken.token == token
+    ).delete()
+    session.flush()
 
 
 def revoke_access_token(session: Session, token: str) -> None:
@@ -197,19 +208,15 @@ def revoke_access_token(session: Session, token: str) -> None:
     Returns:
         None
     """
-    row = (
-        session.query(scheme.AccessToken)
-        .where(scheme.AccessToken.token == token)
-        .scalar()
-    )
-    if row is not None:
-        session.delete(row)
-        session.flush()
+    session.query(scheme.AccessToken).where(scheme.AccessToken.token == token).delete()
+    session.flush()
 
 
 def revoke_all_tokens(session: Session, username: str) -> None:
     """Удаляет все access и refresh токены пользователя (все сессии сразу).
 
+    Перед удалением блокирует строку пользователя (FOR UPDATE), чтобы сериализоваться
+    с параллельными login и refresh и не оставить активных токенов после отзыва.
     Используется при смене пароля, удалении аккаунта и /auth/logout-all: остальные
     устройства/вкладки должны залогиниться заново.
 
@@ -221,6 +228,8 @@ def revoke_all_tokens(session: Session, username: str) -> None:
         None
     """
     username = username.lower()
+    # Сериализуем отзыв с параллельным выпуском токенов (login / refresh).
+    lock_user(session, username)
     session.query(scheme.AccessToken).where(
         scheme.AccessToken.username == username
     ).delete()

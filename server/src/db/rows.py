@@ -40,6 +40,28 @@ def add_if_missing(session: Session, model: type, **columns: str) -> None:
         pass
 
 
+def lock_user(session: Session, username: str) -> None:
+    """Блокирует строку пользователя до конца транзакции (FOR UPDATE).
+
+    Используется для сериализации операций, затрагивающих состояние аккаунта и его
+    токенов (refresh, logout-all, смена пароля, удаление аккаунта, реакции;
+    login использует FOR SHARE в user.authenticate).
+    При уровне изоляции READ COMMITTED (см. shared.get_session) запрос, дождавшийся
+    блокировки, видит актуальные закоммиченные изменения предыдущего запроса.
+
+    Args:
+        session: сессия SQLAlchemy.
+        username: имя пользователя, чью строку нужно заблокировать.
+
+    Returns:
+        None
+    """
+    username = username.lower()
+    session.query(scheme.User.username).where(
+        scheme.User.username == username
+    ).with_for_update().first()
+
+
 def lock_user_reactions(session: Session, username: str) -> None:
     """Выстраивает в очередь изменения реакций одного пользователя до конца транзакции.
 
@@ -59,7 +81,4 @@ def lock_user_reactions(session: Session, username: str) -> None:
     Returns:
         None
     """
-    username = username.lower()
-    session.query(scheme.User.username).where(
-        scheme.User.username == username
-    ).with_for_update().first()
+    lock_user(session, username)

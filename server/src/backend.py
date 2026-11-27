@@ -6,7 +6,7 @@ import json
 
 from sqlalchemy.orm import Session
 
-from .db import user, article, comment, auth
+from .db import user, article, comment, auth, rows
 from . import config
 from . import request_status
 
@@ -196,12 +196,12 @@ def login(
     # а в токены должен записываться канонический username в нижнем регистре.
     username = parameters["username"].lower()
     email = parameters["email"]
-    status, is_password_correct = user.check_password(
+    status, authenticated_username = user.authenticate(
         session=session, password=password, username=username, email=email
     )
     if status.is_error:
         return status, None
-    if not is_password_correct:
+    if authenticated_username is None:
         return (
             request_status.Status.error(
                 request_status.ErrorType.InvalidCredentials,
@@ -209,12 +209,10 @@ def login(
             ),
             None,
         )
-    if not username:
-        username = user.get_username_by_email(session, email)
-    auth.delete_expired_tokens(session, username)
+    auth.delete_expired_tokens(session, authenticated_username)
     return request_status.Status.ok(), {
-        "access_token": auth.create_access_token(session, username),
-        "refresh_token": auth.create_refresh_token(session, username),
+        "access_token": auth.create_access_token(session, authenticated_username),
+        "refresh_token": auth.create_refresh_token(session, authenticated_username),
     }
 
 
@@ -236,8 +234,15 @@ def refresh_session(
     status, username = auth.resolve_refresh_token(session, refresh_token)
     if status.is_error:
         return status, None
-    auth.revoke_refresh_token(session, refresh_token)
+    # Блокируем строку пользователя и перепроверяем токен уже под блокировкой:
+    # при READ COMMITTED повторное чтение видит коммиты параллельных refresh,
+    # logout-all, смены пароля и удаления аккаунта, которые завершились до нас.
+    rows.lock_user(session, username)
+    status, username = auth.resolve_refresh_token(session, refresh_token)
+    if status.is_error:
+        return status, None
     auth.delete_expired_tokens(session, username)
+    auth.revoke_refresh_token(session, refresh_token)
     return request_status.Status.ok(), {
         "access_token": auth.create_access_token(session, username),
         "refresh_token": auth.create_refresh_token(session, username),

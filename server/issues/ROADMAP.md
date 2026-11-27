@@ -1,6 +1,6 @@
 # Порядок решения задач бэкенда
 
-Рекомендуемый порядок выполнения открытых задач из `issues/` (`0003`–`0044`).
+Рекомендуемый порядок выполнения открытых задач из `issues/` (`0003`–`0045`).
 
 **Принцип сортировки:** сначала ускорение тестов, расчистка мёртвого кода и базовые контракты слоёв и ошибок, чтобы не переписывать код и тесты дважды; затем валидация входных данных в уже едином формате; далее критичные баги корректности, гонок и безопасности; затем схема БД и производительность; после этого — улучшения API-контракта (требующие синхронизации с клиентом), продакшн-инфраструктура и в конце — новые продуктовые фичи.
 
@@ -48,13 +48,14 @@
 
 16. ~~[0008](done/0008-case-insensitive-comparisons.md) — устранить расхождение сравнения строк (регистра) между MySQL и Python.~~ *(выполнено)*
 17. ~~[0021](done/0021-user-lookup-ambiguous-args.md) — запретить одновременную передачу `username` и `email` в `is_user_not_exist` и `check_password`.~~ *(выполнено)*
-18. [0012](0012-auth-revocation-race.md) — исключить гонку отзыва токенов и удаления аккаунта против `login` и `refresh`.
+18. ~~[0012](done/0012-auth-revocation-race.md) — исключить гонку отзыва токенов и удаления аккаунта против `login` и `refresh`.~~ *(выполнено)*
 19. [0017](0017-login-timing-attack.md) — выровнять время ответа `POST /auth/login` при несуществующем пользователе (защита от timing-атаки).
 20. [0006](0006-account-security.md) — усилить безопасность аккаунтов (защита refresh-токенов, отзыв чужого токена в `POST /auth/logout`, rate limiting).
 21. [0009](0009-subscription-blacklist-race.md) — исключить одновременную подписку и блокировку при параллельных запросах.
 22. [0019](0019-deleted-author-feed-filter-leak.md) — скрыть авторство удалённых аккаунтов в фильтрах ленты `GET /articles`.
 23. [0013](0013-comment-tree-iterative.md) — убрать рекурсию (`500 RecursionError`), `O(N²)` и недетерминированный порядок при сборке дерева комментариев *(подготовка к [0026](0026-enrich-article-comments-tree.md))*.
 24. [0044](0044-articles-filter-lists-max-items.md) — ограничить длину списочных фильтров в `GET /articles` (`max_items`), чтобы исключить `500` от лимита таблиц MySQL при большом числе `include_tags`.
+25. [0045](0045-auth-concurrency-tests-hardening.md) — добавить unit-тест `require_auth(lock_user=True)` и убрать зависимость от `time.sleep` в e2e-тестах гонок авторизации.
 
 ---
 
@@ -62,20 +63,20 @@
 
 Сначала переименовывается таблица и унифицируются запросы существования, затем оптимизируются выборки и агрегации.
 
-25. [0035](0035-rename-article-preview-table-plural.md) — переименовать таблицу `article_preview` в `article_previews` *(до рефакторинга запросов к статьям)*.
-26. [0032](0032-unify-db-single-query-existence.md) — унифицировать проверку существования в `src/db/` на одиночный `SELECT`.
-27. [0022](0022-avoid-full-row-fetches.md) — убрать лишние полные вычитки `Article`/`User` и перевести сборку ленты на пакетные запросы.
-28. [0023](0023-consistent-reaction-counts.md) — считать лайки, дизлайки и рейтинг согласованно без повторных `COUNT(*)`.
-29. [0024](0024-sql-pagination-and-tie-breaker.md) — перенести пагинацию ленты в SQL (`LIMIT`/`OFFSET`) и добавить вторичный ключ сортировки *(после [0008](done/0008-case-insensitive-comparisons.md) и [0011](0011-articles-indexes-validation.md))*.
-30. [0025](0025-avoid-triple-body-serialization.md) — убрать повторную JSON-сериализацию `body` и `preview` при публикации статьи.
-31. [0027](0027-optimize-user-get-rating.md) — перевести расчёт `user.get_rating` с выгрузки ID и `IN (...)` на SQL `JOIN` + `COUNT`.
+26. [0035](0035-rename-article-preview-table-plural.md) — переименовать таблицу `article_preview` в `article_previews` *(до рефакторинга запросов к статьям)*.
+27. [0032](0032-unify-db-single-query-existence.md) — унифицировать проверку существования в `src/db/` на одиночный `SELECT`.
+28. [0022](0022-avoid-full-row-fetches.md) — убрать лишние полные вычитки `Article`/`User` и перевести сборку ленты на пакетные запросы.
+29. [0023](0023-consistent-reaction-counts.md) — считать лайки, дизлайки и рейтинг согласованно без повторных `COUNT(*)`.
+30. [0024](0024-sql-pagination-and-tie-breaker.md) — перенести пагинацию ленты в SQL (`LIMIT`/`OFFSET`) и добавить вторичный ключ сортировки *(после [0008](done/0008-case-insensitive-comparisons.md) и [0011](0011-articles-indexes-validation.md))*.
+31. [0025](0025-avoid-triple-body-serialization.md) — убрать повторную JSON-сериализацию `body` и `preview` при публикации статьи.
+32. [0027](0027-optimize-user-get-rating.md) — перевести расчёт `user.get_rating` с выгрузки ID и `IN (...)` на SQL `JOIN` + `COUNT`.
 
 ---
 
 ## Этап 5. Улучшение API-контракта (требует синхронизации с клиентом)
 
-32. [0026](0026-enrich-article-comments-tree.md) — отдавать метаданные и реакции комментариев сразу в `GET /articles/{id}` *(после [0013](0013-comment-tree-iterative.md) и [0023](0023-consistent-reaction-counts.md))*.
-33. [0015](0015-subscriptions-blacklists-rest-endpoints.md) — вынести подписки и блокировки в отдельные REST-эндпоинты с поддержкой снятия *(после [0008](done/0008-case-insensitive-comparisons.md) и [0009](0009-subscription-blacklist-race.md))*.
+33. [0026](0026-enrich-article-comments-tree.md) — отдавать метаданные и реакции комментариев сразу в `GET /articles/{id}` *(после [0013](0013-comment-tree-iterative.md) и [0023](0023-consistent-reaction-counts.md))*.
+34. [0015](0015-subscriptions-blacklists-rest-endpoints.md) — вынести подписки и блокировки в отдельные REST-эндпоинты с поддержкой снятия *(после [0008](done/0008-case-insensitive-comparisons.md) и [0009](0009-subscription-blacklist-race.md))*.
 
 ---
 
@@ -83,19 +84,19 @@
 
 Сначала готовятся инициализация пула БД, CORS и потоковое логирование, затем сервер переводится на Gunicorn, и в конце фиксируются зависимости и очищаются Docker-образы.
 
-34. [0037](0037-sqlalchemy-pool-and-engine-init.md) — явная `init_db(url)` на старте + `pool_pre_ping=True`, `pool_recycle=3600` *(готовит `shared.py` к WSGI-фабрике)*.
-35. [0039](0039-restrict-cors-origins.md) — ограничить CORS через `CORS_ORIGINS` (fail-closed).
-36. [0040](0040-logging-decorators-and-stdout-stream.md) — переставить `@log.safe_api` внутрь, добавить `@functools.wraps`, перевести логи на `StreamHandler` (`stdout`/`stderr`) *(готовит логирование к многопроцессному Gunicorn и [0007](0007-sensible-logging.md))*.
-37. [0007](0007-sensible-logging.md) — писать в лог только операции и полезные данные (без 16 МБ тел) + `MAX_CONTENT_LENGTH` *(после [0040](0040-logging-decorators-and-stdout-stream.md))*.
-38. [0036](0036-gunicorn-wsgi-server.md) — перевести продакшн и e2e-тесты на WSGI-сервер Gunicorn *(опирается на `0037`, `0039`, `0040`, `0041`)*.
-39. [0038](0038-docker-secrets-and-pinned-requirements.md) — убрать секреты из Docker-образов, добавить `.dockerignore`, зафиксировать версии и разделить `requirements.txt` / `requirements-dev.txt` с multi-stage сборкой *(после `0036`, чтобы `gunicorn` сразу зафиксировать в `requirements.txt`, и после `0041`, чтобы тесты не искали `/app/.env`)*.
+35. [0037](0037-sqlalchemy-pool-and-engine-init.md) — явная `init_db(url)` на старте + `pool_pre_ping=True`, `pool_recycle=3600` *(готовит `shared.py` к WSGI-фабрике)*.
+36. [0039](0039-restrict-cors-origins.md) — ограничить CORS через `CORS_ORIGINS` (fail-closed).
+37. [0040](0040-logging-decorators-and-stdout-stream.md) — переставить `@log.safe_api` внутрь, добавить `@functools.wraps`, перевести логи на `StreamHandler` (`stdout`/`stderr`) *(готовит логирование к многопроцессному Gunicorn и [0007](0007-sensible-logging.md))*.
+38. [0007](0007-sensible-logging.md) — писать в лог только операции и полезные данные (без 16 МБ тел) + `MAX_CONTENT_LENGTH` *(после [0040](0040-logging-decorators-and-stdout-stream.md))*.
+39. [0036](0036-gunicorn-wsgi-server.md) — перевести продакшн и e2e-тесты на WSGI-сервер Gunicorn *(опирается на `0037`, `0039`, `0040`, `0041`)*.
+40. [0038](0038-docker-secrets-and-pinned-requirements.md) — убрать секреты из Docker-образов, добавить `.dockerignore`, зафиксировать версии и разделить `requirements.txt` / `requirements-dev.txt` с multi-stage сборкой *(после `0036`, чтобы `gunicorn` сразу зафиксировать в `requirements.txt`, и после `0041`, чтобы тесты не искали `/app/.env`)*.
 
 ---
 
 ## Этап 7. Новые продуктовые фичи
 
-40. [0005](0005-article-drafts.md) — добавить черновики статей.
-41. [0003](0003-communities.md) — добавить сообщества.
+41. [0005](0005-article-drafts.md) — добавить черновики статей.
+42. [0003](0003-communities.md) — добавить сообщества.
 
 ---
 

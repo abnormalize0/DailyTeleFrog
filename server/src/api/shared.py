@@ -16,7 +16,7 @@ import re
 import unicodedata
 
 from .. import request_status
-from ..db import auth
+from ..db import auth, rows
 from . import api_info
 from .errors import problem_response
 
@@ -128,21 +128,31 @@ def get_bearer_token() -> str:
     return auth_header[len(prefix) :]
 
 
-def require_auth(session: Session) -> tuple:
+def require_auth(session: Session, lock_user: bool = False) -> tuple:
     """Резолвит access token текущего запроса в username — для методов,
     доступных только авторизованным пользователям.
 
     Args:
         session: сессия SQLAlchemy, используется для проверки токена.
+        lock_user: если `True`, блокирует строку пользователя (FOR UPDATE) и
+            перепроверяет токен под блокировкой, чтобы при READ COMMITTED
+            отклонить токен, уже отозванный параллельной операцией (logout-all,
+            смена пароля, удаление аккаунта).
 
     Returns:
         Кортеж (str, None) — username, если токен валиден.
-        Кортеж (None, str) — ответ с ошибкой 401, если токена нет, он не
-        найден или истёк; вызывающий должен сразу вернуть этот ответ.
+        Кортеж (None, Response) — ответ с ошибкой 401, если токена нет, он не
+        найден, истёк или аккаунт удалён; вызывающий должен сразу вернуть этот ответ.
     """
-    status, username = auth.resolve_access_token(session, get_bearer_token())
+    token = get_bearer_token()
+    status, username = auth.resolve_access_token(session, token)
     if status.is_error:
         return None, problem_response(status)
+    if lock_user:
+        rows.lock_user(session, username)
+        status, username = auth.resolve_access_token(session, token)
+        if status.is_error:
+            return None, problem_response(status)
     return username, None
 
 

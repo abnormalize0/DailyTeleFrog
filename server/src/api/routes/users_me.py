@@ -181,8 +181,9 @@ def api_users_me_delete() -> ResponseReturnValue:
     if error:
         return error
     with get_session() as session:
-        username, auth_error = require_auth(session)
+        username, auth_error = require_auth(session, lock_user=True)
         if auth_error:
+            session.rollback()
             return auth_error
         status = backend.delete_user(session, parameters["password"], username)
         if status.is_error:

@@ -6,7 +6,7 @@ implementation: done
 areas: [api, tests]
 files: [server/src/api/routes/, server/src/api/shared.py, server/src/backend.py, server/src/db/, server/src/db/rows.py, server/src/api/tests/test_transactions.py, server/src/conftest.py, server/src/tests/helpers.py, server/tests/routes/test_atomicity.py, server/tests/routes/test_concurrency.py, server/tests/conftest.py, server/Makefile]
 date: 2026-11-01
-updated: 2026-11-23
+updated: 2026-11-26
 superseded_by:
 supersedes:
 ---
@@ -105,7 +105,7 @@ supersedes:
 - Для клиента меняется одно: при проигранной гонке регистрации он получает 409 с текстом `Username or email is already taken`. Параллельные запросы, которые раньше давали 500, теперь отвечают обычными кодами.
 - Просроченные токены удаляются при успешных `login` и `refresh`. Токены пользователей, которые больше не вернутся, остаются в таблицах (см. `issues/0006-account-security.md`).
 - Прогон e2e-тестов стал дольше примерно на две с половиной минуты.
-- `POST /auth/refresh` с одним токеном при одновременных запросах успешно отвечает больше одного раза: во всех 15 раундах по 8 запросов. Это оставлено осознанно: последовательный повтор отклоняется, а строгая одноразовость выбросила бы из аккаунта вторую вкладку. Решается вместе с обнаружением кражи в `issues/0006-account-security.md`.
+- `POST /auth/refresh` с одним токеном при одновременных запросах строго сериализуется через `rows.lock_user`: выигрывает ровно один запрос (`200`), остальные получают `401 /errors/invalid-token` (см. `issues/done/0012-auth-revocation-race.md`). Вопрос о том, как при добавлении обнаружения кражи не выбрасывать из аккаунта вторую вкладку, остаётся в `issues/0006-account-security.md`.
 - Пропускная способность встроенного сервера Flask около 20 запросов в секунду на `GET /articles/{id}`. Дальше ответы замедляются до 1–3 секунд, ошибок при этом нет.
 
 ## Что осталось сделать

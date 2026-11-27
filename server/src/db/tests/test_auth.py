@@ -192,3 +192,22 @@ def test_tokens_normalize_username_to_lowercase(
     auth.revoke_all_tokens(session, "FROG")
     assert session.query(scheme.AccessToken).count() == 0
     assert session.query(scheme.RefreshToken).count() == 0
+
+
+@pytest.mark.parametrize("model, create, resolve", TOKEN_KINDS)
+def test_deleted_user_token_is_rejected(
+    session: Session,
+    add_user: Callable,
+    model: type,
+    create: Callable,
+    resolve: Callable,
+) -> None:
+    add_user("frog")
+    token = create(session, "frog")
+    session.get(scheme.User, "frog").is_deleted = True
+    session.flush()
+
+    status, username = resolve(session, token)
+
+    assert_error_status(status, ErrorType.InvalidToken, "Missing or invalid token")
+    assert username is None

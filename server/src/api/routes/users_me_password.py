@@ -55,8 +55,9 @@ def api_users_me_password_put() -> ResponseReturnValue:
     if error:
         return error
     with get_session() as session:
-        username, auth_error = require_auth(session)
+        username, auth_error = require_auth(session, lock_user=True)
         if auth_error:
+            session.rollback()
             return auth_error
         status = backend.change_password(
             session,
